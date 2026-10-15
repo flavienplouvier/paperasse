@@ -669,6 +669,7 @@ export default function App() {
         color: color ?? "#000000",
         opacity: 1,
         rotation: run.angle,
+        ...(real ? { originalFont: { name: real, bold: info.bold, italic: info.italic } } : {}),
         ...(embedded ? { embedded } : {}),
       };
       // Ouvert en édition seulement : rien n'est enregistré tant que le texte n'a pas changé.

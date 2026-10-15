@@ -130,6 +130,20 @@ export async function loadLocalFonts(): Promise<number> {
   return added;
 }
 
+/**
+ * Recharge les polices de l'ordinateur sans rien demander si l'utilisateur a
+ * déjà accordé l'accès lors d'une visite précédente.
+ */
+export async function loadLocalFontsIfGranted(): Promise<void> {
+  if (!localFontsSupported() || !navigator.permissions) return;
+  try {
+    const status = await navigator.permissions.query({ name: "local-fonts" as PermissionName });
+    if (status.state === "granted") await loadLocalFonts();
+  } catch {
+    /* permission inconnue de ce navigateur */
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Fichiers de police importés
 
@@ -220,8 +234,54 @@ export function loadLibrary(baseUrl: string): Promise<void> {
   libraryPromise ??= fetch(`${baseUrl}fonts/catalog.json`)
     .then((r) => (r.ok ? r.json() : []))
     .then((catalog: LibraryFamily[]) => registerLibrary(catalog, baseUrl))
+    .then(() => loadGoogleCatalog(baseUrl))
     .catch(() => undefined);
   return libraryPromise;
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue libre Google Fonts (≈ 2 000 familles, téléchargées à la demande)
+
+/** [id, nom, licence, variable, regular, bold, italic, boldItalic] */
+export type GoogleRow = [string, string, "ofl" | "apache", 0 | 1, string, string, string, string];
+
+/** Ajoute les familles du catalogue Google Fonts au registre (catégorie « google »). */
+export function registerGoogleCatalog(sha: string, rows: GoogleRow[]): void {
+  const styles: LibraryStyle[] = ["regular", "bold", "italic", "boldItalic"];
+  for (const [id, family, license, , ...files] of rows) {
+    if (registry.has(`lib:${id}:regular`)) continue;
+    files.forEach((file, i) => {
+      if (!file) return;
+      const style = styles[i];
+      const key = `gf:${id}:${style}`;
+      const url = `https://raw.githubusercontent.com/google/fonts/${sha}/${license}/${id}/${file}`;
+      registry.set(key, {
+        key,
+        label: `${family}${STYLE_LABEL[style]}`,
+        source: "library",
+        cssFamily: `"fl-gf-${id}-${style}"`,
+        family,
+        style,
+        slug: `gf-${id}`,
+        category: "google",
+        bold: style === "bold" || style === "boldItalic",
+        italic: style === "italic" || style === "boldItalic",
+        load: async () => {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`Police ${family} indisponible (connexion internet nécessaire au premier usage).`);
+          return res.arrayBuffer();
+        },
+      });
+    });
+  }
+  changed();
+}
+
+async function loadGoogleCatalog(baseUrl: string): Promise<void> {
+  const res = await fetch(`${baseUrl}google-fonts.json`);
+  if (!res.ok) return;
+  const data = (await res.json()) as { sha: string; rows: GoogleRow[] };
+  registerGoogleCatalog(data.sha, data.rows);
 }
 
 // ---------------------------------------------------------------------------

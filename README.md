@@ -23,6 +23,9 @@ rien n'est envoyé sur un serveur.
   équivalents aux mêmes dimensions des polices Office/Windows : Carlito
   (Calibri), Caladea (Cambria), Arimo (Arial/Helvetica), Tinos (Times New
   Roman), Cousine (Courier New), Gelasio (Georgia).
+- Catalogue libre Google Fonts complet (≈ 2 000 familles, licences OFL et
+  Apache) : recherche par nom, téléchargement à la demande puis disponible hors
+  ligne. Index régénérable avec `npm run fonts:catalog`.
 - Ajout de texte avec n'importe quelle police : bibliothèque, polices standard
   PDF, polices installées sur l'ordinateur (Chrome/Edge), fichiers TTF/OTF/TTC
   importés. Les polices sont intégrées au PDF : cyrillique, grec, arabe, chinois, japonais…

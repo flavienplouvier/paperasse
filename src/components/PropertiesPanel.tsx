@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Annotation, FieldAnnotation, FieldType, Tool } from "../lib/types";
 import { missingChars } from "../lib/embeddedFonts";
-import { getFont, styleVariant } from "../lib/fonts";
+import { ensureCssFont, getFont, matchFont, styleVariant } from "../lib/fonts";
 import { STAMPS, renderStamp } from "../lib/stamp";
 import type { ToolStyle } from "./PageView";
 import { FontPicker, useFonts } from "./FontPicker";
@@ -81,6 +81,24 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
     fontSize: selected?.kind === "text" ? selected.fontSize : style.fontSize,
     underline: selected?.kind === "text" ? !!selected.underline : style.underline,
   };
+  /**
+   * Après chargement des polices de l'ordinateur : si le texte modifié vient d'une
+   * police qui y est installée (ex. Times New Roman, Calibri), on l'utilise à la
+   * place de l'équivalent. La police incorporée d'origine reste prioritaire.
+   */
+  const rematchOriginal = async () => {
+    if (selected?.kind !== "text" || !selected.originalFont) return;
+    const { name, bold, italic } = selected.originalFont;
+    const key = matchFont(name, undefined, { bold, italic });
+    if (key === selected.fontKey || !key.startsWith("local:")) return;
+    try {
+      await ensureCssFont(key);
+    } catch {
+      return;
+    }
+    onUpdate({ ...selected, fontKey: key }, true);
+  };
+
   const currentFont = getFont(v.fontKey);
   const boldKey = styleVariant(v.fontKey, !currentFont.bold, !!currentFont.italic);
   const italicKey = styleVariant(v.fontKey, !!currentFont.bold, !currentFont.italic);
@@ -128,7 +146,7 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
         <>
           <div className="field">
             {selected?.kind === "text" && selected.embedded ? "Police de remplacement" : "Police"}
-            <FontPicker value={v.fontKey} onChange={(fontKey) => set({ fontKey })} onError={onError} />
+            <FontPicker value={v.fontKey} onChange={(fontKey) => set({ fontKey })} onError={onError} onLocalFonts={rematchOriginal} />
           </div>
           <div className="format-row" role="group" aria-label="Mise en forme">
             <button
