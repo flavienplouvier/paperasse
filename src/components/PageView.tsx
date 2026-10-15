@@ -3,7 +3,7 @@ import type { PageViewport } from "pdfjs-dist";
 import { pdfjs, type PDFDocumentProxy, type PDFPageProxy } from "../lib/pdfjs";
 import type { Annotation, Point, Rect, Tool } from "../lib/types";
 import { newId } from "../lib/types";
-import { addScaled, normalizeRect, screenAxes } from "../lib/geometry";
+import { addScaled, normalizeRect, rectContains, screenAxes } from "../lib/geometry";
 import { hasRect, simplifyPath, translateAnnotation } from "../lib/annotations";
 import { extractRuns, runAt, type TextRun } from "../lib/text";
 import { LINE_HEIGHT } from "../lib/exportPdf";
@@ -77,6 +77,9 @@ function fontCss(key: string) {
     fontStyle: synthetic && font.italic ? "italic" : undefined,
   };
 }
+
+/** Outils dans lesquels le texte sélectionné reste éditable sur la page. */
+const TEXT_TOOLS = new Set<Tool>(["editText", "text"]);
 
 /** Position de la ligne de base sous le haut d'une ligne CSS (interligne LINE_HEIGHT). */
 const BASELINE = (LINE_HEIGHT - 1) / 2 + 0.8;
@@ -239,6 +242,15 @@ function PageViewImpl(props: Props) {
         props.onPlace(pageId, p, rotation);
         break;
       case "editText": {
+        // Ligne déjà modifiée (sous son cache) : on rouvre le texte existant.
+        const cover = annotations.find((a) => a.kind === "whiteout" && rectContains(a.rect, p));
+        if (cover && cover.kind === "whiteout") {
+          const existing = annotations.find((a) => a.kind === "text" && rectContains(cover.rect, a.origin, 2));
+          if (existing) {
+            props.onSelect(existing.id);
+            break;
+          }
+        }
         const run = runs ? runAt(runs, p) : undefined;
         if (run && page) {
           const { ink, background } = sampleColors(run.rect);
@@ -322,10 +334,25 @@ function PageViewImpl(props: Props) {
 
   const renderAnnotation = (a: Annotation) => {
     const sel = tool === "select";
+    // En modes texte, un texte déjà ajouté ou modifié se rouvre d'un clic.
+    const reopen = a.kind === "text" && TEXT_TOOLS.has(tool);
     const common = {
       opacity: a.opacity,
-      style: { pointerEvents: sel ? ("all" as const) : ("none" as const), cursor: sel ? "move" : undefined, touchAction: "none" },
-      onPointerDown: (e: React.PointerEvent) => startDrag(e, a, "move"),
+      style: {
+        pointerEvents: sel || reopen ? ("all" as const) : ("none" as const),
+        cursor: sel ? "move" : reopen ? "text" : undefined,
+        touchAction: "none",
+      },
+      onPointerDown: (e: React.PointerEvent) => {
+        if (reopen) {
+          e.stopPropagation();
+          // Empêche le navigateur de reprendre le focus (mousedown) : la zone de saisie le garde.
+          e.preventDefault();
+          props.onSelect(a.id);
+          return;
+        }
+        startDrag(e, a, "move");
+      },
       onDoubleClick: () => a.kind === "text" && props.onFocusText(),
     };
     switch (a.kind) {
@@ -438,8 +465,25 @@ function PageViewImpl(props: Props) {
   };
 
   const selected = annotations.find((a) => a.id === selectedId) ?? null;
-  const editing = tool === "select" && selected?.kind === "text" ? selected : null;
+  const editing = (tool === "select" || TEXT_TOOLS.has(tool)) && selected?.kind === "text" ? selected : null;
   const editStart = useRef<string | null>(null);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  // Focus après la fin du clic (le navigateur déplace sinon le focus sur la page),
+  // curseur en fin de texte.
+  useEffect(() => {
+    if (!editing) return;
+    const timer = window.setTimeout(() => {
+      const t = editorRef.current;
+      if (!t || document.activeElement === t) return;
+      t.focus({ preventScroll: true });
+      // Texte tout juste ajouté : tout sélectionner pour que la frappe remplace « Texte ».
+      if (t.value === "Texte") t.select();
+      else t.setSelectionRange(t.value.length, t.value.length);
+    }, 30);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing?.id]);
   const grip = useRef<{ pointerId: number; start: Point; original: Annotation } | null>(null);
 
   const inlineEditor = (() => {
@@ -458,6 +502,8 @@ function PageViewImpl(props: Props) {
     };
     return (
       <div
+        // Une zone par texte : changer de texte la recrée et lui redonne le focus.
+        key={a.id}
         className="inline-text"
         style={{
           left: x,
@@ -483,7 +529,7 @@ function PageViewImpl(props: Props) {
           <Icon name="move" size={16} />
         </button>
         <textarea
-          autoFocus
+          ref={editorRef}
           spellCheck
           value={a.text}
           rows={lines.length}

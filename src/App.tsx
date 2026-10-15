@@ -432,9 +432,10 @@ export default function App() {
   const onCreate = useCallback(
     (a: Annotation) => {
       commit({ annotations: [...(doc?.annotations ?? []), a] });
-      if (a.kind === "text" || a.kind === "image") {
+      // Le texte ajouté s'édite tout de suite sur la page ; l'outil reste actif
+      // pour enchaîner les ajouts (on en sort avec un autre outil ou Échap).
+      if (a.kind === "text") {
         setSelectedId(a.id);
-        setTool("select");
         setPropsOpen(true);
       }
     },
@@ -508,8 +509,8 @@ export default function App() {
         ...(embedded ? { embedded } : {}),
       };
       commit({ annotations: [...doc.annotations, cover, text] });
+      // On reste en mode « Modifier le texte » pour enchaîner les modifications.
       setSelectedId(text.id);
-      setTool("select");
       setPropsOpen(true);
       // Signale seulement une vraie substitution (autre famille que l'originale).
       const chosen = getFont(fontKey);
@@ -959,7 +960,12 @@ export default function App() {
         className={`viewer tool-${tool}`}
         onScroll={onScroll}
         onPointerDown={(e) => {
-          if (tool === "select" && !(e.target as Element).closest("[data-annot], .handle, .inline-text")) setSelectedId(null);
+          // Clic hors d'un élément : désélection. En mode « Ajouter du texte », un clic sur
+          // la page crée (et sélectionne) un nouveau texte : on ne le désélectionne pas.
+          const target = e.target as Element;
+          const keeps = ["select", "editText", "text"].includes(tool);
+          if (tool === "text" && target.closest(".overlay")) return;
+          if (keeps && !target.closest("[data-annot], .handle, .inline-text")) setSelectedId(null);
         }}
       >
         <div ref={pagesRef} className="pages">
