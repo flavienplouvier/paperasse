@@ -1,5 +1,5 @@
 {
-  "name": "feuillet",
+  "name": "paperasse",
   "version": "0.1.0",
   "private": true,
   "description": "Éditeur PDF libre qui tourne dans le navigateur : lire, annoter, modifier, signer, remplir et réorganiser des PDF.",

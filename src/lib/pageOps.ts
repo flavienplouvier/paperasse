@@ -36,7 +36,7 @@ function copyMetadata(src: PDFDocument, out: PDFDocument) {
   const author = src.getAuthor();
   if (title) out.setTitle(title);
   if (author) out.setAuthor(author);
-  out.setProducer("Feuillet PDF");
+  out.setProducer("Paperasse PDF");
 }
 
 export async function deletePages(bytes: Uint8Array, pageIds: string[], remove: Set<string>) {
@@ -107,7 +107,7 @@ export async function extractPages(bytes: Uint8Array, indices: number[]): Promis
 /** Convertit des images PNG/JPEG en PDF, une image par page. */
 export async function imagesToPdf(images: { bytes: Uint8Array; type: string }[]): Promise<Uint8Array> {
   const out = await PDFDocument.create();
-  out.setProducer("Feuillet PDF");
+  out.setProducer("Paperasse PDF");
   for (const img of images) {
     const embedded = img.type.includes("png") ? await out.embedPng(img.bytes) : await out.embedJpg(img.bytes);
     const page = out.addPage([embedded.width, embedded.height]);

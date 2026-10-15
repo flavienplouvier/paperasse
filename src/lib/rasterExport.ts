@@ -19,7 +19,7 @@ export async function rasterExport(
 ): Promise<Uint8Array> {
   const out = await PDFDocument.create();
   out.registerFontkit(compatFontkit);
-  out.setProducer("Feuillet PDF");
+  out.setProducer("Paperasse PDF");
   const fonts = new FontCache(out);
   for (let i = 0; i < pdf.numPages; i++) {
     const page = await pdf.getPage(i + 1);

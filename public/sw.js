@@ -1,7 +1,7 @@
-// Service worker de Feuillet : l'application reste utilisable hors ligne.
+// Service worker de Paperasse : l'application reste utilisable hors ligne.
 // Stratégie : réseau d'abord pour la page (mises à jour rapides),
 // cache d'abord pour les fichiers versionnés (JS, CSS, polices, CMaps).
-const CACHE = "feuillet-v1";
+const CACHE = "paperasse-v1";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(["./", "./index.html", "./manifest.webmanifest"])));

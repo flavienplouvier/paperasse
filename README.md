@@ -1,6 +1,6 @@
-# Feuillet — éditeur PDF libre
+# Paperasse — éditeur PDF libre
 
-Feuillet est un éditeur PDF qui fonctionne entièrement dans le navigateur : sur
+Paperasse est un éditeur PDF qui fonctionne entièrement dans le navigateur : sur
 ordinateur, tablette ou téléphone Android. Les fichiers restent sur l'appareil,
 rien n'est envoyé sur un serveur.
 
@@ -69,7 +69,7 @@ statique (Netlify, Cloudflare Pages, serveur web…).
 ## Installer sur Android
 
 Ouvrez l'adresse publiée dans Chrome, puis menu ⋮ → **Installer l'application**
-(ou **Ajouter à l'écran d'accueil**). Feuillet s'ouvre alors en plein écran et
+(ou **Ajouter à l'écran d'accueil**). Paperasse s'ouvre alors en plein écran et
 fonctionne sans connexion.
 
 ## Limites actuelles
@@ -110,7 +110,7 @@ dans tous les lecteurs PDF.
 
 ## Licence
 
-Code de Feuillet : [MIT](LICENSE).
+Code de Paperasse : [MIT](LICENSE).
 
 Bibliothèques principales : [pdf.js](https://github.com/mozilla/pdf.js)
 (Apache-2.0), [pdf-lib](https://github.com/Hopding/pdf-lib) (MIT),

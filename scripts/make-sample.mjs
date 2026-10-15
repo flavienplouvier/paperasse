@@ -4,8 +4,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
 
 const doc = await PDFDocument.create();
-doc.setTitle("Exemple Feuillet");
-doc.setAuthor("Feuillet");
+doc.setTitle("Exemple Paperasse");
+doc.setAuthor("Paperasse");
 const helv = await doc.embedFont(StandardFonts.Helvetica);
 const helvBold = await doc.embedFont(StandardFonts.HelveticaBold);
 const times = await doc.embedFont(StandardFonts.TimesRoman);
@@ -13,7 +13,7 @@ const courier = await doc.embedFont(StandardFonts.Courier);
 
 // Page 1 : texte
 const p1 = doc.addPage([595.28, 841.89]);
-p1.drawText("Bienvenue dans Feuillet", { x: 56, y: 760, size: 28, font: helvBold, color: rgb(0.85, 0.23, 0.25) });
+p1.drawText("Bienvenue dans Paperasse", { x: 56, y: 760, size: 28, font: helvBold, color: rgb(0.85, 0.23, 0.25) });
 const body = [
   [helv, "Ce paragraphe est écrit en Helvetica. Essayez l'outil « Modifier le texte » :"],
   [helv, "touchez une ligne pour la remplacer par un texte modifiable."],

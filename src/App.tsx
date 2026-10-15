@@ -760,7 +760,7 @@ export default function App() {
           <div className="logo">
             <Icon name="pages" size={40} />
           </div>
-          <h1>Feuillet</h1>
+          <h1>Paperasse</h1>
           <p>Lisez, annotez, modifiez, signez et réorganisez vos PDF. Tout reste sur votre appareil : rien n'est envoyé sur internet.</p>
           <button className="primary big" onClick={() => openInput.current?.click()}>
             <Icon name="open" /> Ouvrir un PDF

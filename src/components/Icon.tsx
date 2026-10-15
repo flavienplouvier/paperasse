@@ -1,4 +1,4 @@
-// Jeu d'icônes minimal dessiné pour Feuillet (traits 24×24).
+// Jeu d'icônes minimal dessiné pour Paperasse (traits 24×24).
 const PATHS: Record<string, string> = {
   open: "M3 7h6l2 2h10v10H3z M3 7V5h6l2 2",
   save: "M5 3h11l3 3v15H5z M8 3v5h8V3 M8 14h8v7H8z",

@@ -1,6 +1,6 @@
 {
-  "name": "Feuillet PDF",
-  "short_name": "Feuillet",
+  "name": "Paperasse PDF",
+  "short_name": "Paperasse",
   "description": "Éditeur PDF libre : lire, annoter, modifier, signer, remplir et réorganiser des PDF, hors ligne.",
   "lang": "fr",
   "start_url": "./",

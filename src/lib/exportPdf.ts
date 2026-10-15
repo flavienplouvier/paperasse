@@ -158,7 +158,7 @@ export async function exportPdf(
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.load(bytes, { updateMetadata: false });
   doc.registerFontkit(compatFontkit);
-  doc.setProducer("Feuillet PDF");
+  doc.setProducer("Paperasse PDF");
   doc.setModificationDate(new Date());
   const fonts = new FontCache(doc);
   const pages = doc.getPages();

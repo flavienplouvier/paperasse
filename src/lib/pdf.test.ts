@@ -121,7 +121,7 @@ describe("export", () => {
     const out = await exportPdf(bytes, ["a", "b"], annotations);
     const doc = await PDFDocument.load(out, { updateMetadata: false });
     expect(doc.getPageCount()).toBe(2);
-    expect(doc.getProducer()).toBe("Feuillet PDF");
+    expect(doc.getProducer()).toBe("Paperasse PDF");
     expect(out.byteLength).toBeGreaterThan(bytes.byteLength);
   });
 
