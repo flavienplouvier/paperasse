@@ -447,6 +447,53 @@ input[type="checkbox"] {
   stroke: var(--focus);
   stroke-dasharray: none;
 }
+.inline-text {
+  position: absolute;
+  z-index: 3;
+}
+.inline-text textarea {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  outline: 1.5px dashed var(--focus);
+  outline-offset: 3px;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  min-height: 0;
+  width: auto;
+  field-sizing: content;
+  min-width: 1ch;
+  caret-color: var(--focus);
+}
+.inline-text textarea:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.move-grip {
+  position: absolute;
+  left: -36px;
+  top: -6px;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--focus);
+  border-color: var(--focus);
+  color: #fff;
+  cursor: move;
+  touch-action: none;
+  box-shadow: var(--shadow);
+}
+.move-grip:hover:not(:disabled) {
+  background: var(--focus);
+  filter: brightness(1.1);
+}
 .page-number {
   position: absolute;
   bottom: -18px;
@@ -632,6 +679,16 @@ input[type="color"] {
   flex-direction: column;
   gap: 6px;
 }
+.font-sample {
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 17px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .font-actions {
   display: flex;
   flex-wrap: wrap;
@@ -689,6 +746,14 @@ input[type="color"] {
 }
 .spacer {
   flex: 1;
+}
+.signature-import {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
 .signature-canvas {
   width: 100%;

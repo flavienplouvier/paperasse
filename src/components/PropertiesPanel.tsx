@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import type { Annotation, Tool } from "../lib/types";
 import type { ToolStyle } from "./PageView";
 import { FontPicker } from "./FontPicker";
@@ -10,7 +9,6 @@ interface Props {
   tool: Tool;
   style: ToolStyle;
   selected: Annotation | null;
-  focusText: number;
   onStyle: (patch: Partial<ToolStyle>) => void;
   onUpdate: (a: Annotation, commit: boolean) => void;
   onDelete: () => void;
@@ -18,21 +16,7 @@ interface Props {
   onError: (msg: string) => void;
 }
 
-export function PropertiesPanel({ tool, style, selected, focusText, onStyle, onUpdate, onDelete, onDuplicate, onError }: Props) {
-  const textRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (!focusText) return;
-    // Après le rendu et la fin du clic sur la page, sinon le navigateur reprend le focus.
-    const timer = window.setTimeout(() => {
-      const t = textRef.current;
-      t?.focus();
-      t?.select();
-    }, 50);
-    return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusText]);
-
+export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDelete, onDuplicate, onError }: Props) {
   // Modifie l'annotation sélectionnée, et retient le réglage pour les suivantes.
   const set = (patch: Partial<ToolStyle> & { text?: string }, commit = true) => {
     const { text, ...stylePatch } = patch;
@@ -68,7 +52,6 @@ export function PropertiesPanel({ tool, style, selected, focusText, onStyle, onU
         <label className="field">
           Texte
           <textarea
-            ref={textRef}
             rows={3}
             value={selected.text}
             onChange={(e) => set({ text: e.target.value }, false)}

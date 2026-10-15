@@ -40,13 +40,21 @@ export async function openPdf(bytes: Uint8Array, password?: string): Promise<PDF
   }
 }
 
-/** Nom réel de la police (ex. « ABCDEF+Calibri-Bold »), disponible après rendu. */
-export function realFontName(page: PDFPageProxy, loadedName: string): string | undefined {
+/**
+ * Police réelle d'un fragment de texte (ex. « ABCDEF+Calibri-Bold »), avec les
+ * indicateurs gras/italique du descripteur de police. Disponible après rendu.
+ */
+export function fontInfo(
+  page: PDFPageProxy,
+  loadedName: string,
+): { name?: string; bold?: boolean; italic?: boolean } {
   try {
-    const font = page.commonObjs.get(loadedName) as { name?: string } | undefined;
-    return font?.name;
+    const font = page.commonObjs.get(loadedName) as
+      | { name?: string; bold?: boolean; black?: boolean; italic?: boolean }
+      | undefined;
+    return { name: font?.name, bold: !!(font?.bold || font?.black), italic: !!font?.italic };
   } catch {
-    return undefined;
+    return {};
   }
 }
 

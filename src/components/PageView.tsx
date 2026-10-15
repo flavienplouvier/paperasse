@@ -8,6 +8,7 @@ import { hasRect, simplifyPath, translateAnnotation } from "../lib/annotations";
 import { extractRuns, runAt, type TextRun } from "../lib/text";
 import { LINE_HEIGHT } from "../lib/exportPdf";
 import { getFont } from "../lib/fonts";
+import { Icon } from "./Icon";
 
 export interface ToolStyle {
   color: string;
@@ -22,6 +23,8 @@ export interface EditTextRequest {
   pageId: string;
   run: TextRun;
   page: PDFPageProxy;
+  /** Couleur du texte d'origine, estimée d'après le rendu de la page. */
+  color?: string;
 }
 
 interface Props {
@@ -60,6 +63,20 @@ type Drag = {
 } | null;
 
 const MAX_CANVAS_PIXELS = 16_777_216;
+
+/** Style CSS d'aperçu d'une police (les polices standard n'ont qu'une famille CSS). */
+function fontCss(key: string) {
+  const font = getFont(key);
+  const synthetic = font.source === "standard";
+  return {
+    fontFamily: font.cssFamily,
+    fontWeight: synthetic && font.bold ? 700 : undefined,
+    fontStyle: synthetic && font.italic ? "italic" : undefined,
+  };
+}
+
+/** Position de la ligne de base sous le haut d'une ligne CSS (interligne LINE_HEIGHT). */
+const BASELINE = (LINE_HEIGHT - 1) / 2 + 0.8;
 
 function PageViewImpl(props: Props) {
   const { pdf, index, pageId, tool, style, annotations, selectedId, maxWidth } = props;
@@ -169,7 +186,7 @@ function PageViewImpl(props: Props) {
   const toView = (p: Point): Point => (viewport ? (viewport.convertToViewportPoint(p[0], p[1]) as Point) : [0, 0]);
   const toPdf = (x: number, y: number): Point =>
     viewport ? (viewport.convertToPdfPoint(x, y) as Point) : [0, 0];
-  const local = (e: React.PointerEvent): Point => {
+  const local = (e: { clientX: number; clientY: number }): Point => {
     const r = svgRef.current!.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
   };
@@ -220,7 +237,7 @@ function PageViewImpl(props: Props) {
         break;
       case "editText": {
         const run = runs ? runAt(runs, p) : undefined;
-        if (run && page) props.onEditText({ pageId, run, page });
+        if (run && page) props.onEditText({ pageId, run, page, color: sampleTextColor(run.rect) });
         break;
       }
     }
@@ -292,7 +309,7 @@ function PageViewImpl(props: Props) {
     e.preventDefault();
     props.onSelect(a.id);
     svgRef.current!.setPointerCapture(e.pointerId);
-    setDrag({ mode, pointerId: e.pointerId, start: toPdf(...local(e as React.PointerEvent<SVGSVGElement>)), original: a, corner });
+    setDrag({ mode, pointerId: e.pointerId, start: toPdf(...local(e)), original: a, corner });
   };
 
   // ---------------------------------------------------------------- rendu SVG
@@ -366,8 +383,7 @@ function PageViewImpl(props: Props) {
       case "text": {
         const [x, y] = toView(a.origin);
         const size = a.fontSize * scale;
-        const font = getFont(a.fontKey);
-        const { bold, italic } = { bold: /bold|gras/i.test(font.label), italic: /italic|oblique|italique/i.test(font.label) };
+        const css = fontCss(a.fontKey);
         return (
           <text
             key={a.id}
@@ -377,10 +393,12 @@ function PageViewImpl(props: Props) {
             y={y}
             fill={a.color}
             fontSize={size}
-            fontFamily={font.cssFamily}
-            fontWeight={font.source === "standard" && bold ? 700 : undefined}
-            fontStyle={font.source === "standard" && italic ? "italic" : undefined}
+            fontFamily={css.fontFamily}
+            fontWeight={css.fontWeight}
+            fontStyle={css.fontStyle}
             transform={`rotate(${rotation - a.rotation} ${x} ${y})`}
+            // Masqué pendant l'édition sur la page (la zone de saisie le remplace).
+            visibility={editing?.id === a.id ? "hidden" : undefined}
             style={{ ...common.style, whiteSpace: "pre", userSelect: "none" }}
           >
             {a.text.split(/\r?\n/).map((line, i) => (
@@ -414,6 +432,74 @@ function PageViewImpl(props: Props) {
   };
 
   const selected = annotations.find((a) => a.id === selectedId) ?? null;
+  const editing = tool === "select" && selected?.kind === "text" ? selected : null;
+  const editStart = useRef<string | null>(null);
+  const grip = useRef<{ pointerId: number; start: Point; original: Annotation } | null>(null);
+
+  const inlineEditor = (() => {
+    if (!editing || !viewport) return null;
+    const a = editing;
+    const [x, y] = toView(a.origin);
+    const size = a.fontSize * scale;
+    const asc = size * BASELINE;
+    const lines = a.text.split(/\r?\n/);
+    const gripMove = (e: React.PointerEvent, final: boolean) => {
+      const g = grip.current;
+      if (!g || g.pointerId !== e.pointerId) return;
+      const p = toPdf(...local(e));
+      props.onChange(translateAnnotation(g.original, p[0] - g.start[0], p[1] - g.start[1]), final);
+      if (final) grip.current = null;
+    };
+    return (
+      <div
+        className="inline-text"
+        style={{
+          left: x,
+          top: y - asc,
+          transform: `rotate(${rotation - a.rotation}deg)`,
+          transformOrigin: `0 ${asc}px`,
+        }}
+      >
+        <button
+          className="move-grip"
+          title="Déplacer le texte"
+          aria-label="Déplacer le texte"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.setPointerCapture(e.pointerId);
+            grip.current = { pointerId: e.pointerId, start: toPdf(...local(e)), original: a };
+          }}
+          onPointerMove={(e) => gripMove(e, false)}
+          onPointerUp={(e) => gripMove(e, true)}
+          onPointerCancel={() => (grip.current = null)}
+        >
+          <Icon name="move" size={16} />
+        </button>
+        <textarea
+          autoFocus
+          spellCheck
+          value={a.text}
+          rows={lines.length}
+          cols={Math.max(2, ...lines.map((l) => l.length))}
+          style={{ ...fontCss(a.fontKey), fontSize: size, lineHeight: LINE_HEIGHT, color: a.color, opacity: a.opacity }}
+          onFocus={(e) => (editStart.current = e.target.value)}
+          onChange={(e) => props.onChange({ ...a, text: e.target.value }, false)}
+          onBlur={(e) => {
+            if (editStart.current !== e.target.value) props.onChange({ ...a, text: e.target.value }, true);
+            editStart.current = null;
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.currentTarget.blur();
+              props.onSelect(null);
+            }
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        />
+      </div>
+    );
+  })();
   const [selBox, setSelBox] = useState<DOMRect | null>(null);
   useLayoutEffect(() => {
     if (!selected || !svgRef.current) return setSelBox(null);
@@ -528,15 +614,43 @@ function PageViewImpl(props: Props) {
           })}
         {annotations.filter((a) => a.kind === "whiteout").map(renderAnnotation)}
         {annotations.filter((a) => a.kind !== "whiteout").map(renderAnnotation)}
-        {selBox && tool === "select" && (
+        {selBox && tool === "select" && !editing && (
           <rect className="selection" x={selBox.x - 4} y={selBox.y - 4} width={selBox.width + 8} height={selBox.height + 8} />
         )}
         {resizeHandle}
         {draftEl}
       </svg>
+      {inlineEditor}
       <div className="page-number">{index + 1}</div>
     </div>
   );
+
+  /** Pixel le plus éloigné du fond dans la zone du texte : sa couleur d'encre. */
+  function sampleTextColor(rect: Rect): string | undefined {
+    const canvas = canvasRef.current;
+    if (!canvas || !canvas.width || !viewport) return undefined;
+    const r = viewRect(rect);
+    const k = canvas.width / viewport.width;
+    const x = Math.max(0, Math.floor(r.x * k));
+    const y = Math.max(0, Math.floor(r.y * k));
+    const w = Math.min(canvas.width - x, Math.ceil(r.w * k));
+    const h = Math.min(canvas.height - y, Math.ceil(r.h * k));
+    if (w <= 0 || h <= 0) return undefined;
+    const data = canvas.getContext("2d", { willReadFrequently: true })!.getImageData(x, y, w, h).data;
+    // Fond estimé = coin supérieur gauche de la zone.
+    const bg = [data[0], data[1], data[2]];
+    let best = -1;
+    let rgb: [number, number, number] = [0, 0, 0];
+    for (let i = 0; i < data.length; i += 4) {
+      const d = Math.abs(data[i] - bg[0]) + Math.abs(data[i + 1] - bg[1]) + Math.abs(data[i + 2] - bg[2]);
+      if (d > best) {
+        best = d;
+        rgb = [data[i], data[i + 1], data[i + 2]];
+      }
+    }
+    if (best < 60) return undefined;
+    return `#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+  }
 
   function applyDrag(d: NonNullable<Drag>, dx: number, dy: number, p: Point): Annotation {
     if (d.mode === "move" || !d.corner || !hasRect(d.original)) return translateAnnotation(d.original, dx, dy);

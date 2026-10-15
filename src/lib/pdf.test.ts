@@ -5,7 +5,7 @@ import { exportPdf } from "./exportPdf";
 import { fillForm, readFormFields } from "./forms";
 import { screenAxes, normalizeRect, normalizeRotation } from "./geometry";
 import { simplifyPath, translateAnnotation } from "./annotations";
-import { matchFont, normalizeFontName, type FontEntry } from "./fonts";
+import { matchFont, normalizeFontName, parseFontName, type FontEntry } from "./fonts";
 import { searchRuns, runAt, type TextRun } from "./text";
 import type { Annotation } from "./types";
 
@@ -187,6 +187,58 @@ describe("polices", () => {
     expect(matchFont("QWERTY+Calibri-Bold", fonts)).toBe("local:Calibri-Bold");
     expect(matchFont("Calibri", fonts)).toBe("local:Calibri");
     expect(matchFont("Arial-ItalicMT", fonts)).toBe("local:Arial-ItalicMT");
+  });
+
+  const lib = (slug: string, family: string, category = "sans"): FontEntry[] =>
+    (["regular", "bold", "italic", "boldItalic"] as const).map((style) => ({
+      key: `lib:${slug}:${style}`,
+      label: family,
+      source: "library",
+      cssFamily: "x",
+      family,
+      style,
+      slug,
+      category,
+      bold: style.startsWith("bold"),
+      italic: /italic/i.test(style),
+    }));
+  const library = [
+    ...lib("carlito", "Carlito", "metric"),
+    ...lib("arimo", "Arimo", "metric"),
+    ...lib("tinos", "Tinos", "metric"),
+    ...lib("cousine", "Cousine", "metric"),
+    ...lib("roboto", "Roboto"),
+  ];
+
+  it("analyse les noms de police PDF", () => {
+    expect(parseFontName("ABCDEF+TimesNewRomanPS-BoldItalicMT")).toEqual({ base: "timesnewroman", bold: true, italic: true });
+    expect(parseFontName("ArialMT")).toEqual({ base: "arial", bold: false, italic: false });
+    expect(parseFontName("Calibri,Bold")).toEqual({ base: "calibri", bold: true, italic: false });
+    expect(parseFontName("SegoeUI-Semibold")).toEqual({ base: "segoeui", bold: true, italic: false });
+    expect(parseFontName("ArialBoldItalic")).toEqual({ base: "arial", bold: true, italic: true });
+  });
+
+  it("remplace les polices Office par leur équivalent métrique, style compris", () => {
+    expect(matchFont("QWERTY+Calibri-BoldItalic", library)).toBe("lib:carlito:boldItalic");
+    expect(matchFont("Calibri", library)).toBe("lib:carlito:regular");
+    expect(matchFont("Arial-BoldMT", library)).toBe("lib:arimo:bold");
+    expect(matchFont("TimesNewRomanPS-ItalicMT", library)).toBe("lib:tinos:italic");
+    expect(matchFont("CourierNewPSMT", library)).toBe("lib:cousine:regular");
+    expect(matchFont("Roboto-Bold", library)).toBe("lib:roboto:bold");
+  });
+
+  it("utilise les indicateurs gras/italique de pdf.js quand le nom ne les donne pas", () => {
+    expect(matchFont("ABCDEF+Calibri", library, { bold: true })).toBe("lib:carlito:bold");
+  });
+
+  it("préfère la vraie police installée à un équivalent", () => {
+    const own = [local("Calibri-Bold", "Calibri", "Bold"), local("Calibri", "Calibri", "Regular")];
+    expect(matchFont("ABCDEF+Calibri-Bold", [...own, ...library])).toBe("local:Calibri-Bold");
+  });
+
+  it("se replie sur un équivalent de bibliothèque pour une police inconnue", () => {
+    expect(matchFont("ACME-Grotesk-Bold", library)).toBe("lib:arimo:bold");
+    expect(matchFont("FancySerifPro", library)).toBe("lib:tinos:regular");
   });
 
   it("se replie sur la police standard la plus proche", () => {

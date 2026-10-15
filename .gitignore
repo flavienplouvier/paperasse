@@ -1,6 +1,7 @@
 node_modules/
 dist/
 public/pdfjs/
+public/fonts/
 *.log
 .DS_Store
 .vite/

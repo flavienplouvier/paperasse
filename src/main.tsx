@@ -1,7 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { loadLibrary } from "./lib/fonts";
 import "./styles.css";
+
+// Catalogue de la bibliothèque de polices (les fichiers ne sont chargés qu'à l'usage).
+loadLibrary(import.meta.env.BASE_URL);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

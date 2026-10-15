@@ -17,11 +17,18 @@ rien n'est envoyé sur un serveur.
 **Modification**
 - *Modifier le texte* : touchez une ligne du PDF, elle est masquée et remplacée
   par un texte modifiable, dans la police d'origine si elle est disponible.
-- Ajout de texte avec n'importe quelle police : polices standard PDF, polices
-  installées sur l'ordinateur (Chrome/Edge), fichiers TTF/OTF/TTC importés.
-  Les polices sont intégrées au PDF : cyrillique, grec, arabe, chinois, japonais…
+- Le texte sélectionné se modifie directement sur la page, dans sa police, sa
+  taille et sa couleur d'origine (poignée pour le déplacer).
+- Bibliothèque de 75 familles de polices libres (près de 250 styles), dont des
+  équivalents aux mêmes dimensions des polices Office/Windows : Carlito
+  (Calibri), Caladea (Cambria), Arimo (Arial/Helvetica), Tinos (Times New
+  Roman), Cousine (Courier New), Gelasio (Georgia).
+- Ajout de texte avec n'importe quelle police : bibliothèque, polices standard
+  PDF, polices installées sur l'ordinateur (Chrome/Edge), fichiers TTF/OTF/TTC
+  importés. Les polices sont intégrées au PDF : cyrillique, grec, arabe, chinois, japonais…
 - Dessin à main levée, surligneur, rectangles, ellipses, traits, cache blanc.
-- Signature au doigt, au stylet ou à la souris ; insertion d'images.
+- Signature au doigt, au stylet ou à la souris, ou importée depuis une photo /
+  un scan (fond blanc retiré automatiquement) ; insertion d'images.
 - Remplissage des formulaires PDF (texte, cases, listes, boutons radio).
 - Déplacement, redimensionnement, duplication, annulation/rétablissement.
 
@@ -54,7 +61,27 @@ Puis ouvrez http://localhost:5173.
 | `npm run preview`   | prévisualise le build                     |
 
 `npm run dev` et `npm run build` copient d'abord dans `public/pdfjs/` les
-ressources de pdf.js nécessaires au rendu des polices.
+ressources de pdf.js nécessaires au rendu des polices, et dans `public/fonts/`
+la bibliothèque de polices (paquets `@expo-google-fonts/*`, 4 styles par
+famille, environ 50 Mo chargés uniquement à l'usage). Pour ajouter une famille :
+`npm install -D @expo-google-fonts/<famille>` puis `npm run assets`.
+
+## Polices non libres (Calibri, Arial, Helvetica Neue…)
+
+Les polices commerciales ne peuvent pas être redistribuées avec l'application.
+Pour les utiliser quand même :
+
+1. **Polices de l'ordinateur** (Chrome ou Edge sur ordinateur) : dans le
+   sélecteur de police, « Utiliser mes polices installées ». Toutes les polices
+   de Windows, d'Office ou d'Adobe Fonts présentes sur le poste deviennent
+   disponibles, et « Modifier le texte » les retrouve automatiquement.
+2. **Fichier de police** (tous appareils, Android compris) : « Importer
+   TTF/OTF… » avec un fichier dont vous détenez la licence.
+3. **À défaut**, Paperasse choisit l'équivalent libre le plus proche, aux mêmes
+   dimensions pour les polices Office courantes.
+
+L'intégration d'une police dans un PDF dépend de sa licence ; la plupart des
+polices Windows et Office l'autorisent pour l'impression et l'affichage.
 
 ## Publier sur GitHub Pages
 
@@ -115,5 +142,7 @@ Code de Paperasse : [MIT](LICENSE).
 Bibliothèques principales : [pdf.js](https://github.com/mozilla/pdf.js)
 (Apache-2.0), [pdf-lib](https://github.com/Hopding/pdf-lib) (MIT),
 [@pdf-lib/fontkit](https://github.com/Hopding/fontkit) (MIT),
-[React](https://react.dev) (MIT). Les polices que vous importez restent soumises
-à leur propre licence, notamment pour leur intégration dans des PDF.
+[React](https://react.dev) (MIT). Les polices de la bibliothèque sont sous
+licence SIL Open Font License ou Apache 2.0 ; chaque dossier de
+`public/fonts/` contient sa licence. Les polices que vous importez restent
+soumises à leur propre licence, notamment pour leur intégration dans des PDF.

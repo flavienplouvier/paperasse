@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PDFDocument } from "pdf-lib";
-import { openPdf, PasswordRequired, pdfjs, realFontName, type PDFDocumentProxy } from "./lib/pdfjs";
+import { fontInfo, openPdf, PasswordRequired, pdfjs, type PDFDocumentProxy } from "./lib/pdfjs";
 import type { Annotation, DocState, Point, Rect, Tool } from "./lib/types";
 import { newId } from "./lib/types";
 import * as ops from "./lib/pageOps";
 import { exportPdf } from "./lib/exportPdf";
 import { rasterExport } from "./lib/rasterExport";
 import { fillForm, type FormValues } from "./lib/forms";
-import { DEFAULT_FONT_KEY, ensureCssFont, getFont, matchFont } from "./lib/fonts";
+import {
+  DEFAULT_FONT_KEY,
+  ensureCssFont,
+  getFont,
+  loadLibrary,
+  matchFont,
+  normalizeFontName,
+  parseFontName,
+} from "./lib/fonts";
 import { duplicateAnnotation } from "./lib/annotations";
 import type { SearchHit } from "./lib/text";
 import { PageView, type EditTextRequest, type ToolStyle } from "./components/PageView";
@@ -119,7 +127,6 @@ export default function App() {
   const [signing, setSigning] = useState(false);
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(0);
-  const [focusText, setFocusText] = useState(0);
   const [locked, setLocked] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -460,10 +467,12 @@ export default function App() {
   };
 
   const onEditText = useCallback(
-    async ({ pageId, run, page }: EditTextRequest) => {
+    async ({ pageId, run, page, color }: EditTextRequest) => {
       if (!doc) return;
-      const real = realFontName(page, run.fontName);
-      const fontKey = matchFont(real);
+      await loadLibrary(import.meta.env.BASE_URL);
+      const info = fontInfo(page, run.fontName);
+      const real = info.name;
+      const fontKey = matchFont(real, undefined, info);
       try {
         await ensureCssFont(fontKey);
       } catch {
@@ -489,7 +498,7 @@ export default function App() {
         text: run.str,
         fontKey,
         fontSize: Math.round(run.fontSize * 10) / 10,
-        color: "#000000",
+        color: color ?? "#000000",
         opacity: 1,
         rotation: run.angle,
       };
@@ -497,14 +506,15 @@ export default function App() {
       setSelectedId(text.id);
       setTool("select");
       setPropsOpen(true);
-      setFocusText((n) => n + 1);
+      // Signale seulement une vraie substitution (autre famille que l'originale).
       const chosen = getFont(fontKey);
       const original = (real ?? "").replace(/^[A-Z]{6}\+/, "");
-      const standardEquivalent = /^(helvetica|arial|times|timesnewroman|courier|couriernew)/.test(
-        original.replace(/[^a-z]/gi, "").toLowerCase(),
-      );
-      if (original && chosen.source === "standard" && !standardEquivalent) {
-        notify(`Police d'origine « ${original} » absente de cet appareil : remplacée par ${chosen.label}. Importez-la ou autorisez vos polices pour un rendu identique.`);
+      const sameFamily =
+        normalizeFontName(chosen.family ?? chosen.label).startsWith(parseFontName(original).base) ||
+        (chosen.source === "standard" && /^(helvetica|times|courier)/.test(parseFontName(original).base));
+      // Les équivalents métriques (Carlito pour Calibri…) gardent la mise en page : pas d'alerte.
+      if (original && !sameFamily && chosen.category !== "metric") {
+        notify(`Police d'origine « ${original} » remplacée par l'équivalent « ${chosen.label} ».`);
       }
     },
     [doc, commit, notify],
@@ -944,7 +954,7 @@ export default function App() {
         className={`viewer tool-${tool}`}
         onScroll={onScroll}
         onPointerDown={(e) => {
-          if (tool === "select" && !(e.target as Element).closest("[data-annot], .handle")) setSelectedId(null);
+          if (tool === "select" && !(e.target as Element).closest("[data-annot], .handle, .inline-text")) setSelectedId(null);
         }}
       >
         <div ref={pagesRef} className="pages">
@@ -968,10 +978,7 @@ export default function App() {
                 onChange={onChange}
                 onEditText={onEditText}
                 onPlace={onPlace}
-                onFocusText={() => {
-                  setPropsOpen(true);
-                  setFocusText((n) => n + 1);
-                }}
+                onFocusText={() => setPropsOpen(true)}
                 registerElement={registerElement}
               />
             ))}
@@ -1002,7 +1009,6 @@ export default function App() {
           tool={tool}
           style={style}
           selected={selected}
-          focusText={focusText}
           onStyle={(p) => setStyle((s) => ({ ...s, ...p }))}
           onUpdate={onChange}
           onDelete={deleteSelected}
@@ -1014,6 +1020,7 @@ export default function App() {
       {signing && (
         <SignaturePad
           onCancel={() => setSigning(false)}
+          onError={(m) => notify(m, true)}
           onDone={(url) => {
             setSigning(false);
             startImage(url, true).catch(fail);

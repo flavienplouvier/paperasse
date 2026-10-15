@@ -22,12 +22,20 @@ export function FontPicker({ value, onChange, onError }: { value: string; onChan
   const groups = useMemo(() => {
     const f = filter.trim().toLowerCase();
     const list = f ? fonts.filter((x) => x.label.toLowerCase().includes(f)) : fonts;
-    return {
-      standard: list.filter((x) => x.source === "standard"),
-      file: list.filter((x) => x.source === "file"),
-      local: list.filter((x) => x.source === "local").slice(0, 400),
-    };
+    const lib = (cat: string) => list.filter((x) => x.source === "library" && x.category === cat);
+    return [
+      { label: "Polices importées", items: list.filter((x) => x.source === "file") },
+      { label: "Équivalents Office / Windows (mêmes largeurs)", items: lib("metric") },
+      { label: "Polices standard PDF", items: list.filter((x) => x.source === "standard") },
+      { label: "Sans empattement", items: lib("sans") },
+      { label: "Avec empattement", items: lib("serif") },
+      { label: "Chasse fixe", items: lib("mono") },
+      { label: "Manuscrites / signature", items: lib("script") },
+      { label: "Décoratives", items: lib("display") },
+      { label: "Polices de l'ordinateur", items: list.filter((x) => x.source === "local").slice(0, 600) },
+    ].filter((g) => g.items.length);
   }, [fonts, filter]);
+  const current = getFont(value);
 
   const pick = async (key: string) => {
     try {
@@ -42,37 +50,27 @@ export function FontPicker({ value, onChange, onError }: { value: string; onChan
 
   return (
     <div className="font-picker">
-      {fonts.length > 20 && (
-        <input type="search" placeholder="Filtrer les polices…" value={filter} onChange={(e) => setFilter(e.target.value)} />
-      )}
+      <input
+        type="search"
+        placeholder={`Rechercher parmi ${fonts.length} polices…`}
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+      />
       <select value={value} onChange={(e) => pick(e.target.value)}>
-        <optgroup label="Polices standard PDF">
-          {groups.standard.map((f) => (
-            <option key={f.key} value={f.key}>
-              {f.label}
-            </option>
-          ))}
-        </optgroup>
-        {groups.file.length > 0 && (
-          <optgroup label="Polices importées">
-            {groups.file.map((f) => (
+        {groups.map((g) => (
+          <optgroup key={g.label} label={g.label}>
+            {g.items.map((f) => (
               <option key={f.key} value={f.key}>
                 {f.label}
               </option>
             ))}
           </optgroup>
-        )}
-        {groups.local.length > 0 && (
-          <optgroup label="Polices de l'ordinateur">
-            {groups.local.map((f) => (
-              <option key={f.key} value={f.key}>
-                {f.label}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        {!fonts.some((f) => f.key === value) && <option value={value}>{getFont(value).label}</option>}
+        ))}
+        {!groups.some((g) => g.items.some((f) => f.key === value)) && <option value={value}>{current.label}</option>}
       </select>
+      <div className="font-sample" style={{ fontFamily: current.cssFamily }}>
+        Portez ce vieux whisky au juge blond — 0123
+      </div>
       <div className="font-actions">
         {localFontsSupported() && !hasLocal && (
           <button

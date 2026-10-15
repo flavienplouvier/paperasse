@@ -36,6 +36,8 @@ const PATHS: Record<string, string> = {
   extract: "M12 3v12 M7 10l5 5 5-5 M4 21h16",
   font: "M4 20L10 4h1l6 16 M6.5 14h8 M17 20h4",
   menu: "M4 6h16 M4 12h16 M4 18h16",
+  move: "M12 3v18 M3 12h18 M9 6l3-3 3 3 M9 18l3 3 3-3 M6 9l-3 3 3 3 M18 9l3 3-3 3",
+  upload: "M12 16V4 M7 9l5-5 5 5 M4 20h16",
 };
 
 export function Icon({ name, size = 20 }: { name: keyof typeof PATHS | string; size?: number }) {

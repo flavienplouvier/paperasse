@@ -1,11 +1,79 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 
-/** Zone de signature au doigt, au stylet ou à la souris. Produit un PNG rogné et transparent. */
-export function SignaturePad({ onDone, onCancel }: { onDone: (dataUrl: string) => void; onCancel: () => void }) {
+/** Rogne un canvas sur ses pixels non transparents et le renvoie en PNG. */
+function trimToPng(c: HTMLCanvasElement): string | null {
+  const { data, width, height } = c.getContext("2d")!.getImageData(0, 0, c.width, c.height);
+  let x1 = width, y1 = height, x2 = 0, y2 = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > 8) {
+        if (x < x1) x1 = x;
+        if (x > x2) x2 = x;
+        if (y < y1) y1 = y;
+        if (y > y2) y2 = y;
+      }
+    }
+  }
+  if (x2 <= x1 || y2 <= y1) return null;
+  const pad = 6;
+  const out = document.createElement("canvas");
+  out.width = x2 - x1 + pad * 2;
+  out.height = y2 - y1 + pad * 2;
+  out.getContext("2d")!.drawImage(c, x1, y1, x2 - x1, y2 - y1, pad, pad, x2 - x1, y2 - y1);
+  return out.toDataURL("image/png");
+}
+
+/**
+ * Prépare une signature importée (photo, scan, PNG) : réduit sa taille et,
+ * si demandé, rend le fond clair transparent avec un bord adouci.
+ */
+export async function importSignature(file: File, removeBackground: boolean): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.naturalWidth * k));
+    c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    const ctx = c.getContext("2d", { willReadFrequently: true })!;
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    if (removeBackground) {
+      const image = ctx.getImageData(0, 0, c.width, c.height);
+      const d = image.data;
+      for (let i = 0; i < d.length; i += 4) {
+        // Plus le pixel est clair, plus il devient transparent (seuils 170 → 235).
+        const light = Math.min(d[i], d[i + 1], d[i + 2]);
+        const alpha = light >= 235 ? 0 : light <= 170 ? 1 : (235 - light) / 65;
+        d[i + 3] = Math.round(d[i + 3] * alpha);
+      }
+      ctx.putImageData(image, 0, 0);
+    }
+    const png = trimToPng(c);
+    if (!png) throw new Error("L'image semble vide une fois le fond retiré. Décochez « Retirer le fond blanc ».");
+    return png;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Signature dessinée (doigt, stylet, souris) ou importée depuis un fichier image. */
+export function SignaturePad({
+  onDone,
+  onCancel,
+  onError,
+}: {
+  onDone: (dataUrl: string) => void;
+  onCancel: () => void;
+  onError: (msg: string) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [color, setColor] = useState("#1a2b6d");
   const [empty, setEmpty] = useState(true);
+  const [removeBackground, setRemoveBackground] = useState(true);
   const last = useRef<[number, number] | null>(null);
 
   useEffect(() => {
@@ -50,27 +118,8 @@ export function SignaturePad({ onDone, onCancel }: { onDone: (dataUrl: string) =
   };
 
   const finish = () => {
-    const c = canvasRef.current!;
-    const ctx = c.getContext("2d")!;
-    const { data, width, height } = ctx.getImageData(0, 0, c.width, c.height);
-    let x1 = width, y1 = height, x2 = 0, y2 = 0;
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        if (data[(y * width + x) * 4 + 3] > 0) {
-          if (x < x1) x1 = x;
-          if (x > x2) x2 = x;
-          if (y < y1) y1 = y;
-          if (y > y2) y2 = y;
-        }
-      }
-    }
-    if (x2 <= x1 || y2 <= y1) return;
-    const pad = 6;
-    const out = document.createElement("canvas");
-    out.width = x2 - x1 + pad * 2;
-    out.height = y2 - y1 + pad * 2;
-    out.getContext("2d")!.drawImage(c, x1, y1, x2 - x1, y2 - y1, pad, pad, x2 - x1, y2 - y1);
-    onDone(out.toDataURL("image/png"));
+    const png = trimToPng(canvasRef.current!);
+    if (png) onDone(png);
   };
 
   return (
@@ -109,7 +158,35 @@ export function SignaturePad({ onDone, onCancel }: { onDone: (dataUrl: string) =
             Placer la signature
           </button>
         </div>
-        <p className="hint">Signez dans le cadre, puis touchez l'endroit de la page où la placer.</p>
+        <div className="signature-import">
+          <button onClick={() => fileRef.current?.click()}>
+            <Icon name="upload" /> Importer une image de signature
+          </button>
+          <label className="field inline">
+            <input type="checkbox" checked={removeBackground} onChange={(e) => setRemoveBackground(e.target.checked)} />
+            Retirer le fond blanc
+          </label>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              try {
+                onDone(await importSignature(f, removeBackground));
+              } catch (err) {
+                onError(err instanceof Error ? err.message : "Image illisible.");
+              }
+            }}
+          />
+        </div>
+        <p className="hint">
+          Signez dans le cadre ou importez une photo / un scan de votre signature, puis touchez l'endroit de la page où
+          la placer.
+        </p>
       </div>
     </div>
   );
