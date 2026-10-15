@@ -176,7 +176,7 @@ export async function importedFonts(): Promise<Record<string, ArrayBuffer>> {
 export async function addFontFiles(files: Iterable<File>): Promise<string[]> {
   const keys: string[] = [];
   for (const file of files) {
-    const name = file.name.replace(/\.(ttf|otf|ttc|otc)$/i, "");
+    const name = file.name.replace(/\.(ttf|otf|ttc|otc|woff2?)$/i, "");
     const key = registerFontBytes(name, await file.arrayBuffer());
     keys.push(key);
     await ensureCssFont(key);

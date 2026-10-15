@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { type CSSProperties, type RefObject, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   addFontFiles,
   ensureCssFont,
+  type FontEntry,
   getFont,
   getFonts,
   loadLocalFonts,
@@ -11,6 +12,69 @@ import {
 
 export function useFonts() {
   return useSyncExternalStore(subscribeFonts, getFonts, getFonts);
+}
+
+/**
+ * Style CSS pour afficher le nom d'une police dans cette police. Les polices de
+ * l'ordinateur et standard s'affichent directement ; les autres une fois chargées.
+ */
+function previewStyle(f: FontEntry): CSSProperties {
+  if (f.source === "local" && f.family) {
+    return { fontFamily: `"${f.family}"`, fontWeight: f.bold ? 700 : 400, fontStyle: f.italic ? "italic" : "normal" };
+  }
+  const synthetic = f.source === "standard";
+  return {
+    fontFamily: `${f.cssFamily}, system-ui, sans-serif`,
+    fontWeight: synthetic && f.bold ? 700 : undefined,
+    fontStyle: synthetic && f.italic ? "italic" : undefined,
+  };
+}
+
+/** Ligne de la liste : charge la police seulement quand elle devient visible. */
+function FontOption({
+  font,
+  selected,
+  root,
+  onPick,
+}: {
+  font: FontEntry;
+  selected: boolean;
+  root: RefObject<HTMLDivElement | null>;
+  onPick: (key: string) => void;
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (font.source === "standard" || font.source === "local") return;
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          io.disconnect();
+          ensureCssFont(font.key).catch(() => undefined);
+        }
+      },
+      { root: root.current, rootMargin: "120px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [font, root]);
+  useEffect(() => {
+    if (selected) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
+  return (
+    <button
+      ref={ref}
+      type="button"
+      role="option"
+      aria-selected={selected}
+      className={`font-option ${selected ? "selected" : ""}`}
+      style={previewStyle(font)}
+      onClick={() => onPick(font.key)}
+    >
+      {font.label}
+    </button>
+  );
 }
 
 /** Choix de police : bibliothèque, catalogue libre, standard, installées ou importées. */
@@ -29,6 +93,7 @@ export function FontPicker({
   const fonts = useFonts();
   const [filter, setFilter] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const [status, setStatus] = useState<string | null>(null);
 
@@ -97,20 +162,19 @@ export function FontPicker({
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
-      <select value={value} onChange={(e) => pick(e.target.value)}>
+      <div className="font-current" style={previewStyle(current)} title="Police actuelle">
+        {current.label}
+      </div>
+      <div className="font-list" role="listbox" aria-label="Polices" ref={listRef}>
         {groups.map((g) => (
-          <optgroup key={g.label} label={g.label}>
+          <div key={g.label} role="group" aria-label={g.label}>
+            <div className="font-group">{g.label}</div>
             {g.items.map((f) => (
-              <option key={f.key} value={f.key}>
-                {f.label}
-              </option>
+              <FontOption key={f.key} font={f} selected={f.key === value} root={listRef} onPick={pick} />
             ))}
-          </optgroup>
+          </div>
         ))}
-        {!groups.some((g) => g.items.some((f) => f.key === value)) && <option value={value}>{current.label}</option>}
-      </select>
-      <div className="font-sample" style={{ fontFamily: current.cssFamily }}>
-        Portez ce vieux whisky au juge blond — 0123
+        {!groups.length && <p className="hint pad">Aucune police ne correspond à « {filter} ».</p>}
       </div>
       <div className="font-actions">
         {localFontsSupported() ? (
@@ -121,11 +185,13 @@ export function FontPicker({
             fichier de police à la place.
           </span>
         )}
-        <button onClick={() => fileRef.current?.click()}>Importer TTF/OTF…</button>
+        <button onClick={() => fileRef.current?.click()} title="Formats acceptés : TTF, OTF, TTC, WOFF, WOFF2">
+          Importer une police…
+        </button>
         <input
           ref={fileRef}
           type="file"
-          accept=".ttf,.otf,.ttc,.otc,font/ttf,font/otf,font/collection"
+          accept=".ttf,.otf,.ttc,.otc,.woff,.woff2,font/ttf,font/otf,font/collection,font/woff,font/woff2"
           multiple
           hidden
           onChange={async (e) => {
@@ -135,7 +201,7 @@ export function FontPicker({
               const keys = await addFontFiles(Array.from(files));
               if (keys[0]) onChange(keys[0]);
             } catch {
-              onError("Ce fichier de police n'a pas pu être lu (formats acceptés : TTF, OTF).");
+              onError("Ce fichier de police n'a pas pu être lu (formats acceptés : TTF, OTF, TTC, WOFF, WOFF2).");
             }
             e.target.value = "";
           }}
