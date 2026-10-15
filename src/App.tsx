@@ -149,17 +149,27 @@ export default function App() {
 
   const snapshot = (d: DocState): Snapshot => ({ bytes: d.bytes, pageIds: d.pageIds, annotations: d.annotations });
 
-  const commit = useCallback((next: Partial<Snapshot>) => {
+  /**
+   * Enregistre une modification dans l'historique. Passer une fonction calcule
+   * la modification à partir de l'état le plus récent : indispensable pour les
+   * opérations asynchrones (deux « Modifier le texte » rapides ne s'écrasent pas).
+   */
+  const commit = useCallback((next: Partial<Snapshot> | ((d: DocState) => Partial<Snapshot>)) => {
     setDoc((d) => {
       if (!d) return d;
       past.current.push(dragBase.current ?? snapshot(d));
       if (past.current.length > 100) past.current.shift();
       dragBase.current = null;
       future.current = [];
-      return { ...d, ...next };
+      return { ...d, ...(typeof next === "function" ? next(d) : next) };
     });
     forceHistory((n) => n + 1);
   }, []);
+
+  const addAnnotations = useCallback(
+    (...added: Annotation[]) => commit((d) => ({ annotations: [...d.annotations, ...added] })),
+    [commit],
+  );
 
   const undo = useCallback(() => {
     setDoc((d) => {
@@ -431,7 +441,7 @@ export default function App() {
 
   const onCreate = useCallback(
     (a: Annotation) => {
-      commit({ annotations: [...(doc?.annotations ?? []), a] });
+      addAnnotations(a);
       // Le texte ajouté s'édite tout de suite sur la page ; l'outil reste actif
       // pour enchaîner les ajouts (on en sort avec un autre outil ou Échap).
       if (a.kind === "text") {
@@ -439,7 +449,7 @@ export default function App() {
         setPropsOpen(true);
       }
     },
-    [commit, doc?.annotations],
+    [addAnnotations],
   );
 
   const onChange = useCallback(
@@ -464,7 +474,7 @@ export default function App() {
   const duplicateSelected = () => {
     if (!doc || !selected) return;
     const copy = duplicateAnnotation(selected);
-    commit({ annotations: [...doc.annotations, copy] });
+    addAnnotations(copy);
     setSelectedId(copy.id);
   };
 
@@ -508,7 +518,7 @@ export default function App() {
         rotation: run.angle,
         ...(embedded ? { embedded } : {}),
       };
-      commit({ annotations: [...doc.annotations, cover, text] });
+      addAnnotations(cover, text);
       // On reste en mode « Modifier le texte » pour enchaîner les modifications.
       setSelectedId(text.id);
       setPropsOpen(true);
@@ -523,7 +533,7 @@ export default function App() {
         notify(`Police d'origine « ${original} » remplacée par l'équivalent « ${chosen.label} ».`);
       }
     },
-    [doc, commit, notify],
+    [doc, addAnnotations, notify],
   );
 
   const onPlace = useCallback(
@@ -540,12 +550,12 @@ export default function App() {
         color: "#000000",
         opacity: 1,
       };
-      commit({ annotations: [...doc.annotations, a] });
+      addAnnotations(a);
       setPending(null);
       setTool("select");
       setSelectedId(a.id);
     },
-    [pending, doc, commit],
+    [pending, doc, addAnnotations],
   );
 
   const startImage = async (dataUrl: string, signature: boolean) => {
