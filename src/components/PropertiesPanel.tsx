@@ -126,7 +126,7 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
   const boldKey = styleVariant(v.fontKey, !currentFont.bold, !!currentFont.italic);
   const italicKey = styleVariant(v.fontKey, !!currentFont.bold, !currentFont.italic);
 
-  const showColor = !["image", "whiteout", "select", "editText", "stamp", "field"].includes(kind);
+  const showColor = !["image", "whiteout", "select", "editText", "stamp", "field", "eraser"].includes(kind);
   const field = selected?.kind === "field" ? selected : null;
   const updateField = (patch: Partial<FieldAnnotation>, commit = true) => field && onUpdate({ ...field, ...patch }, commit);
   const showWidth = ["ink", "line", "arrow", "rect", "ellipse", "shape"].includes(kind);
@@ -341,7 +341,14 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
         </>
       )}
 
-      {!["select", "editText", "whiteout", "stamp", "field"].includes(kind) && (
+      {tool === "eraser" && (
+        <p className="hint">
+          Touchez un élément ajouté (trait, forme, texte, tampon, image…) ou passez dessus pour le supprimer. Le contenu
+          d'origine du PDF n'est pas touché : pour le masquer, utilisez le cache blanc. Ctrl+Z pour annuler.
+        </p>
+      )}
+
+      {!["select", "editText", "whiteout", "stamp", "field", "eraser"].includes(kind) && (
         <label className="field">
           Opacité : {Math.round(v.opacity * 100)} %
           <input type="range" min={0.1} max={1} step={0.05} value={v.opacity} onChange={(e) => set({ opacity: +e.target.value }, false)} onPointerUp={() => set({}, true)} />

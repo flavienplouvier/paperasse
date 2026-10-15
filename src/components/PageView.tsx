@@ -54,6 +54,8 @@ interface Props {
   onChange: (a: Annotation, commit: boolean) => void;
   onEditText: (req: EditTextRequest) => void;
   onPlace: (pageId: string, at: Point, rotation: number) => void;
+  /** Gomme : supprime les éléments ajoutés touchés (une seule étape d'annulation). */
+  onErase: (ids: string[]) => void;
   onFocusText: () => void;
   registerElement: (index: number, el: HTMLElement | null) => void;
 }
@@ -98,6 +100,8 @@ function PageViewImpl(props: Props) {
   const [draft, setDraft] = useState<Draft>(null);
   const [drag, setDrag] = useState<Drag>(null);
   const [hoverRun, setHoverRun] = useState<TextRun | null>(null);
+  const erasing = useRef<{ pointerId: number; ids: Set<string> } | null>(null);
+  const [erasedPreview, setErasedPreview] = useState<Set<string>>(new Set());
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
@@ -210,10 +214,33 @@ function PageViewImpl(props: Props) {
 
   // ------------------------------------------------------------------ outils
 
+  /** Éléments sous le pointeur (avec une petite marge, pour le doigt). */
+  const eraseAt = (clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const found = new Set(erasing.current?.ids);
+    for (const [dx, dy] of [[0, 0], [-6, 0], [6, 0], [0, -6], [0, 6]]) {
+      for (const el of document.elementsFromPoint(clientX + dx, clientY + dy)) {
+        const target = (el as Element).closest?.("[data-annot]");
+        if (target && svg.contains(target)) found.add(target.getAttribute("data-annot")!);
+      }
+    }
+    if (erasing.current && found.size !== erasing.current.ids.size) {
+      erasing.current.ids = found;
+      setErasedPreview(new Set(found));
+    }
+  };
+
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!viewport || e.button > 0) return;
     const [x, y] = local(e);
     const p = toPdf(x, y);
+    if (tool === "eraser") {
+      svgRef.current!.setPointerCapture(e.pointerId);
+      erasing.current = { pointerId: e.pointerId, ids: new Set() };
+      eraseAt(e.clientX, e.clientY);
+      return;
+    }
     switch (tool) {
       case "ink":
         svgRef.current!.setPointerCapture(e.pointerId);
@@ -274,6 +301,10 @@ function PageViewImpl(props: Props) {
 
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!viewport) return;
+    if (erasing.current?.pointerId === e.pointerId) {
+      eraseAt(e.clientX, e.clientY);
+      return;
+    }
     const [x, y] = local(e);
     const p = toPdf(x, y);
     if (drag && drag.pointerId === e.pointerId) {
@@ -295,6 +326,13 @@ function PageViewImpl(props: Props) {
   };
 
   const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (erasing.current?.pointerId === e.pointerId) {
+      const ids = [...erasing.current.ids];
+      erasing.current = null;
+      setErasedPreview(new Set());
+      if (ids.length) props.onErase(ids);
+      return;
+    }
     if (drag && drag.pointerId === e.pointerId) {
       const p = toPdf(...local(e));
       props.onChange(applyDrag(drag, p[0] - drag.start[0], p[1] - drag.start[1], p), true);
@@ -397,14 +435,17 @@ function PageViewImpl(props: Props) {
     const sel = tool === "select";
     // En modes texte, un texte déjà ajouté ou modifié se rouvre d'un clic.
     const reopen = a.kind === "text" && TEXT_TOOLS.has(tool);
+    const erasable = tool === "eraser";
     const common = {
-      opacity: a.opacity,
+      // Éléments sur le point d'être gommés : estompés jusqu'au relâchement.
+      opacity: erasedPreview.has(a.id) ? a.opacity * 0.2 : a.opacity,
       style: {
-        pointerEvents: sel || reopen ? ("all" as const) : ("none" as const),
+        pointerEvents: sel || reopen || erasable ? ("all" as const) : ("none" as const),
         cursor: sel ? "move" : reopen ? "text" : undefined,
         touchAction: "none",
       },
       onPointerDown: (e: React.PointerEvent) => {
+        if (erasable) return; // géré par la gomme (au niveau de la page)
         if (reopen) {
           e.stopPropagation();
           // Empêche le navigateur de reprendre le focus (mousedown) : la zone de saisie le garde.
@@ -797,6 +838,8 @@ function PageViewImpl(props: Props) {
         onPointerCancel={() => {
           setDraft(null);
           setDrag(null);
+          erasing.current = null;
+          setErasedPreview(new Set());
         }}
         onPointerLeave={() => setHoverRun(null)}
       >

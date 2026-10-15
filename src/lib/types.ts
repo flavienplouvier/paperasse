@@ -21,6 +21,7 @@ export type Tool =
   | "stamp"
   | "field"
   | "shape"
+  | "eraser"
   | "image";
 
 export type FieldType = "text" | "checkbox" | "dropdown";

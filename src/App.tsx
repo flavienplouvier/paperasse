@@ -53,7 +53,8 @@ const BUTTONS: { id: string; label: string; icon: string; key?: string; tools: T
   { id: "text", label: "Ajouter du texte", icon: "text", key: "T", tools: ["text"] },
   { id: "draw", label: "Dessin", icon: "ink", key: "D", tools: DRAW_TOOLS },
   { id: "shapes", label: "Formes", icon: "shapes", key: "R", tools: SHAPE_TOOLS },
-  { id: "whiteout", label: "Effacer (cache blanc)", icon: "whiteout", key: "W", tools: ["whiteout"] },
+  { id: "eraser", label: "Gomme", icon: "eraser", key: "G", tools: ["eraser"] },
+  { id: "whiteout", label: "Cache blanc", icon: "whiteout", key: "W", tools: ["whiteout"] },
   { id: "stamp", label: "Tampon", icon: "stamp", key: "P", tools: ["stamp"] },
   { id: "field", label: "Champ de formulaire", icon: "form", key: "F", tools: ["field"] },
 ];
@@ -70,6 +71,7 @@ const KEYS: Record<string, { tool: Tool; shape?: ShapeId; doubleArrow?: boolean 
   r: { tool: "shape", shape: "rect" },
   o: { tool: "shape", shape: "ellipse" },
   w: { tool: "whiteout" },
+  g: { tool: "eraser" },
   p: { tool: "stamp" },
   f: { tool: "field" },
 };
@@ -233,27 +235,30 @@ export default function App() {
     [commit],
   );
 
-  const undo = useCallback(() => {
+  /**
+   * Déplace une étape d'une pile d'historique à l'autre. Le résultat est mémorisé
+   * par appel : si React rappelle la fonction de mise à jour (mode strict), une
+   * seule étape est déplacée.
+   */
+  const lastStep = useRef<{ token: object; result: Snapshot | null } | null>(null);
+  const step = useCallback((from: React.MutableRefObject<Snapshot[]>, to: React.MutableRefObject<Snapshot[]>) => {
+    const token = {};
     setDoc((d) => {
-      const prev = past.current.pop();
-      if (!d || !prev) return d;
-      future.current.push(snapshot(d));
-      return { ...d, ...prev };
+      if (!d) return d;
+      if (lastStep.current?.token !== token) {
+        const target = from.current.pop() ?? null;
+        if (target) to.current.push(snapshot(d));
+        lastStep.current = { token, result: target };
+      }
+      const target = lastStep.current.result;
+      return target ? { ...d, ...target } : d;
     });
     setSelectedId(null);
     forceHistory((n) => n + 1);
   }, []);
 
-  const redo = useCallback(() => {
-    setDoc((d) => {
-      const next = future.current.pop();
-      if (!d || !next) return d;
-      past.current.push(snapshot(d));
-      return { ...d, ...next };
-    });
-    setSelectedId(null);
-    forceHistory((n) => n + 1);
-  }, []);
+  const undo = useCallback(() => step(past, future), [step]);
+  const redo = useCallback(() => step(future, past), [step]);
 
   // ---------------------------------------------------------------- chargement
 
@@ -636,6 +641,18 @@ export default function App() {
       }
     },
     [doc, commit, addAnnotations, setPendingEdit],
+  );
+
+  /** Gomme : retire les éléments touchés, en une seule étape d'annulation. */
+  const onErase = useCallback(
+    (ids: string[]) => {
+      const gone = new Set(ids);
+      if (pendingRef.current && gone.has(pendingRef.current.text.id)) setPendingEdit(null);
+      if (selectedId && gone.has(selectedId)) setSelectedId(null);
+      const committed = (doc?.annotations ?? []).some((a) => gone.has(a.id));
+      if (committed) commit((d) => ({ annotations: d.annotations.filter((a) => !gone.has(a.id)) }));
+    },
+    [doc?.annotations, selectedId, commit, setPendingEdit],
   );
 
   const deleteSelected = useCallback(() => {
@@ -1320,6 +1337,7 @@ export default function App() {
                 onChange={onChange}
                 onEditText={onEditText}
                 onPlace={onPlace}
+                onErase={onErase}
                 onFocusText={() => setPropsOpen(true)}
                 registerElement={registerElement}
               />

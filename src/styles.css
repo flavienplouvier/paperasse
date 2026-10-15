@@ -425,6 +425,10 @@ input[type="checkbox"] {
 .viewer.tool-image .overlay {
   cursor: crosshair;
 }
+.viewer.tool-eraser .overlay,
+.viewer.tool-eraser .overlay [data-annot] {
+  cursor: cell;
+}
 .viewer.tool-text .overlay {
   cursor: text;
 }
