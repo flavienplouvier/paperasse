@@ -11,7 +11,12 @@ import {
   beginText,
   decodePDFRawStream,
   endText,
+  lineTo,
+  moveTo,
   popGraphicsState,
+  setLineWidth,
+  setStrokingColor,
+  stroke,
   pushGraphicsState,
   rgb,
   setFillingColor,
@@ -235,9 +240,16 @@ export function drawEmbeddedText(doc: PDFDocument, page: PDFPage, a: TextAnnotat
   const font = a.embedded;
   const right: [number, number] = [cos, sin];
   const em = a.fontSize / 1000;
+  const lineWidth = (line: string) =>
+    [...line].reduce((w, ch) => w + (ch === " " && !font.glyphs[" "] ? font.spaceWidth : (font.glyphs[ch]?.width ?? 500)), 0) * em;
+  const underlines: [[number, number], [number, number]][] = [];
   a.text.split(/\r?\n/).forEach((line, i) => {
     if (!line) return;
     const start = addScaled(a.origin, down, a.fontSize * 1.25 * i);
+    if (a.underline) {
+      const base = addScaled(start, down, a.fontSize * 0.12);
+      underlines.push([base, addScaled(base, right, lineWidth(line))]);
+    }
     if (font.glyphs[" "]) {
       ops.push(setTextMatrix(cos, sin, -sin, cos, start[0], start[1]), showText(PDFHexString.of(hexCodes(font, line))));
       return;
@@ -252,7 +264,12 @@ export function drawEmbeddedText(doc: PDFDocument, page: PDFPage, a: TextAnnotat
       advance += [...word].reduce((w, ch) => w + (font.glyphs[ch]?.width ?? 500), 0) + font.spaceWidth;
     }
   });
-  ops.push(endText(), popGraphicsState());
+  ops.push(endText());
+  if (underlines.length) {
+    ops.push(setStrokingColor(rgb(r, g, b)), setLineWidth(Math.max(0.5, a.fontSize * 0.07)));
+    for (const [s, e] of underlines) ops.push(moveTo(s[0], s[1]), lineTo(e[0], e[1]), stroke());
+  }
+  ops.push(popGraphicsState());
   page.pushOperators(...ops);
   return true;
 }

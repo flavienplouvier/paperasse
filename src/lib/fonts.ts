@@ -152,6 +152,13 @@ export function registerFontBytes(name: string, buffer: ArrayBuffer, postscriptN
   return key;
 }
 
+/** Polices importées (pour la sauvegarde automatique) : nom → octets. */
+export async function importedFonts(): Promise<Record<string, ArrayBuffer>> {
+  const out: Record<string, ArrayBuffer> = {};
+  for (const f of registry.values()) if (f.source === "file" && f.family && f.load) out[f.family] = await f.load();
+  return out;
+}
+
 export async function addFontFiles(files: Iterable<File>): Promise<string[]> {
   const keys: string[] = [];
   for (const file of files) {
@@ -427,4 +434,22 @@ function standardKey(kind: "mono" | "serif" | "sans", bold: boolean, italic: boo
   if (kind === "serif") return `std:Times-${bold && italic ? "BoldItalic" : bold ? "Bold" : italic ? "Italic" : "Roman"}`;
   const fam = kind === "mono" ? "Courier" : "Helvetica";
   return `std:${fam}${bold && italic ? "-BoldOblique" : bold ? "-Bold" : italic ? "-Oblique" : ""}`;
+}
+
+/**
+ * Variante gras/italique d'une police dans la même famille (boutons G / I).
+ * Retourne null si la famille ne propose pas ce style.
+ */
+export function styleVariant(key: string, bold: boolean, italic: boolean, fonts: FontEntry[] = snapshot): string | null {
+  const font = getFont(key);
+  let siblings: FontEntry[];
+  if (font.source === "standard") {
+    const fam = /^std:(Helvetica|Times|Courier)/.exec(font.key)?.[1] ?? "Helvetica";
+    siblings = fonts.filter((f) => f.source === "standard" && f.key.startsWith(`std:${fam}`));
+  } else if (font.source === "library") {
+    siblings = fonts.filter((f) => f.source === "library" && f.slug === font.slug);
+  } else {
+    siblings = fonts.filter((f) => f.source === font.source && f.family && f.family === font.family);
+  }
+  return siblings.find((f) => !!f.bold === bold && !!f.italic === italic)?.key ?? null;
 }

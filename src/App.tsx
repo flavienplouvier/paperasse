@@ -15,7 +15,11 @@ import {
   matchFont,
   normalizeFontName,
   parseFontName,
+  importedFonts,
+  registerFontBytes,
 } from "./lib/fonts";
+import { clearDraft, draftInfo, formatSavedAt, loadDraft, saveDraft, type DraftInfo } from "./lib/drafts";
+import { facesFor, restoreFaces } from "./lib/embeddedFontBuilder";
 import { duplicateAnnotation } from "./lib/annotations";
 import { buildEmbeddedFont } from "./lib/embeddedFontBuilder";
 import type { SearchHit } from "./lib/text";
@@ -25,6 +29,8 @@ import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SearchPanel } from "./components/SearchPanel";
 import { FormsPanel } from "./components/FormsPanel";
 import { SignaturePad } from "./components/SignaturePad";
+import { DocumentTools, type DocTab } from "./components/DocumentTools";
+import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import { Icon } from "./components/Icon";
 
 type Snapshot = Pick<DocState, "bytes" | "pageIds" | "annotations">;
@@ -39,8 +45,12 @@ const TOOLS: { id: Tool; label: string; icon: string; key: string }[] = [
   { id: "rect", label: "Rectangle", icon: "rect", key: "r" },
   { id: "ellipse", label: "Ellipse", icon: "ellipse", key: "o" },
   { id: "line", label: "Trait", icon: "line", key: "l" },
+  { id: "arrow", label: "Flèche", icon: "arrow", key: "a" },
   { id: "whiteout", label: "Effacer (cache blanc)", icon: "whiteout", key: "w" },
+  { id: "stamp", label: "Tampon", icon: "stamp", key: "p" },
 ];
+
+type PendingKind = "image" | "signature" | "stamp";
 
 const isMobile = () => window.matchMedia("(max-width: 899px)").matches;
 
@@ -116,6 +126,7 @@ export default function App() {
     fill: false,
     fontKey: DEFAULT_FONT_KEY,
     fontSize: 14,
+    underline: false,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel | null>(() => (isMobile() ? null : "pages"));
@@ -124,8 +135,11 @@ export default function App() {
   const [activeHit, setActiveHit] = useState(-1);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; error?: boolean } | null>(null);
-  const [pending, setPending] = useState<{ dataUrl: string; w: number; h: number; signature: boolean } | null>(null);
+  const [pending, setPending] = useState<{ dataUrl: string; w: number; h: number; kind: PendingKind } | null>(null);
   const [signing, setSigning] = useState(false);
+  const [docTools, setDocTools] = useState<DocTab | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(0);
   const [locked, setLocked] = useState<string | null>(null);
@@ -293,6 +307,71 @@ export default function App() {
     },
     [loadDocument, notify, fail],
   );
+
+  // ------------------------------------------------------------- sauvegarde automatique
+
+  const [draft, setDraft] = useState<DraftInfo | null>(null);
+
+  // Travail en cours proposé à la reprise sur l'écran d'accueil.
+  useEffect(() => {
+    if (doc) return;
+    loadDraft()
+      .then((d) => setDraft(d ? draftInfo(d) : null))
+      .catch(() => setDraft(null));
+  }, [doc]);
+
+  // Enregistrement une seconde après chaque modification (sauf PDF protégé par mot de passe).
+  useEffect(() => {
+    if (!doc || doc.password) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        const families = doc.annotations.flatMap((a) =>
+          a.kind === "text" && a.embedded ? [a.embedded.cssFamily.replace(/"/g, "")] : [],
+        );
+        await saveDraft({
+          name: doc.name,
+          bytes: doc.bytes,
+          pageIds: doc.pageIds,
+          annotations: doc.annotations,
+          rewritable: doc.rewritable,
+          savedAt: Date.now(),
+          faces: facesFor(families),
+          importedFonts: await importedFonts(),
+        });
+      } catch {
+        /* stockage plein ou indisponible (navigation privée) : on continue sans sauvegarde */
+      }
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [doc]);
+
+  const resumeDraft = async () => {
+    setBusy("Reprise du travail en cours…");
+    try {
+      const d = await loadDraft();
+      if (!d) return setDraft(null);
+      await restoreFaces(d.faces ?? {});
+      for (const [name, buffer] of Object.entries(d.importedFonts ?? {})) registerFontBytes(name, buffer);
+      past.current = [];
+      future.current = [];
+      bytesRef.current = null;
+      setSelectedId(null);
+      setSelectedPages(new Set());
+      setHits([]);
+      setCurrentPage(0);
+      setFitWidth(true);
+      setDoc({ name: d.name, bytes: d.bytes, pageIds: d.pageIds, annotations: d.annotations, rewritable: d.rewritable });
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const discardDraft = () => {
+    clearDraft().catch(() => undefined);
+    setDraft(null);
+  };
 
   const newBlank = async () => {
     const d = await PDFDocument.create();
@@ -539,7 +618,7 @@ export default function App() {
   const onPlace = useCallback(
     (pageId: string, at: Point) => {
       if (!pending || !doc) return;
-      const width = pending.signature ? 160 : Math.min(240, pending.w * 0.75);
+      const width = { signature: 160, stamp: 150, image: Math.min(240, pending.w * 0.75) }[pending.kind];
       const height = (width * pending.h) / pending.w;
       const a: Annotation = {
         id: newId("annot"),
@@ -551,19 +630,22 @@ export default function App() {
         opacity: 1,
       };
       addAnnotations(a);
-      setPending(null);
-      setTool("select");
-      setSelectedId(a.id);
+      // Un tampon choisi reste prêt à être reposé ; image et signature sont posées une fois.
+      if (pending.kind !== "stamp") {
+        setPending(null);
+        setTool("select");
+        setSelectedId(a.id);
+      }
     },
     [pending, doc, addAnnotations],
   );
 
-  const startImage = async (dataUrl: string, signature: boolean) => {
+  const startImage = async (dataUrl: string, kind: PendingKind) => {
     const { w, h } = await imageSize(dataUrl);
-    setPending({ dataUrl, w, h, signature });
-    setTool("image");
+    setPending({ dataUrl, w, h, kind });
+    setTool(kind === "stamp" ? "stamp" : "image");
     setSelectedId(null);
-    notify("Touchez la page à l'endroit où placer l'image.");
+    notify(kind === "stamp" ? "Touchez la page pour poser le tampon (plusieurs fois si besoin)." : "Touchez la page à l'endroit où placer l'image.");
   };
 
   // ------------------------------------------------------------- pages
@@ -641,6 +723,50 @@ export default function App() {
       const indices = doc!.pageIds.map((id, i) => (selectedPages.has(id) ? i : -1)).filter((i) => i >= 0);
       download(await ops.extractPages(b, indices), doc!.name.replace(/\.pdf$/i, "") + "-extrait.pdf");
     });
+
+  /** Exporte la page courante (annotations comprises) en image PNG. */
+  const exportPageImage = () =>
+    withExport("Export de la page en image…", async (b) => {
+      const rendered = await openPdf(b);
+      try {
+        const page = await rendered.getPage(currentPage + 1);
+        const base = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({ scale: Math.min(3, 3000 / Math.max(base.width, base.height)) });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        await page.render({ canvas, viewport }).promise;
+        const blob = await new Promise<Blob>((res, rej) => canvas.toBlob((x) => (x ? res(x) : rej(new Error("Rendu impossible"))), "image/png"));
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${doc!.name.replace(/\.pdf$/i, "")}-page-${currentPage + 1}.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } finally {
+        await rendered.loadingTask.destroy();
+      }
+    });
+
+  /** Transformation de tout le document (numérotation, filigrane…), annulable. */
+  const applyToDocument = async (label: string, transform: (bytes: Uint8Array) => Promise<Uint8Array>) => {
+    if (!doc) return;
+    if (!doc.rewritable) {
+      notify("Ce PDF protégé ne peut pas être modifié de cette façon.", true);
+      return;
+    }
+    setBusy(label);
+    try {
+      const bytes = await transform(doc.bytes);
+      commit({ bytes });
+      notify("Document mis à jour (Ctrl+Z pour annuler).");
+    } catch (e) {
+      fail(e);
+      throw e;
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const applyForm = async (values: FormValues, fontKey: string | undefined) => {
     if (!doc) return;
@@ -772,7 +898,7 @@ export default function App() {
         onChange={async (e) => {
           const f = e.target.files?.[0];
           e.target.value = "";
-          if (f) startImage(await normalizeImage(f), false).catch(fail);
+          if (f) startImage(await normalizeImage(f), "image").catch(fail);
         }}
       />
     </>
@@ -799,6 +925,22 @@ export default function App() {
             Essayer avec un exemple
           </button>
           <p className="hint">ou glissez-déposez vos fichiers ici</p>
+          {draft && (
+            <div className="resume-card">
+              <div>
+                <strong>Reprendre « {draft.name} »</strong>
+                <span>
+                  {draft.pages} page(s){draft.edits ? `, ${draft.edits} modification(s)` : ""} — enregistré {formatSavedAt(draft.savedAt)}
+                </span>
+              </div>
+              <div className="resume-actions">
+                <button className="primary" onClick={resumeDraft}>
+                  Reprendre
+                </button>
+                <button onClick={discardDraft}>Oublier</button>
+              </div>
+            </div>
+          )}
         </div>
         {busy && <div className="busy">{busy}</div>}
         {toast && <div className={`toast ${toast.error ? "error" : ""}`}>{toast.msg}</div>}
@@ -845,7 +987,45 @@ export default function App() {
           <button className="icon-btn desktop-only" title="Imprimer" onClick={print}>
             <Icon name="print" />
           </button>
-          <button className="icon-btn" title="Partager" onClick={share}>
+          <div className="menu-wrap">
+            <button className="icon-btn" title="Plus d'outils" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
+              <Icon name="more" />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+                <div className="menu" role="menu" onClick={() => setMenuOpen(false)}>
+                  <button role="menuitem" disabled={!editable} onClick={() => setDocTools("numbers")}>
+                    <Icon name="pages" /> Numéroter les pages
+                  </button>
+                  <button role="menuitem" disabled={!editable} onClick={() => setDocTools("headers")}>
+                    <Icon name="text" /> En-tête et pied de page
+                  </button>
+                  <button role="menuitem" disabled={!editable} onClick={() => setDocTools("watermark")}>
+                    <Icon name="stamp" /> Filigrane
+                  </button>
+                  <button role="menuitem" disabled={!editable} onClick={() => setDocTools("properties")}>
+                    <Icon name="info" /> Propriétés du document
+                  </button>
+                  <hr />
+                  <button role="menuitem" onClick={exportPageImage}>
+                    <Icon name="image" /> Exporter la page en image (PNG)
+                  </button>
+                  <button role="menuitem" onClick={share}>
+                    <Icon name="share" /> Partager
+                  </button>
+                  <button role="menuitem" onClick={print}>
+                    <Icon name="print" /> Imprimer
+                  </button>
+                  <hr />
+                  <button role="menuitem" onClick={() => setShowShortcuts(true)}>
+                    <Icon name="keyboard" /> Raccourcis clavier
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          <button className="icon-btn desktop-only" title="Partager" onClick={share}>
             <Icon name="share" />
           </button>
           <button className="primary save-btn" title="Enregistrer (Ctrl+S)" onClick={save}>
@@ -873,11 +1053,11 @@ export default function App() {
             <span>{t.label}</span>
           </button>
         ))}
-        <button className={`tool ${tool === "image" && pending?.signature ? "active" : ""}`} disabled={!editable} onClick={() => setSigning(true)} title="Signer">
+        <button className={`tool ${tool === "image" && pending?.kind === "signature" ? "active" : ""}`} disabled={!editable} onClick={() => setSigning(true)} title="Signer">
           <Icon name="sign" />
           <span>Signer</span>
         </button>
-        <button className={`tool ${tool === "image" && pending && !pending.signature ? "active" : ""}`} disabled={!editable} onClick={() => imageInput.current?.click()} title="Image">
+        <button className={`tool ${tool === "image" && pending?.kind === "image" ? "active" : ""}`} disabled={!editable} onClick={() => imageInput.current?.click()} title="Image">
           <Icon name="image" />
           <span>Image</span>
         </button>
@@ -1034,17 +1214,22 @@ export default function App() {
           onUpdate={onChange}
           onDelete={deleteSelected}
           onDuplicate={duplicateSelected}
+          onStamp={(url) => startImage(url, "stamp").catch(fail)}
           onError={(m) => notify(m, true)}
         />
       </aside>
 
+      {docTools && (
+        <DocumentTools bytes={doc.bytes} initialTab={docTools} onApply={applyToDocument} onClose={() => setDocTools(null)} />
+      )}
+      {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
       {signing && (
         <SignaturePad
           onCancel={() => setSigning(false)}
           onError={(m) => notify(m, true)}
           onDone={(url) => {
             setSigning(false);
-            startImage(url, true).catch(fail);
+            startImage(url, "signature").catch(fail);
           }}
         />
       )}

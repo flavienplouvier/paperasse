@@ -1,8 +1,43 @@
+import { useState } from "react";
 import type { Annotation, Tool } from "../lib/types";
 import { missingChars } from "../lib/embeddedFonts";
+import { getFont, styleVariant } from "../lib/fonts";
+import { STAMPS, renderStamp } from "../lib/stamp";
 import type { ToolStyle } from "./PageView";
-import { FontPicker } from "./FontPicker";
+import { FontPicker, useFonts } from "./FontPicker";
 import { Icon } from "./Icon";
+
+/** Choix d'un tampon prédéfini ou personnalisé, avec date facultative. */
+function StampPicker({ onStamp }: { onStamp: (dataUrl: string) => void }) {
+  const [custom, setCustom] = useState("");
+  const [color, setColor] = useState("#c62828");
+  const [withDate, setWithDate] = useState(true);
+  return (
+    <div className="stamp-picker">
+      <div className="stamp-grid">
+        {STAMPS.map((s) => (
+          <button key={s.label} className="stamp-btn" style={{ color: s.color, borderColor: s.color }} onClick={() => onStamp(renderStamp(s.label, s.color, withDate))}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <label className="field inline">
+        <input type="checkbox" checked={withDate} onChange={(e) => setWithDate(e.target.checked)} /> Ajouter la date du jour
+      </label>
+      <div className="field">
+        Tampon personnalisé
+        <div className="search-row" style={{ padding: 0 }}>
+          <input value={custom} placeholder="Ex. : Bon pour accord" onChange={(e) => setCustom(e.target.value)} />
+          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} aria-label="Couleur du tampon" />
+          <button className="primary" disabled={!custom.trim()} onClick={() => onStamp(renderStamp(custom, color, withDate))}>
+            OK
+          </button>
+        </div>
+      </div>
+      <p className="hint">Choisissez un tampon, puis touchez la page à l'endroit où le poser.</p>
+    </div>
+  );
+}
 
 const COLORS = ["#000000", "#ffffff", "#e5484d", "#f76b15", "#ffe14d", "#30a46c", "#0090ff", "#1a2b6d", "#8e4ec6"];
 
@@ -15,16 +50,20 @@ interface Props {
   onDelete: () => void;
   onDuplicate: () => void;
   onError: (msg: string) => void;
+  onStamp: (dataUrl: string) => void;
 }
 
-export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDelete, onDuplicate, onError }: Props) {
+export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDelete, onDuplicate, onError, onStamp }: Props) {
+  useFonts(); // re-rendu quand la bibliothèque de polices est chargée (boutons G / I)
   // Modifie l'annotation sélectionnée, et retient le réglage pour les suivantes.
   const set = (patch: Partial<ToolStyle> & { text?: string }, commit = true) => {
     const { text, ...stylePatch } = patch;
     if (Object.keys(stylePatch).length) onStyle(stylePatch);
     if (selected) {
       const next = { ...selected } as Record<string, unknown>;
-      for (const [k, v] of Object.entries(patch)) if (k in selected) next[k] = v;
+      for (const [k, v] of Object.entries(patch)) {
+        if (k in selected || (k === "underline" && selected.kind === "text")) next[k] = v;
+      }
       if (text !== undefined) next.text = text;
       // Choisir une autre police abandonne la police incorporée d'origine.
       if (patch.fontKey !== undefined) delete next.embedded;
@@ -40,10 +79,14 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
     fill: selected && "fill" in selected ? selected.fill : style.fill,
     fontKey: selected?.kind === "text" ? selected.fontKey : style.fontKey,
     fontSize: selected?.kind === "text" ? selected.fontSize : style.fontSize,
+    underline: selected?.kind === "text" ? !!selected.underline : style.underline,
   };
+  const currentFont = getFont(v.fontKey);
+  const boldKey = styleVariant(v.fontKey, !currentFont.bold, !!currentFont.italic);
+  const italicKey = styleVariant(v.fontKey, !!currentFont.bold, !currentFont.italic);
 
-  const showColor = kind !== "image" && kind !== "whiteout" && kind !== "select" && kind !== "editText";
-  const showWidth = ["ink", "line", "rect", "ellipse"].includes(kind);
+  const showColor = !["image", "whiteout", "select", "editText", "stamp"].includes(kind);
+  const showWidth = ["ink", "line", "arrow", "rect", "ellipse"].includes(kind);
   const showFill = kind === "rect" || kind === "ellipse";
   const showText = kind === "text" || kind === "editText";
 
@@ -84,6 +127,27 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
             {selected?.kind === "text" && selected.embedded ? "Police de remplacement" : "Police"}
             <FontPicker value={v.fontKey} onChange={(fontKey) => set({ fontKey })} onError={onError} />
           </div>
+          <div className="format-row" role="group" aria-label="Mise en forme">
+            <button
+              className={currentFont.bold ? "active" : ""}
+              disabled={!boldKey}
+              title={boldKey ? "Gras" : "Pas de variante grasse pour cette police"}
+              onClick={() => boldKey && set({ fontKey: boldKey })}
+            >
+              <strong>G</strong>
+            </button>
+            <button
+              className={currentFont.italic ? "active" : ""}
+              disabled={!italicKey}
+              title={italicKey ? "Italique" : "Pas de variante italique pour cette police"}
+              onClick={() => italicKey && set({ fontKey: italicKey })}
+            >
+              <em>I</em>
+            </button>
+            <button className={v.underline ? "active" : ""} title="Souligné" onClick={() => set({ underline: !v.underline })}>
+              <span style={{ textDecoration: "underline" }}>S</span>
+            </button>
+          </div>
           <label className="field">
             Taille : {Math.round(v.fontSize * 10) / 10} pt
             <input type="range" min={4} max={96} step={0.5} value={v.fontSize} onChange={(e) => set({ fontSize: +e.target.value }, false)} onPointerUp={() => set({}, true)} />
@@ -116,7 +180,9 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
         </label>
       )}
 
-      {kind !== "select" && kind !== "editText" && kind !== "whiteout" && (
+      {tool === "stamp" && !selected && <StampPicker onStamp={onStamp} />}
+
+      {!["select", "editText", "whiteout", "stamp"].includes(kind) && (
         <label className="field">
           Opacité : {Math.round(v.opacity * 100)} %
           <input type="range" min={0.1} max={1} step={0.05} value={v.opacity} onChange={(e) => set({ opacity: +e.target.value }, false)} onPointerUp={() => set({}, true)} />

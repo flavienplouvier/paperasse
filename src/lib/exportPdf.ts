@@ -9,8 +9,8 @@ import {
 } from "pdf-lib";
 import { compatFontkit, withPreferredFont } from "./fontkitCompat";
 import { drawEmbeddedText, usesEmbedded } from "./embeddedFonts";
-import type { Annotation, TextAnnotation } from "./types";
-import { addScaled, hexToRgb01, screenAxes } from "./geometry";
+import type { Annotation, Point, TextAnnotation } from "./types";
+import { addScaled, arrowHead, hexToRgb01, screenAxes } from "./geometry";
 import { fontBytes, getFont } from "./fonts";
 
 export const LINE_HEIGHT = 1.25;
@@ -46,6 +46,13 @@ export class FontCache {
   }
 }
 
+/** Trait de soulignement sous une ligne de texte (épaisseur et position usuelles). */
+export function underlineSegment(a: TextAnnotation, lineIndex: number, width: number): [Point, Point] {
+  const { right, down } = screenAxes(a.rotation);
+  const base = addScaled(a.origin, down, a.fontSize * LINE_HEIGHT * lineIndex + a.fontSize * 0.12);
+  return [base, addScaled(base, right, width)];
+}
+
 async function drawText(page: PDFPage, a: TextAnnotation, font: PDFFont) {
   const { down } = screenAxes(a.rotation);
   const lines = a.text.split(/\r?\n/);
@@ -68,6 +75,16 @@ async function drawText(page: PDFPage, a: TextAnnotation, font: PDFFont) {
       opacity: a.opacity,
       rotate: degrees(a.rotation),
     });
+    if (a.underline) {
+      const [from, to] = underlineSegment(a, i, font.widthOfTextAtSize(line, a.fontSize));
+      page.drawLine({
+        start: { x: from[0], y: from[1] },
+        end: { x: to[0], y: to[1] },
+        thickness: Math.max(0.5, a.fontSize * 0.07),
+        color: color(a.color),
+        opacity: a.opacity,
+      });
+    }
   });
 }
 
@@ -89,16 +106,21 @@ export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotat
       }
       return;
     }
-    case "line":
-      page.drawLine({
-        start: { x: a.from[0], y: a.from[1] },
-        end: { x: a.to[0], y: a.to[1] },
-        thickness: a.width,
-        color: color(a.color),
-        opacity: a.opacity,
-        lineCap: LineCapStyle.Round,
-      });
+    case "line": {
+      const segments: [Point, Point][] = [[a.from, a.to]];
+      if (a.arrow) for (const p of arrowHead(a.from, a.to, a.width)) segments.push([a.to, p]);
+      for (const [s, e] of segments) {
+        page.drawLine({
+          start: { x: s[0], y: s[1] },
+          end: { x: e[0], y: e[1] },
+          thickness: a.width,
+          color: color(a.color),
+          opacity: a.opacity,
+          lineCap: LineCapStyle.Round,
+        });
+      }
       return;
+    }
     case "highlight":
     case "whiteout":
     case "rect": {

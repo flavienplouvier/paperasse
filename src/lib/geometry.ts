@@ -50,6 +50,21 @@ export function distanceToSegment(p: Point, a: Point, b: Point): number {
   return Math.hypot(x, y);
 }
 
+/** Extrémités des deux branches d'une pointe de flèche en `to`. */
+export function arrowHead(from: Point, to: Point, width: number): [Point, Point] {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const size = Math.min(len * 0.6, Math.max(8, width * 4.5));
+  const spread = 0.5;
+  return [
+    [to[0] - size * (ux - uy * spread), to[1] - size * (uy + ux * spread)],
+    [to[0] - size * (ux + uy * spread), to[1] - size * (uy - ux * spread)],
+  ];
+}
+
 /** "#rrggbb" → composantes 0..1 */
 export function hexToRgb01(hex: string): [number, number, number] {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());

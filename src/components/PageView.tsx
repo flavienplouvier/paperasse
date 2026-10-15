@@ -3,7 +3,7 @@ import type { PageViewport } from "pdfjs-dist";
 import { pdfjs, type PDFDocumentProxy, type PDFPageProxy } from "../lib/pdfjs";
 import type { Annotation, Point, Rect, Tool } from "../lib/types";
 import { newId } from "../lib/types";
-import { addScaled, normalizeRect, rectContains, screenAxes } from "../lib/geometry";
+import { addScaled, arrowHead, normalizeRect, rectContains, screenAxes } from "../lib/geometry";
 import { hasRect, simplifyPath, translateAnnotation } from "../lib/annotations";
 import { extractRuns, runAt, type TextRun } from "../lib/text";
 import { LINE_HEIGHT } from "../lib/exportPdf";
@@ -18,6 +18,7 @@ export interface ToolStyle {
   fill: boolean;
   fontKey: string;
   fontSize: number;
+  underline: boolean;
 }
 
 export interface EditTextRequest {
@@ -218,6 +219,7 @@ function PageViewImpl(props: Props) {
       case "highlight":
       case "whiteout":
       case "line":
+      case "arrow":
         svgRef.current!.setPointerCapture(e.pointerId);
         setDraft({ kind: "shape", start: p, end: p });
         break;
@@ -234,11 +236,13 @@ function PageViewImpl(props: Props) {
           fontKey: style.fontKey,
           fontSize: style.fontSize,
           rotation,
+          underline: style.underline || undefined,
         });
         props.onFocusText();
         break;
       }
       case "image":
+      case "stamp":
         props.onPlace(pageId, p, rotation);
         break;
       case "editText": {
@@ -299,8 +303,8 @@ function PageViewImpl(props: Props) {
       const { start, end } = draft;
       const tiny = Math.hypot(end[0] - start[0], end[1] - start[1]) < 2;
       if (!tiny) {
-        if (tool === "line") {
-          props.onCreate({ ...base, kind: "line", from: start, to: end, width: style.width });
+        if (tool === "line" || tool === "arrow") {
+          props.onCreate({ ...base, kind: "line", from: start, to: end, width: style.width, arrow: tool === "arrow" });
         } else if (tool === "highlight") {
           props.onCreate({
             ...base,
@@ -372,6 +376,13 @@ function PageViewImpl(props: Props) {
           <g key={a.id} data-annot={a.id} {...common}>
             <line x1={f[0]} y1={f[1]} x2={t[0]} y2={t[1]} stroke="transparent" strokeWidth={14} />
             <line x1={f[0]} y1={f[1]} x2={t[0]} y2={t[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
+            {a.arrow &&
+              arrowHead(a.from, a.to, a.width).map((p, i) => {
+                const h = toView(p);
+                return (
+                  <line key={i} x1={t[0]} y1={t[1]} x2={h[0]} y2={h[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
+                );
+              })}
           </g>
         );
       }
@@ -432,6 +443,7 @@ function PageViewImpl(props: Props) {
             fontWeight={"fontWeight" in css ? css.fontWeight : undefined}
             fontStyle={"fontStyle" in css ? css.fontStyle : undefined}
             transform={`rotate(${rotation - a.rotation} ${x} ${y})`}
+            textDecoration={a.underline ? "underline" : undefined}
             style={{ ...common.style, whiteSpace: "pre", userSelect: "none" }}
           >
             {a.text.split(/\r?\n/).map((line, i) => (
@@ -613,10 +625,18 @@ function PageViewImpl(props: Props) {
         />
       );
     }
-    if (tool === "line") {
+    if (tool === "line" || tool === "arrow") {
       const a = toView(draft.start);
       const b = toView(draft.end);
-      return <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={style.color} strokeWidth={style.width * scale} strokeLinecap="round" />;
+      const heads = tool === "arrow" ? arrowHead(draft.start, draft.end, style.width).map(toView) : [];
+      return (
+        <g stroke={style.color} strokeWidth={style.width * scale} strokeLinecap="round">
+          <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} />
+          {heads.map((h, i) => (
+            <line key={i} x1={b[0]} y1={b[1]} x2={h[0]} y2={h[1]} />
+          ))}
+        </g>
+      );
     }
     const r = viewRect(normalizeRect(draft.start, draft.end));
     if (tool === "ellipse") {

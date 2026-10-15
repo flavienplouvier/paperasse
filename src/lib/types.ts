@@ -15,7 +15,9 @@ export type Tool =
   | "rect"
   | "ellipse"
   | "line"
+  | "arrow"
   | "whiteout"
+  | "stamp"
   | "image";
 
 interface AnnotationBase {
@@ -45,6 +47,8 @@ export interface LineAnnotation extends AnnotationBase {
   from: Point;
   to: Point;
   width: number;
+  /** Pointe de flèche à l'extrémité `to`. */
+  arrow?: boolean;
 }
 
 export interface TextAnnotation extends AnnotationBase {
@@ -56,6 +60,7 @@ export interface TextAnnotation extends AnnotationBase {
   fontSize: number;
   /** Rotation de la page (degrés, sens horaire) au moment de la création. */
   rotation: number;
+  underline?: boolean;
   /**
    * Police incorporée d'origine (« Modifier le texte »). Utilisée tant que tous
    * les caractères du texte existent dans le sous-ensemble incorporé ; sinon

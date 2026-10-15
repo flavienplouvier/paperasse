@@ -26,7 +26,9 @@ rien n'est envoyé sur un serveur.
 - Ajout de texte avec n'importe quelle police : bibliothèque, polices standard
   PDF, polices installées sur l'ordinateur (Chrome/Edge), fichiers TTF/OTF/TTC
   importés. Les polices sont intégrées au PDF : cyrillique, grec, arabe, chinois, japonais…
-- Dessin à main levée, surligneur, rectangles, ellipses, traits, cache blanc.
+- Mise en forme : gras, italique, souligné.
+- Dessin à main levée, surligneur, rectangles, ellipses, traits, flèches, cache blanc.
+- Tampons (Approuvé, Payé, Reçu, Confidentiel… ou texte libre), avec date.
 - Signature au doigt, au stylet ou à la souris, ou importée depuis une photo /
   un scan (fond blanc retiré automatiquement) ; insertion d'images.
 - Remplissage des formulaires PDF (texte, cases, listes, boutons radio).
@@ -35,10 +37,15 @@ rien n'est envoyé sur un serveur.
 **Pages**
 - Rotation, suppression, duplication, réorganisation, page blanche.
 - Fusion de plusieurs PDF, extraction de pages, conversion d'images en PDF.
+- Numérotation des pages, en-tête et pied de page (page, total, date, titre),
+  filigrane, propriétés du document (titre, auteur, sujet, mots-clés).
+- Export d'une page en image PNG.
 
 **Partout**
 - Interface adaptée au téléphone (barre d'outils en bas, panneaux en tiroir).
 - Application installable (PWA) et utilisable hors ligne.
+- Sauvegarde automatique du travail en cours dans le navigateur, proposé à la
+  reprise sur l'écran d'accueil (sauf PDF protégés par mot de passe).
 - Enregistrement, partage (Android) et impression.
 
 ## Démarrer

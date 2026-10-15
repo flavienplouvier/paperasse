@@ -182,6 +182,31 @@ input[type="checkbox"] {
   font-size: 17px;
   margin-top: 8px;
 }
+.resume-card {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+.resume-card strong {
+  display: block;
+  word-break: break-word;
+}
+.resume-card span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.resume-actions {
+  display: flex;
+  gap: 6px;
+}
 .welcome-actions {
   display: flex;
   gap: 8px;
@@ -679,6 +704,39 @@ input[type="color"] {
   flex-direction: column;
   gap: 6px;
 }
+.format-row {
+  display: flex;
+  gap: 6px;
+}
+.format-row button {
+  width: 42px;
+  padding: 0;
+  font-size: 16px;
+}
+.format-row button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.stamp-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.stamp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.stamp-btn {
+  border: 2px solid;
+  border-radius: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  background: var(--surface);
+}
 .font-status {
   margin: 0;
   padding: 8px 10px;
@@ -761,6 +819,90 @@ input[type="color"] {
 }
 .spacer {
   flex: 1;
+}
+.menu-wrap {
+  position: relative;
+}
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+}
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  min-width: 270px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+.menu button {
+  justify-content: flex-start;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 14px;
+  min-height: 40px;
+}
+.menu hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+.modal.wide {
+  width: min(640px, 100%);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+.inline-tabs {
+  padding: 0;
+  border-bottom: 0;
+  flex-wrap: wrap;
+}
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0;
+}
+.field-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.field-row > .field {
+  flex: 1;
+  min-width: 140px;
+}
+.triple {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.shortcuts {
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.shortcuts td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+}
+kbd {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  white-space: nowrap;
 }
 .signature-import {
   display: flex;

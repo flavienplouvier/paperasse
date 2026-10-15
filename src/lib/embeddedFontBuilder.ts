@@ -30,16 +30,41 @@ function loadDoc(bytes: Uint8Array): Promise<PDFDocument> {
   return p;
 }
 
+/** Données de chaque police d'aperçu enregistrée (pour la sauvegarde automatique). */
+const faceData = new Map<string, Uint8Array>();
+
+async function addFace(family: string, data: Uint8Array) {
+  const face = new FontFace(family, data.slice());
+  await face.load();
+  document.fonts.add(face);
+  faceData.set(family, data);
+}
+
 /** Famille CSS unique par police incorporée, enregistrée une seule fois. */
 async function registerFace(baseFont: string, data: Uint8Array): Promise<string> {
   let family = registered.get(baseFont);
   if (family) return family;
-  family = `fl-emb-${registered.size + 1}-${baseFont.replace(/[^a-zA-Z0-9]/g, "")}`;
-  const face = new FontFace(family, data.slice());
-  await face.load();
-  document.fonts.add(face);
+  family = `fl-emb-${Date.now().toString(36)}-${registered.size + 1}-${baseFont.replace(/[^a-zA-Z0-9]/g, "")}`;
+  await addFace(family, data);
   registered.set(baseFont, family);
   return family;
+}
+
+/** Données des polices d'aperçu demandées (familles CSS sans guillemets). */
+export function facesFor(families: Iterable<string>): Record<string, Uint8Array> {
+  const out: Record<string, Uint8Array> = {};
+  for (const f of families) {
+    const data = faceData.get(f);
+    if (data) out[f] = data;
+  }
+  return out;
+}
+
+/** Réenregistre les polices d'aperçu d'un travail repris. */
+export async function restoreFaces(faces: Record<string, Uint8Array>): Promise<void> {
+  await Promise.all(
+    Object.entries(faces).map(([family, data]) => (faceData.has(family) ? undefined : addFace(family, data).catch(() => undefined))),
+  );
 }
 
 /**
