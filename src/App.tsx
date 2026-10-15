@@ -763,7 +763,7 @@ export default function App() {
           <h1>Paperasse</h1>
           <p>Lisez, annotez, modifiez, signez et réorganisez vos PDF. Tout reste sur votre appareil : rien n'est envoyé sur internet.</p>
           <button className="primary big" onClick={() => openInput.current?.click()}>
-            <Icon name="open" /> Ouvrir un PDF
+            <Icon name="open" /> Ouvrir un fichier
           </button>
           <div className="welcome-actions">
             <button onClick={newBlank}>Nouveau PDF vierge</button>
@@ -791,8 +791,10 @@ export default function App() {
           {doc.name}
         </div>
         <div className="top-actions">
-          <button className="icon-btn" title="Ouvrir (Ctrl+O)" onClick={() => openInput.current?.click()}>
+          <button className="open-btn" title="Ouvrir un fichier PDF ou une image (Ctrl+O)" onClick={() => openInput.current?.click()}>
             <Icon name="open" />
+            <span className="desktop-only">Ouvrir un fichier</span>
+            <span className="mobile-only">Ouvrir</span>
           </button>
           <button className="icon-btn" title="Annuler (Ctrl+Z)" disabled={!past.current.length} onClick={undo}>
             <Icon name="undo" />
