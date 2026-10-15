@@ -452,6 +452,18 @@ input[type="checkbox"] {
   pointer-events: all;
   touch-action: none;
 }
+.overlay .field-box {
+  fill: rgba(10, 108, 255, 0.07);
+  stroke: var(--focus);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+.overlay .field-label {
+  fill: #0b4fb3;
+  font-family: system-ui, sans-serif;
+  pointer-events: none;
+  user-select: none;
+}
 .overlay .hit {
   fill: rgba(255, 214, 0, 0.38);
   pointer-events: none;
@@ -819,6 +831,40 @@ input[type="color"] {
 }
 .spacer {
   flex: 1;
+}
+.progress {
+  position: relative;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.progress-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent-soft);
+  transition: width 0.3s;
+}
+.progress span {
+  position: relative;
+  display: block;
+  padding: 5px 10px;
+  font-size: 13px;
+}
+.banner.info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  background: #e8f1ff;
+  color: #0b3b80;
+}
+.banner.info .spacer {
+  flex: 1;
+}
+.banner.info button {
+  min-height: 32px;
 }
 .menu-wrap {
   position: relative;

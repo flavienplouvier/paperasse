@@ -31,6 +31,10 @@ import { FormsPanel } from "./components/FormsPanel";
 import { SignaturePad } from "./components/SignaturePad";
 import { DocumentTools, type DocTab } from "./components/DocumentTools";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
+import { OcrDialog } from "./components/OcrDialog";
+import { pageHasText } from "./lib/ocr";
+import { addInvisibleText } from "./lib/ocrLayer";
+import { suggestFieldName } from "./lib/formFields";
 import { Icon } from "./components/Icon";
 
 type Snapshot = Pick<DocState, "bytes" | "pageIds" | "annotations">;
@@ -48,6 +52,7 @@ const TOOLS: { id: Tool; label: string; icon: string; key: string }[] = [
   { id: "arrow", label: "Flèche", icon: "arrow", key: "a" },
   { id: "whiteout", label: "Effacer (cache blanc)", icon: "whiteout", key: "w" },
   { id: "stamp", label: "Tampon", icon: "stamp", key: "p" },
+  { id: "field", label: "Champ de formulaire", icon: "form", key: "f" },
 ];
 
 type PendingKind = "image" | "signature" | "stamp";
@@ -127,6 +132,7 @@ export default function App() {
     fontKey: DEFAULT_FONT_KEY,
     fontSize: 14,
     underline: false,
+    fieldType: "text",
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel | null>(() => (isMobile() ? null : "pages"));
@@ -140,6 +146,9 @@ export default function App() {
   const [docTools, setDocTools] = useState<DocTab | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [ocrOpen, setOcrOpen] = useState(false);
+  /** Document qui semble être un scan (pas de texte) : l'OCR est proposé. */
+  const [scanned, setScanned] = useState(false);
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(0);
   const [locked, setLocked] = useState<string | null>(null);
@@ -520,6 +529,17 @@ export default function App() {
 
   const onCreate = useCallback(
     (a: Annotation) => {
+      if (a.kind === "field" && !a.name) {
+        // Nom unique calculé sur l'état le plus récent (texte_1, case_2…).
+        const id = a.id;
+        commit((d) => {
+          const taken = d.annotations.flatMap((x) => (x.kind === "field" ? [x.name] : []));
+          return { annotations: [...d.annotations, { ...a, name: suggestFieldName(a.fieldType, taken) }] };
+        });
+        setSelectedId(id);
+        setPropsOpen(true);
+        return;
+      }
       addAnnotations(a);
       // Le texte ajouté s'édite tout de suite sur la page ; l'outil reste actif
       // pour enchaîner les ajouts (on en sort avec un autre outil ou Échap).
@@ -528,7 +548,7 @@ export default function App() {
         setPropsOpen(true);
       }
     },
-    [addAnnotations],
+    [addAnnotations, commit],
   );
 
   const onChange = useCallback(
@@ -747,6 +767,21 @@ export default function App() {
         await rendered.loadingTask.destroy();
       }
     });
+
+  // Détection des scans : aucune des premières pages ne contient de texte.
+  useEffect(() => {
+    let alive = true;
+    setScanned(false);
+    if (!pdf || !doc?.rewritable) return;
+    (async () => {
+      for (let i = 0; i < Math.min(3, pdf.numPages); i++) if (await pageHasText(pdf, i)) return;
+      if (alive) setScanned(true);
+    })().catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdf]);
 
   /** Transformation de tout le document (numérotation, filigrane…), annulable. */
   const applyToDocument = async (label: string, transform: (bytes: Uint8Array) => Promise<Uint8Array>) => {
@@ -995,6 +1030,10 @@ export default function App() {
               <>
                 <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
                 <div className="menu" role="menu" onClick={() => setMenuOpen(false)}>
+                  <button role="menuitem" disabled={!editable || !doc.rewritable} onClick={() => setOcrOpen(true)}>
+                    <Icon name="search" /> Reconnaissance de texte (OCR)
+                  </button>
+                  <hr />
                   <button role="menuitem" disabled={!editable} onClick={() => setDocTools("numbers")}>
                     <Icon name="pages" /> Numéroter les pages
                   </button>
@@ -1035,6 +1074,16 @@ export default function App() {
       </header>
 
       {locked && <div className="banner">{locked}</div>}
+      {scanned && !locked && (
+        <div className="banner info">
+          <span>Ce document semble être un scan : son texte n'est ni cherchable ni modifiable.</span>
+          <span className="spacer" />
+          <button className="primary" onClick={() => setOcrOpen(true)}>
+            Reconnaître le texte (OCR)
+          </button>
+          <button onClick={() => setScanned(false)}>Ignorer</button>
+        </div>
+      )}
 
       <nav className="toolbar" aria-label="Outils">
         {TOOLS.map((t) => (
@@ -1223,6 +1272,20 @@ export default function App() {
         <DocumentTools bytes={doc.bytes} initialTab={docTools} onApply={applyToDocument} onClose={() => setDocTools(null)} />
       )}
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      {ocrOpen && pdf && (
+        <OcrDialog
+          pdf={pdf}
+          currentPage={currentPage}
+          onClose={() => setOcrOpen(false)}
+          onError={(m) => notify(m, true)}
+          onDone={async (pages) => {
+            await applyToDocument("Ajout du texte reconnu…", (b) => addInvisibleText(b, pages));
+            setScanned(false);
+            const words = [...pages.values()].reduce((n, w) => n + w.length, 0);
+            notify(`Texte reconnu : ${words} mots sur ${pages.size} page(s). Le document est maintenant cherchable (Ctrl+Z pour annuler).`);
+          }}
+        />
+      )}
       {signing && (
         <SignaturePad
           onCancel={() => setSigning(false)}

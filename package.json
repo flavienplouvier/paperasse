@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "assets": "node scripts/copy-pdfjs-assets.mjs && node scripts/copy-fonts.mjs",
+    "assets": "node scripts/copy-pdfjs-assets.mjs && node scripts/copy-fonts.mjs && node scripts/copy-ocr-assets.mjs",
     "predev": "npm run assets",
     "dev": "vite",
     "prebuild": "npm run assets",
@@ -20,7 +20,8 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@expo-google-fonts/abril-fatface": "^0.4.1",
@@ -98,6 +99,8 @@
     "@expo-google-fonts/ubuntu": "^0.4.1",
     "@expo-google-fonts/work-sans": "^0.4.2",
     "@expo-google-fonts/zilla-slab": "^0.4.1",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/fra": "^1.0.0",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PageViewport } from "pdfjs-dist";
 import { pdfjs, type PDFDocumentProxy, type PDFPageProxy } from "../lib/pdfjs";
-import type { Annotation, Point, Rect, Tool } from "../lib/types";
+import type { Annotation, FieldType, Point, Rect, Tool } from "../lib/types";
 import { newId } from "../lib/types";
 import { addScaled, arrowHead, normalizeRect, rectContains, screenAxes } from "../lib/geometry";
 import { hasRect, simplifyPath, translateAnnotation } from "../lib/annotations";
@@ -19,6 +19,7 @@ export interface ToolStyle {
   fontKey: string;
   fontSize: number;
   underline: boolean;
+  fieldType: FieldType;
 }
 
 export interface EditTextRequest {
@@ -220,6 +221,7 @@ function PageViewImpl(props: Props) {
       case "whiteout":
       case "line":
       case "arrow":
+      case "field":
         svgRef.current!.setPointerCapture(e.pointerId);
         setDraft({ kind: "shape", start: p, end: p });
         break;
@@ -302,6 +304,25 @@ function PageViewImpl(props: Props) {
     } else {
       const { start, end } = draft;
       const tiny = Math.hypot(end[0] - start[0], end[1] - start[1]) < 2;
+      if (tool === "field") {
+        // Un simple clic pose un champ de taille usuelle (en points PDF).
+        const size = { text: [180, 22], checkbox: [14, 14], dropdown: [140, 22] }[style.fieldType];
+        const { right, down } = screenAxes(rotation);
+        const rect = tiny
+          ? normalizeRect(start, addScaled(addScaled(start, right, size[0]), down, size[1]))
+          : normalizeRect(start, end);
+        props.onCreate({
+          ...base,
+          kind: "field",
+          rect,
+          fieldType: style.fieldType,
+          name: "",
+          fontSize: 0,
+          options: style.fieldType === "dropdown" ? ["Choix 1", "Choix 2"] : undefined,
+        });
+        setDraft(null);
+        return;
+      }
       if (!tiny) {
         if (tool === "line" || tool === "arrow") {
           props.onCreate({ ...base, kind: "line", from: start, to: end, width: style.width, arrow: tool === "arrow" });
@@ -452,6 +473,21 @@ function PageViewImpl(props: Props) {
               </tspan>
             ))}
           </text>
+        );
+      }
+      case "field": {
+        const r = viewRect(a.rect);
+        const label = a.fieldType === "checkbox" ? "☐" : a.fieldType === "dropdown" ? `${a.name || "liste"} ▾` : a.name || "texte";
+        const size = Math.max(8, Math.min(r.h * 0.6, 13));
+        return (
+          <g key={a.id} data-annot={a.id} {...common}>
+            <rect className="field-box" x={r.x} y={r.y} width={r.w} height={r.h} />
+            {a.fieldType !== "checkbox" && r.w > 24 && (
+              <text className="field-label" x={r.x + 4} y={r.y + r.h / 2 + size * 0.35} fontSize={size}>
+                {label}
+              </text>
+            )}
+          </g>
         );
       }
       case "image": {

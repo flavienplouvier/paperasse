@@ -18,7 +18,10 @@ export type Tool =
   | "arrow"
   | "whiteout"
   | "stamp"
+  | "field"
   | "image";
+
+export type FieldType = "text" | "checkbox" | "dropdown";
 
 interface AnnotationBase {
   id: string;
@@ -69,6 +72,20 @@ export interface TextAnnotation extends AnnotationBase {
   embedded?: EmbeddedFont;
 }
 
+/** Champ de formulaire à créer (devient un vrai champ PDF à l'enregistrement). */
+export interface FieldAnnotation extends AnnotationBase {
+  kind: "field";
+  rect: Rect;
+  fieldType: FieldType;
+  /** Nom du champ (unique dans le document). */
+  name: string;
+  /** Choix proposés (liste déroulante). */
+  options?: string[];
+  multiline?: boolean;
+  /** Taille du texte saisi (0 = automatique). */
+  fontSize: number;
+}
+
 export interface ImageAnnotation extends AnnotationBase {
   kind: "image";
   rect: Rect;
@@ -81,6 +98,7 @@ export type Annotation =
   | ShapeAnnotation
   | LineAnnotation
   | TextAnnotation
+  | FieldAnnotation
   | ImageAnnotation;
 
 export interface DocState {

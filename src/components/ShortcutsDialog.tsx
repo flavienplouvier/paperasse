@@ -15,6 +15,7 @@ const SHORTCUTS: [string, string][] = [
   ["L / A", "Trait / flèche"],
   ["W", "Cache blanc"],
   ["P", "Tampon"],
+  ["F", "Champ de formulaire"],
   ["Suppr", "Supprimer l'élément sélectionné"],
   ["Échap", "Revenir à la sélection"],
 ];

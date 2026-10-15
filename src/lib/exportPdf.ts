@@ -9,6 +9,7 @@ import {
 } from "pdf-lib";
 import { compatFontkit, withPreferredFont } from "./fontkitCompat";
 import { drawEmbeddedText, usesEmbedded } from "./embeddedFonts";
+import { createFormField } from "./formFields";
 import type { Annotation, Point, TextAnnotation } from "./types";
 import { addScaled, arrowHead, hexToRgb01, screenAxes } from "./geometry";
 import { fontBytes, getFont } from "./fonts";
@@ -159,6 +160,9 @@ export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotat
       // Police d'origine du PDF si tous les caractères y figurent, sinon police de remplacement.
       if (usesEmbedded(a) && drawEmbeddedText(doc, page, a)) return;
       await drawText(page, a, await fonts.get(a.fontKey));
+      return;
+    case "field":
+      createFormField(doc, page, a);
       return;
     case "image": {
       const { bytes, png } = dataUrlToBytes(a.dataUrl);

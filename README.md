@@ -32,6 +32,12 @@ rien n'est envoyé sur un serveur.
 - Signature au doigt, au stylet ou à la souris, ou importée depuis une photo /
   un scan (fond blanc retiré automatiquement) ; insertion d'images.
 - Remplissage des formulaires PDF (texte, cases, listes, boutons radio).
+- Création de formulaires : zones de texte (une ou plusieurs lignes), cases à
+  cocher, listes déroulantes, enregistrées comme de vrais champs PDF.
+- Reconnaissance de texte (OCR, Tesseract) : un PDF scanné devient cherchable,
+  sélectionnable et modifiable ; le texte reconnu est ajouté de façon
+  invisible sans changer l'aspect. Français et anglais, entièrement sur
+  l'appareil ; les scans sont détectés à l'ouverture.
 - Déplacement, redimensionnement, duplication, annulation/rétablissement.
 
 **Pages**
@@ -149,7 +155,9 @@ Code de Paperasse : [MIT](LICENSE).
 Bibliothèques principales : [pdf.js](https://github.com/mozilla/pdf.js)
 (Apache-2.0), [pdf-lib](https://github.com/Hopding/pdf-lib) (MIT),
 [@pdf-lib/fontkit](https://github.com/Hopding/fontkit) (MIT),
-[React](https://react.dev) (MIT). Les polices de la bibliothèque sont sous
+[React](https://react.dev) (MIT), [tesseract.js](https://github.com/naptha/tesseract.js)
+(Apache-2.0) et ses données de langues (`@tesseract.js-data`, MIT / Apache-2.0).
+Les polices de la bibliothèque sont sous
 licence SIL Open Font License ou Apache 2.0 ; chaque dossier de
 `public/fonts/` contient sa licence. Les polices que vous importez restent
 soumises à leur propre licence, notamment pour leur intégration dans des PDF.

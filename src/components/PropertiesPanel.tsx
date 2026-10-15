@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Annotation, Tool } from "../lib/types";
+import type { Annotation, FieldAnnotation, FieldType, Tool } from "../lib/types";
 import { missingChars } from "../lib/embeddedFonts";
 import { getFont, styleVariant } from "../lib/fonts";
 import { STAMPS, renderStamp } from "../lib/stamp";
@@ -85,7 +85,9 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
   const boldKey = styleVariant(v.fontKey, !currentFont.bold, !!currentFont.italic);
   const italicKey = styleVariant(v.fontKey, !!currentFont.bold, !currentFont.italic);
 
-  const showColor = !["image", "whiteout", "select", "editText", "stamp"].includes(kind);
+  const showColor = !["image", "whiteout", "select", "editText", "stamp", "field"].includes(kind);
+  const field = selected?.kind === "field" ? selected : null;
+  const updateField = (patch: Partial<FieldAnnotation>, commit = true) => field && onUpdate({ ...field, ...patch }, commit);
   const showWidth = ["ink", "line", "arrow", "rect", "ellipse"].includes(kind);
   const showFill = kind === "rect" || kind === "ellipse";
   const showText = kind === "text" || kind === "editText";
@@ -182,7 +184,70 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
 
       {tool === "stamp" && !selected && <StampPicker onStamp={onStamp} />}
 
-      {!["select", "editText", "whiteout", "stamp"].includes(kind) && (
+      {kind === "field" && (
+        <>
+          <label className="field">
+            Type de champ
+            <select
+              value={field?.fieldType ?? style.fieldType}
+              onChange={(e) => {
+                const fieldType = e.target.value as FieldType;
+                onStyle({ fieldType });
+                updateField({ fieldType, options: fieldType === "dropdown" ? (field?.options ?? ["Choix 1", "Choix 2"]) : field?.options });
+              }}
+            >
+              <option value="text">Zone de texte</option>
+              <option value="checkbox">Case à cocher</option>
+              <option value="dropdown">Liste déroulante</option>
+            </select>
+          </label>
+          {field && (
+            <>
+              <label className="field">
+                Nom du champ
+                <input value={field.name} onChange={(e) => updateField({ name: e.target.value }, false)} onBlur={() => updateField({}, true)} />
+              </label>
+              {field.fieldType === "dropdown" && (
+                <label className="field">
+                  Choix proposés (un par ligne)
+                  <textarea
+                    rows={4}
+                    value={(field.options ?? []).join("\n")}
+                    onChange={(e) => updateField({ options: e.target.value.split("\n") }, false)}
+                    onBlur={() => updateField({ options: (field.options ?? []).map((o) => o.trim()).filter(Boolean) }, true)}
+                  />
+                </label>
+              )}
+              {field.fieldType === "text" && (
+                <label className="field inline">
+                  <input type="checkbox" checked={!!field.multiline} onChange={(e) => updateField({ multiline: e.target.checked })} /> Plusieurs
+                  lignes
+                </label>
+              )}
+              {field.fieldType !== "checkbox" && (
+                <label className="field">
+                  Taille du texte saisi
+                  <select value={field.fontSize} onChange={(e) => updateField({ fontSize: +e.target.value })}>
+                    <option value={0}>Automatique</option>
+                    {[8, 9, 10, 11, 12, 14, 16, 18, 24].map((s) => (
+                      <option key={s} value={s}>
+                        {s} pt
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </>
+          )}
+          <p className="hint">
+            {field
+              ? "Le champ devient un vrai champ de formulaire PDF à l'enregistrement : il se remplit ensuite dans Paperasse (onglet Formulaire), Acrobat ou un navigateur."
+              : "Tracez le champ sur la page (ou touchez pour une taille standard). Choisissez d'abord son type."}
+          </p>
+        </>
+      )}
+
+      {!["select", "editText", "whiteout", "stamp", "field"].includes(kind) && (
         <label className="field">
           Opacité : {Math.round(v.opacity * 100)} %
           <input type="range" min={0.1} max={1} step={0.05} value={v.opacity} onChange={(e) => set({ opacity: +e.target.value }, false)} onPointerUp={() => set({}, true)} />
