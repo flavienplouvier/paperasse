@@ -50,6 +50,18 @@ export function distanceToSegment(p: Point, a: Point, b: Point): number {
   return Math.hypot(x, y);
 }
 
+/**
+ * Boîte d'une forme telle qu'elle apparaît à l'écran (page tournée de
+ * `rotation`) : coin supérieur gauche affiché (espace PDF), largeur et hauteur.
+ */
+export function shapeBox(rect: Rect, rotation: number): { origin: Point; width: number; height: number } {
+  const [x1, y1, x2, y2] = rect;
+  const r = normalizeRotation(rotation);
+  const sideways = r === 90 || r === 270;
+  const origin: Point = r === 90 ? [x1, y1] : r === 180 ? [x2, y1] : r === 270 ? [x2, y2] : [x1, y2];
+  return { origin, width: sideways ? y2 - y1 : x2 - x1, height: sideways ? x2 - x1 : y2 - y1 };
+}
+
 /** Extrémités des deux branches d'une pointe de flèche en `to`. */
 export function arrowHead(from: Point, to: Point, width: number): [Point, Point] {
   const dx = to[0] - from[0];

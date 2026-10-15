@@ -35,25 +35,44 @@ import { OcrDialog } from "./components/OcrDialog";
 import { pageHasText } from "./lib/ocr";
 import { addInvisibleText } from "./lib/ocrLayer";
 import { suggestFieldName } from "./lib/formFields";
+import type { ShapeId } from "./lib/shapes";
 import { Icon } from "./components/Icon";
 
 type Snapshot = Pick<DocState, "bytes" | "pageIds" | "annotations">;
 type Panel = "pages" | "search" | "forms";
 
-const TOOLS: { id: Tool; label: string; icon: string; key: string }[] = [
-  { id: "select", label: "Sélection", icon: "select", key: "v" },
-  { id: "editText", label: "Modifier le texte", icon: "editText", key: "e" },
-  { id: "text", label: "Ajouter du texte", icon: "text", key: "t" },
-  { id: "ink", label: "Dessin", icon: "ink", key: "d" },
-  { id: "highlight", label: "Surligner", icon: "highlight", key: "h" },
-  { id: "rect", label: "Rectangle", icon: "rect", key: "r" },
-  { id: "ellipse", label: "Ellipse", icon: "ellipse", key: "o" },
-  { id: "line", label: "Trait", icon: "line", key: "l" },
-  { id: "arrow", label: "Flèche", icon: "arrow", key: "a" },
-  { id: "whiteout", label: "Effacer (cache blanc)", icon: "whiteout", key: "w" },
-  { id: "stamp", label: "Tampon", icon: "stamp", key: "p" },
-  { id: "field", label: "Champ de formulaire", icon: "form", key: "f" },
+/** Outils regroupés sous le bouton « Dessin » (choix dans le panneau de droite). */
+export const DRAW_TOOLS: Tool[] = ["ink", "highlight", "line", "arrow"];
+/** Outils regroupés sous le bouton « Formes ». */
+export const SHAPE_TOOLS: Tool[] = ["shape", "rect", "ellipse"];
+
+/** Boutons de la barre d'outils ; `tools` = outils couverts par un bouton groupé. */
+const BUTTONS: { id: string; label: string; icon: string; key?: string; tools: Tool[] }[] = [
+  { id: "select", label: "Sélection", icon: "select", key: "V", tools: ["select"] },
+  { id: "editText", label: "Modifier le texte", icon: "editText", key: "E", tools: ["editText"] },
+  { id: "text", label: "Ajouter du texte", icon: "text", key: "T", tools: ["text"] },
+  { id: "draw", label: "Dessin", icon: "ink", key: "D", tools: DRAW_TOOLS },
+  { id: "shapes", label: "Formes", icon: "shapes", key: "R", tools: SHAPE_TOOLS },
+  { id: "whiteout", label: "Effacer (cache blanc)", icon: "whiteout", key: "W", tools: ["whiteout"] },
+  { id: "stamp", label: "Tampon", icon: "stamp", key: "P", tools: ["stamp"] },
+  { id: "field", label: "Champ de formulaire", icon: "form", key: "F", tools: ["field"] },
 ];
+
+/** Raccourcis clavier : outil et éventuel réglage associé. */
+const KEYS: Record<string, { tool: Tool; shape?: ShapeId; doubleArrow?: boolean }> = {
+  v: { tool: "select" },
+  e: { tool: "editText" },
+  t: { tool: "text" },
+  d: { tool: "ink" },
+  h: { tool: "highlight" },
+  l: { tool: "line" },
+  a: { tool: "arrow", doubleArrow: false },
+  r: { tool: "shape", shape: "rect" },
+  o: { tool: "shape", shape: "ellipse" },
+  w: { tool: "whiteout" },
+  p: { tool: "stamp" },
+  f: { tool: "field" },
+};
 
 type PendingKind = "image" | "signature" | "stamp";
 
@@ -124,6 +143,11 @@ export default function App() {
   const [fitWidth, setFitWidth] = useState(true);
   const [fitMax, setFitMax] = useState<number | null>(null);
   const [tool, setTool] = useState<Tool>("select");
+  /** Dernier outil de dessin utilisé (repris par le bouton « Dessin »). */
+  const [lastDraw, setLastDraw] = useState<Tool>("ink");
+  useEffect(() => {
+    if (DRAW_TOOLS.includes(tool)) setLastDraw(tool);
+  }, [tool]);
   const [style, setStyle] = useState<ToolStyle>({
     color: "#e5484d",
     width: 2,
@@ -133,6 +157,8 @@ export default function App() {
     fontSize: 14,
     underline: false,
     fieldType: "text",
+    shape: "rect",
+    doubleArrow: false,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel | null>(() => (isMobile() ? null : "pages"));
@@ -909,8 +935,13 @@ export default function App() {
         setSelectedId(null);
         setPending(null);
       } else {
-        const t = TOOLS.find((x) => x.key === e.key.toLowerCase());
-        if (t && doc && !locked) setTool(t.id);
+        const k = KEYS[e.key.toLowerCase()];
+        if (k && doc && !locked) {
+          setTool(k.tool);
+          if (k.shape || k.doubleArrow !== undefined) {
+            setStyle((s) => ({ ...s, ...(k.shape ? { shape: k.shape } : {}), ...(k.doubleArrow !== undefined ? { doubleArrow: k.doubleArrow } : {}) }));
+          }
+        }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -1142,22 +1173,27 @@ export default function App() {
       )}
 
       <nav className="toolbar" aria-label="Outils">
-        {TOOLS.map((t) => (
-          <button
-            key={t.id}
-            className={`tool ${tool === t.id ? "active" : ""}`}
-            title={`${t.label} (${t.key.toUpperCase()})`}
-            disabled={!editable && t.id !== "select"}
-            onClick={() => {
-              setTool(t.id);
-              setPending(null);
-              if (t.id !== "select") setSelectedId(null);
-            }}
-          >
-            <Icon name={t.icon} />
-            <span>{t.label}</span>
-          </button>
-        ))}
+        {BUTTONS.map((b) => {
+          // Un bouton groupé reprend le dernier outil utilisé dans son groupe.
+          const target: Tool = b.id === "draw" ? lastDraw : b.id === "shapes" ? "shape" : b.tools[0];
+          return (
+            <button
+              key={b.id}
+              className={`tool ${b.tools.includes(tool) ? "active" : ""}`}
+              title={`${b.label}${b.key ? ` (${b.key})` : ""}${b.tools.length > 1 ? " — choix à droite" : ""}`}
+              disabled={!editable && b.id !== "select"}
+              onClick={() => {
+                setTool(target);
+                setPending(null);
+                if (target !== "select") setSelectedId(null);
+                if (b.tools.length > 1) setPropsOpen(true);
+              }}
+            >
+              <Icon name={b.icon} />
+              <span>{b.label}</span>
+            </button>
+          );
+        })}
         <button className={`tool ${tool === "image" && pending?.kind === "signature" ? "active" : ""}`} disabled={!editable} onClick={() => setSigning(true)} title="Signer">
           <Icon name="sign" />
           <span>Signer</span>
@@ -1320,6 +1356,10 @@ export default function App() {
           onDelete={deleteSelected}
           onDuplicate={duplicateSelected}
           onStamp={(url) => startImage(url, "stamp").catch(fail)}
+          onTool={(t) => {
+            setTool(t);
+            setPending(null);
+          }}
           onError={(m) => notify(m, true)}
         />
       </aside>

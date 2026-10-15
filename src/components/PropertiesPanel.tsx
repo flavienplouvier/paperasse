@@ -3,6 +3,7 @@ import type { Annotation, FieldAnnotation, FieldType, Tool } from "../lib/types"
 import { missingChars } from "../lib/embeddedFonts";
 import { ensureCssFont, getFont, matchFont, styleVariant } from "../lib/fonts";
 import { STAMPS, renderStamp } from "../lib/stamp";
+import { SHAPES, shapeDef, type ShapeId } from "../lib/shapes";
 import type { ToolStyle } from "./PageView";
 import { FontPicker, useFonts } from "./FontPicker";
 import { Icon } from "./Icon";
@@ -51,9 +52,31 @@ interface Props {
   onDuplicate: () => void;
   onError: (msg: string) => void;
   onStamp: (dataUrl: string) => void;
+  onTool: (tool: Tool) => void;
 }
 
-export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDelete, onDuplicate, onError, onStamp }: Props) {
+const DRAW_CHOICES: { id: string; label: string; icon: string; tool: Tool; doubleArrow?: boolean }[] = [
+  { id: "ink", label: "Stylo", icon: "pen", tool: "ink" },
+  { id: "highlight", label: "Surligneur", icon: "highlight", tool: "highlight" },
+  { id: "line", label: "Trait", icon: "line", tool: "line" },
+  { id: "arrow", label: "Flèche", icon: "arrow", tool: "arrow", doubleArrow: false },
+  { id: "double", label: "Double flèche", icon: "doubleArrow", tool: "arrow", doubleArrow: true },
+];
+
+/** Aperçu d'une forme pour la grille de choix. */
+function ShapeIcon({ id }: { id: ShapeId }) {
+  const def = shapeDef(id);
+  if (!def.path) return null;
+  const w = 26;
+  const h = id === "arrowLeft" || id === "arrowRight" || id === "parallelogram" || id === "trapezoid" ? 18 : 26;
+  return (
+    <svg width={30} height={30} viewBox="-2 -2 30 30" aria-hidden="true">
+      <path d={def.path(w, h)} transform={`translate(0 ${(26 - h) / 2})`} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDelete, onDuplicate, onError, onStamp, onTool }: Props) {
   useFonts(); // re-rendu quand la bibliothèque de polices est chargée (boutons G / I)
   // Modifie l'annotation sélectionnée, et retient le réglage pour les suivantes.
   const set = (patch: Partial<ToolStyle> & { text?: string }, commit = true) => {
@@ -106,8 +129,8 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
   const showColor = !["image", "whiteout", "select", "editText", "stamp", "field"].includes(kind);
   const field = selected?.kind === "field" ? selected : null;
   const updateField = (patch: Partial<FieldAnnotation>, commit = true) => field && onUpdate({ ...field, ...patch }, commit);
-  const showWidth = ["ink", "line", "arrow", "rect", "ellipse"].includes(kind);
-  const showFill = kind === "rect" || kind === "ellipse";
+  const showWidth = ["ink", "line", "arrow", "rect", "ellipse", "shape"].includes(kind);
+  const showFill = kind === "rect" || kind === "ellipse" || kind === "shape";
   const showText = kind === "text" || kind === "editText";
 
   return (
@@ -202,6 +225,58 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
       )}
 
       {tool === "stamp" && !selected && <StampPicker onStamp={onStamp} />}
+
+      {["ink", "highlight", "line", "arrow"].includes(tool) && !selected && (
+        <div className="field">
+          Outil de dessin
+          <div className="choice-grid draw" role="radiogroup" aria-label="Outil de dessin">
+            {DRAW_CHOICES.map((c) => {
+              const active = c.tool === tool && (c.doubleArrow === undefined || c.doubleArrow === style.doubleArrow);
+              return (
+                <button
+                  key={c.id}
+                  role="radio"
+                  aria-checked={active}
+                  className={active ? "active" : ""}
+                  title={c.label}
+                  onClick={() => {
+                    if (c.doubleArrow !== undefined) onStyle({ doubleArrow: c.doubleArrow });
+                    onTool(c.tool);
+                  }}
+                >
+                  <Icon name={c.icon} />
+                  <span>{c.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {["shape", "rect", "ellipse"].includes(tool) && !selected && (
+        <div className="field">
+          Forme
+          <div className="choice-grid shapes" role="radiogroup" aria-label="Forme">
+            {SHAPES.filter((s) => !s.linear).map((s) => (
+              <button
+                key={s.id}
+                role="radio"
+                aria-checked={tool === "shape" && style.shape === s.id}
+                className={tool === "shape" && style.shape === s.id ? "active" : ""}
+                title={s.label}
+                aria-label={s.label}
+                onClick={() => {
+                  onStyle({ shape: s.id });
+                  onTool("shape");
+                }}
+              >
+                <ShapeIcon id={s.id} />
+              </button>
+            ))}
+          </div>
+          <p className="hint">Tracez la forme sur la page, ou touchez pour une taille standard.</p>
+        </div>
+      )}
 
       {kind === "field" && (
         <>

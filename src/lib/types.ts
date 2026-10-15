@@ -1,4 +1,5 @@
 import type { EmbeddedFont } from "./embeddedFonts";
+import type { ShapeId } from "./shapes";
 
 /** Point dans l'espace utilisateur PDF (unités PDF, axe Y vers le haut). */
 export type Point = [number, number];
@@ -19,6 +20,7 @@ export type Tool =
   | "whiteout"
   | "stamp"
   | "field"
+  | "shape"
   | "image";
 
 export type FieldType = "text" | "checkbox" | "dropdown";
@@ -52,6 +54,8 @@ export interface LineAnnotation extends AnnotationBase {
   width: number;
   /** Pointe de flèche à l'extrémité `to`. */
   arrow?: boolean;
+  /** Pointe de flèche aussi au départ `from` (double flèche). */
+  arrowStart?: boolean;
 }
 
 export interface TextAnnotation extends AnnotationBase {
@@ -72,6 +76,17 @@ export interface TextAnnotation extends AnnotationBase {
    * `fontKey` sert de police de remplacement.
    */
   embedded?: EmbeddedFont;
+}
+
+/** Forme de la bibliothèque (triangle, étoile, flèche pleine…), tracé vectoriel. */
+export interface PathShapeAnnotation extends AnnotationBase {
+  kind: "shape";
+  shape: ShapeId;
+  rect: Rect;
+  width: number;
+  fill: boolean;
+  /** Rotation de la page à la création : la forme garde son orientation à l'écran. */
+  rotation: number;
 }
 
 /** Champ de formulaire à créer (devient un vrai champ PDF à l'enregistrement). */
@@ -100,6 +115,7 @@ export type Annotation =
   | ShapeAnnotation
   | LineAnnotation
   | TextAnnotation
+  | PathShapeAnnotation
   | FieldAnnotation
   | ImageAnnotation;
 

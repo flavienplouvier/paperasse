@@ -718,6 +718,29 @@ input[type="color"] {
   flex-direction: column;
   gap: 6px;
 }
+.choice-grid {
+  display: grid;
+  gap: 6px;
+}
+.choice-grid.draw {
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+}
+.choice-grid.shapes {
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+}
+.choice-grid button {
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px;
+  padding: 4px;
+  font-size: 11px;
+  color: var(--text);
+}
+.choice-grid button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .format-row {
   display: flex;
   gap: 6px;

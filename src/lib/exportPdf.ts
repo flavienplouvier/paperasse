@@ -10,8 +10,9 @@ import {
 import { compatFontkit, withPreferredFont } from "./fontkitCompat";
 import { drawEmbeddedText, usesEmbedded } from "./embeddedFonts";
 import { createFormField } from "./formFields";
+import { shapeDef } from "./shapes";
 import type { Annotation, Point, TextAnnotation } from "./types";
-import { addScaled, arrowHead, hexToRgb01, screenAxes } from "./geometry";
+import { addScaled, arrowHead, hexToRgb01, normalizeRotation, screenAxes, shapeBox } from "./geometry";
 import { fontBytes, getFont } from "./fonts";
 
 export const LINE_HEIGHT = 1.25;
@@ -110,6 +111,7 @@ export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotat
     case "line": {
       const segments: [Point, Point][] = [[a.from, a.to]];
       if (a.arrow) for (const p of arrowHead(a.from, a.to, a.width)) segments.push([a.to, p]);
+      if (a.arrowStart) for (const p of arrowHead(a.to, a.from, a.width)) segments.push([a.from, p]);
       for (const [s, e] of segments) {
         page.drawLine({
           start: { x: s[0], y: s[1] },
@@ -164,6 +166,24 @@ export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotat
     case "field":
       createFormField(doc, page, a);
       return;
+    case "shape": {
+      const def = shapeDef(a.shape);
+      if (!def.path) return;
+      const box = shapeBox(a.rect, a.rotation);
+      const filled = a.fill && !def.open;
+      page.drawSvgPath(def.path(box.width, box.height), {
+        x: box.origin[0],
+        y: box.origin[1],
+        rotate: degrees(normalizeRotation(a.rotation)),
+        color: filled ? color(a.color) : undefined,
+        opacity: a.opacity,
+        borderColor: filled ? undefined : color(a.color),
+        borderWidth: filled ? 0 : a.width,
+        borderOpacity: a.opacity,
+        borderLineCap: LineCapStyle.Round,
+      });
+      return;
+    }
     case "image": {
       const { bytes, png } = dataUrlToBytes(a.dataUrl);
       const img = png ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);

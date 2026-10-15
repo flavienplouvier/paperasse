@@ -3,13 +3,14 @@ import type { PageViewport } from "pdfjs-dist";
 import { pdfjs, type PDFDocumentProxy, type PDFPageProxy } from "../lib/pdfjs";
 import type { Annotation, FieldType, Point, Rect, Tool } from "../lib/types";
 import { newId } from "../lib/types";
-import { addScaled, arrowHead, normalizeRect, rectContains, screenAxes } from "../lib/geometry";
+import { addScaled, arrowHead, normalizeRect, normalizeRotation, rectContains, screenAxes } from "../lib/geometry";
 import { hasRect, simplifyPath, translateAnnotation } from "../lib/annotations";
 import { extractRuns, runAt, type TextRun } from "../lib/text";
 import { LINE_HEIGHT } from "../lib/exportPdf";
 import { getFont } from "../lib/fonts";
 import { Icon } from "./Icon";
 import { displayText, usesEmbedded } from "../lib/embeddedFonts";
+import { shapeDef, type ShapeId } from "../lib/shapes";
 
 export interface ToolStyle {
   color: string;
@@ -20,6 +21,9 @@ export interface ToolStyle {
   fontSize: number;
   underline: boolean;
   fieldType: FieldType;
+  shape: ShapeId;
+  /** Outil « Flèche » : pointes aux deux extrémités. */
+  doubleArrow: boolean;
 }
 
 export interface EditTextRequest {
@@ -222,6 +226,7 @@ function PageViewImpl(props: Props) {
       case "line":
       case "arrow":
       case "field":
+      case "shape":
         svgRef.current!.setPointerCapture(e.pointerId);
         setDraft({ kind: "shape", start: p, end: p });
         break;
@@ -304,6 +309,29 @@ function PageViewImpl(props: Props) {
     } else {
       const { start, end } = draft;
       const tiny = Math.hypot(end[0] - start[0], end[1] - start[1]) < 2;
+      if (tool === "shape") {
+        const def = shapeDef(style.shape);
+        const { right, down } = screenAxes(rotation);
+        if (def.linear) {
+          if (!tiny) {
+            props.onCreate({
+              ...base,
+              kind: "line",
+              from: start,
+              to: end,
+              width: style.width,
+              arrow: style.shape !== "line",
+              arrowStart: style.shape === "doubleArrow",
+            });
+          }
+        } else {
+          // Un simple clic pose la forme à une taille usuelle (80 × 80 pt).
+          const rect = tiny ? normalizeRect(start, addScaled(addScaled(start, right, 80), down, 80)) : normalizeRect(start, end);
+          props.onCreate({ ...base, kind: "shape", shape: style.shape, rect, width: style.width, fill: style.fill, rotation });
+        }
+        setDraft(null);
+        return;
+      }
       if (tool === "field") {
         // Un simple clic pose un champ de taille usuelle (en points PDF).
         const size = { text: [180, 22], checkbox: [14, 14], dropdown: [140, 22] }[style.fieldType];
@@ -325,7 +353,15 @@ function PageViewImpl(props: Props) {
       }
       if (!tiny) {
         if (tool === "line" || tool === "arrow") {
-          props.onCreate({ ...base, kind: "line", from: start, to: end, width: style.width, arrow: tool === "arrow" });
+          props.onCreate({
+            ...base,
+            kind: "line",
+            from: start,
+            to: end,
+            width: style.width,
+            arrow: tool === "arrow",
+            arrowStart: tool === "arrow" && style.doubleArrow,
+          });
         } else if (tool === "highlight") {
           props.onCreate({
             ...base,
@@ -404,6 +440,13 @@ function PageViewImpl(props: Props) {
                   <line key={i} x1={t[0]} y1={t[1]} x2={h[0]} y2={h[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
                 );
               })}
+            {a.arrowStart &&
+              arrowHead(a.to, a.from, a.width).map((p, i) => {
+                const h = toView(p);
+                return (
+                  <line key={`s${i}`} x1={f[0]} y1={f[1]} x2={h[0]} y2={h[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
+                );
+              })}
           </g>
         );
       }
@@ -473,6 +516,33 @@ function PageViewImpl(props: Props) {
               </tspan>
             ))}
           </text>
+        );
+      }
+      case "shape": {
+        const def = shapeDef(a.shape);
+        if (!def.path) return null;
+        const r = viewRect(a.rect);
+        // La forme garde l'orientation qu'elle avait à l'écran lors de sa création.
+        const turn = normalizeRotation(rotation - a.rotation);
+        const sideways = turn === 90 || turn === 270;
+        const bw = sideways ? r.h : r.w;
+        const bh = sideways ? r.w : r.h;
+        const cx = r.x + r.w / 2;
+        const cy = r.y + r.h / 2;
+        const filled = a.fill && !def.open;
+        return (
+          <path
+            key={a.id}
+            data-annot={a.id}
+            {...common}
+            d={def.path(bw, bh)}
+            transform={`rotate(${turn} ${cx} ${cy}) translate(${cx - bw / 2} ${cy - bh / 2})`}
+            fill={filled ? a.color : "transparent"}
+            stroke={filled ? "none" : a.color}
+            strokeWidth={a.width * scale}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
         );
       }
       case "field": {
@@ -661,20 +731,41 @@ function PageViewImpl(props: Props) {
         />
       );
     }
-    if (tool === "line" || tool === "arrow") {
+    const shape = tool === "shape" ? shapeDef(style.shape) : null;
+    if (tool === "line" || tool === "arrow" || shape?.linear) {
       const a = toView(draft.start);
       const b = toView(draft.end);
-      const heads = tool === "arrow" ? arrowHead(draft.start, draft.end, style.width).map(toView) : [];
+      const endHeads = tool === "arrow" || (shape?.linear && style.shape !== "line");
+      const heads = endHeads ? arrowHead(draft.start, draft.end, style.width).map(toView) : [];
+      const double = (shape && style.shape === "doubleArrow") || (tool === "arrow" && style.doubleArrow);
+      const startHeads = double ? arrowHead(draft.end, draft.start, style.width).map(toView) : [];
       return (
         <g stroke={style.color} strokeWidth={style.width * scale} strokeLinecap="round">
           <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} />
           {heads.map((h, i) => (
             <line key={i} x1={b[0]} y1={b[1]} x2={h[0]} y2={h[1]} />
           ))}
+          {startHeads.map((h, i) => (
+            <line key={`s${i}`} x1={a[0]} y1={a[1]} x2={h[0]} y2={h[1]} />
+          ))}
         </g>
       );
     }
     const r = viewRect(normalizeRect(draft.start, draft.end));
+    if (shape?.path) {
+      return (
+        <path
+          d={shape.path(r.w, r.h)}
+          transform={`translate(${r.x} ${r.y})`}
+          fill={style.fill && !shape.open ? style.color : "none"}
+          fillOpacity={0.5}
+          stroke={style.color}
+          strokeWidth={style.width * scale}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      );
+    }
     if (tool === "ellipse") {
       return <ellipse cx={r.x + r.w / 2} cy={r.y + r.h / 2} rx={r.w / 2} ry={r.h / 2} className="draft" />;
     }
