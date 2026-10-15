@@ -51,6 +51,8 @@ export interface EmbeddedFont {
    * pas le glyphe espace et positionnent les mots : on fait de même.
    */
   spaceWidth: number;
+  /** Police d'origine non incorporée dans le fichier (police standard PDF). */
+  notEmbedded?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -162,8 +164,10 @@ export function fontCodeMap(info: FontDictInfo): { map: Map<number, string>; cod
   }
   if (info.subtype === "Type0") return null;
   // Police simple sans ToUnicode : encodage WinAnsi, hors codes redéfinis par /Differences.
+  // /Encoding peut être un nom (/WinAnsiEncoding) ou un dictionnaire (avec /Differences).
   const enc = info.dict.get(PDFName.of("Encoding"));
-  const encDict = info.dict.lookupMaybe(PDFName.of("Encoding"), PDFDict);
+  const encObj = info.dict.lookup(PDFName.of("Encoding"));
+  const encDict = encObj instanceof PDFDict ? encObj : undefined;
   const base = name(enc) ?? name(encDict?.get(PDFName.of("BaseEncoding"))) ?? "WinAnsiEncoding";
   if (base !== "WinAnsiEncoding" && base !== "StandardEncoding") return null;
   const redefined = new Set<number>();

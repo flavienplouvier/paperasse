@@ -13,6 +13,16 @@ interface PdfjsFont {
   /** Largeurs par code, en millièmes de corps. */
   widths?: Map<number, number> | Record<number, number> | number[];
   defaultWidth?: number;
+  /** Police non incorporée : police système utilisée par pdf.js pour l'afficher. */
+  systemFontInfo?: { css?: string; loadedName?: string } | null;
+}
+
+/** Famille CSS de repli pour une police standard PDF non incorporée. */
+function standardCss(name: string): string {
+  const n = name.toLowerCase();
+  if (/courier|mono/.test(n)) return `"Courier New", Courier, "Liberation Mono", monospace`;
+  if (/times|serif|roman/.test(n) && !/sans/.test(n)) return `"Times New Roman", Times, "Liberation Serif", serif`;
+  return `Helvetica, Arial, "Liberation Sans", sans-serif`;
 }
 
 const lookup = (table: PdfjsFont["toFontChar"], code: number): number | undefined =>
@@ -85,7 +95,8 @@ export async function buildEmbeddedFont(
   } catch {
     return null;
   }
-  if (!font?.name || !font.data || !font.toFontChar || font.isType3Font || font.missingFile) return null;
+  if (!font?.name || font.isType3Font) return null;
+  if (!font.missingFile && (!font.data || !font.toFontChar)) return null;
 
   let doc: PDFDocument;
   try {
@@ -96,6 +107,29 @@ export async function buildEmbeddedFont(
   const info = findFontDict(doc, font.name);
   const codes = info && fontCodeMap(info);
   if (!codes) return null;
+
+  if (font.missingFile) {
+    // Police non incorporée (ex. les polices standard Courier, Times, Helvetica) :
+    // on réutilise la ressource de police d'origine du PDF à l'enregistrement, et à
+    // l'écran la même police système que pdf.js — le texte modifié reste identique.
+    const glyphs: EmbeddedFont["glyphs"] = {};
+    for (const [code, text] of codes.map) {
+      if ([...text].length !== 1 || glyphs[text]) continue;
+      glyphs[text] = { code, display: text, width: lookup(font.widths, code) ?? font.defaultWidth };
+    }
+    if (!Object.keys(glyphs).length) return null;
+    const sys = font.systemFontInfo;
+    const fallback = sys?.css || standardCss(font.name);
+    return {
+      baseFont: font.name,
+      cssFamily: sys?.loadedName ? `"${sys.loadedName}", ${fallback}` : fallback,
+      codeBytes: codes.codeBytes,
+      glyphs,
+      spaceWidth: glyphs[" "]?.width ?? 278,
+      notEmbedded: true,
+    };
+  }
+  if (!font.data) return null;
 
   let program: ReturnType<typeof fontkit.create> | null = null;
   try {

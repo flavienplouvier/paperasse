@@ -75,6 +75,45 @@ async function extractText(bytes: Uint8Array) {
   return (content.items as { str: string; fontName: string }[]).map((i) => i.str).join("|");
 }
 
+describe("police standard non incorporée (Courier, Times, Helvetica)", () => {
+  it("réécrit le texte avec la police standard d'origine, sans police de remplacement", async () => {
+    const d = await PDFDocument.create();
+    const courier = await d.embedFont("Courier");
+    d.addPage([595, 842]).drawText("Et celle-ci", { x: 50, y: 700, size: 13, font: courier });
+    const bytes = await d.save();
+    const doc = await PDFDocument.load(bytes);
+    const info = findFontDict(doc, "Courier")!;
+    const codes = fontCodeMap(info)!;
+    expect(codes.codeBytes).toBe(1);
+    expect(codes.map.get(0xe9)).toBe("é");
+
+    const glyphs: EmbeddedFont["glyphs"] = {};
+    for (const [code, ch] of codes.map) glyphs[ch] ??= { code, display: ch, width: 600 };
+    const a: TextAnnotation = {
+      id: "t",
+      pageId: "p",
+      kind: "text",
+      origin: [50, 650],
+      text: "Et cellle-ci, éàç",
+      fontKey: "lib:cousine:regular",
+      fontSize: 13,
+      color: "#000000",
+      opacity: 1,
+      rotation: 0,
+      embedded: { baseFont: "Courier", cssFamily: "x", codeBytes: 1, glyphs, spaceWidth: 600, notEmbedded: true },
+    };
+    expect(usesEmbedded(a)).toBe(true);
+    const out = await exportPdf(bytes, ["p"], [a]);
+    // Aucune police ajoutée : seule la police Courier d'origine est présente.
+    const fontsAfter = (await PDFDocument.load(out)).context
+      .enumerateIndirectObjects()
+      .filter(([, o]) => o instanceof PDFDict && o.get(PDFName.of("Type"))?.toString() === "/Font");
+    expect(fontsAfter).toHaveLength(1);
+    // pdf.js découpe le texte extrait en fragments ; on les recolle pour comparer.
+    expect((await extractText(out)).replaceAll("|", "")).toContain("Et cellle-ci, éàç");
+  });
+});
+
 describe.skipIf(!ttf)("police incorporée d'origine", () => {
   it("retrouve la police du document et ses caractères", async () => {
     const { bytes, baseFont } = await pdfWithSubset("Bonjour le monde");

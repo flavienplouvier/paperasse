@@ -113,7 +113,8 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
         const name = selected.embedded.baseFont.replace(/^[A-Z]{6}\+/, "");
         return missing.length === 0 ? (
           <p className="font-status ok">
-            Police d'origine du PDF : <strong>{name}</strong> (incorporée, rendu identique).
+            Police d'origine du PDF : <strong>{name}</strong>
+            {selected.embedded.notEmbedded ? " (police standard, rendu identique)." : " (incorporée, rendu identique)."}
           </p>
         ) : (
           <p className="font-status warn">
