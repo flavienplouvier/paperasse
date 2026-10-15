@@ -1,0 +1,8 @@
+node_modules/
+dist/
+public/pdfjs/
+*.log
+.DS_Store
+.vite/
+coverage/
+.claude/
