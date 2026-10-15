@@ -679,6 +679,21 @@ input[type="color"] {
   flex-direction: column;
   gap: 6px;
 }
+.font-status {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.font-status.ok {
+  background: #e6f6ec;
+  color: #14532d;
+}
+.font-status.warn {
+  background: #fff4d6;
+  color: #5c4300;
+}
 .font-sample {
   padding: 8px 10px;
   border: 1px dashed var(--border);

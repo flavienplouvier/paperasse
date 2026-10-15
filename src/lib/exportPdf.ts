@@ -8,6 +8,7 @@ import {
   rgb,
 } from "pdf-lib";
 import { compatFontkit, withPreferredFont } from "./fontkitCompat";
+import { drawEmbeddedText, usesEmbedded } from "./embeddedFonts";
 import type { Annotation, TextAnnotation } from "./types";
 import { addScaled, hexToRgb01, screenAxes } from "./geometry";
 import { fontBytes, getFont } from "./fonts";
@@ -133,6 +134,8 @@ export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotat
       return;
     }
     case "text":
+      // Police d'origine du PDF si tous les caractères y figurent, sinon police de remplacement.
+      if (usesEmbedded(a) && drawEmbeddedText(doc, page, a)) return;
       await drawText(page, a, await fonts.get(a.fontKey));
       return;
     case "image": {

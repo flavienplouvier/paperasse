@@ -17,6 +17,7 @@ import {
   parseFontName,
 } from "./lib/fonts";
 import { duplicateAnnotation } from "./lib/annotations";
+import { buildEmbeddedFont } from "./lib/embeddedFontBuilder";
 import type { SearchHit } from "./lib/text";
 import { PageView, type EditTextRequest, type ToolStyle } from "./components/PageView";
 import { Thumbnails } from "./components/Thumbnails";
@@ -467,12 +468,14 @@ export default function App() {
   };
 
   const onEditText = useCallback(
-    async ({ pageId, run, page, color }: EditTextRequest) => {
+    async ({ pageId, run, page, color, background }: EditTextRequest) => {
       if (!doc) return;
       await loadLibrary(import.meta.env.BASE_URL);
       const info = fontInfo(page, run.fontName);
       const real = info.name;
       const fontKey = matchFont(real, undefined, info);
+      // Police incorporée dans le PDF, réutilisée telle quelle quand c'est possible.
+      const embedded = doc.rewritable ? await buildEmbeddedFont(doc.bytes, page, run.fontName) : null;
       try {
         await ensureCssFont(fontKey);
       } catch {
@@ -485,7 +488,8 @@ export default function App() {
         kind: "whiteout",
         pageId,
         rect: [x1 - pad, y1 - pad, x2 + pad, y2 + pad],
-        color: "#ffffff",
+        // Même couleur que le fond autour du texte (fond coloré d'un tableau, d'un bandeau…).
+        color: background ?? "#ffffff",
         opacity: 1,
         width: 0,
         fill: true,
@@ -501,6 +505,7 @@ export default function App() {
         color: color ?? "#000000",
         opacity: 1,
         rotation: run.angle,
+        ...(embedded ? { embedded } : {}),
       };
       commit({ annotations: [...doc.annotations, cover, text] });
       setSelectedId(text.id);
@@ -513,7 +518,7 @@ export default function App() {
         normalizeFontName(chosen.family ?? chosen.label).startsWith(parseFontName(original).base) ||
         (chosen.source === "standard" && /^(helvetica|times|courier)/.test(parseFontName(original).base));
       // Les équivalents métriques (Carlito pour Calibri…) gardent la mise en page : pas d'alerte.
-      if (original && !sameFamily && chosen.category !== "metric") {
+      if (original && !embedded && !sameFamily && chosen.category !== "metric") {
         notify(`Police d'origine « ${original} » remplacée par l'équivalent « ${chosen.label} ».`);
       }
     },

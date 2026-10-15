@@ -1,4 +1,5 @@
 import type { Annotation, Tool } from "../lib/types";
+import { missingChars } from "../lib/embeddedFonts";
 import type { ToolStyle } from "./PageView";
 import { FontPicker } from "./FontPicker";
 import { Icon } from "./Icon";
@@ -25,6 +26,8 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
       const next = { ...selected } as Record<string, unknown>;
       for (const [k, v] of Object.entries(patch)) if (k in selected) next[k] = v;
       if (text !== undefined) next.text = text;
+      // Choisir une autre police abandonne la police incorporée d'origine.
+      if (patch.fontKey !== undefined) delete next.embedded;
       onUpdate(next as unknown as Annotation, commit);
     }
   };
@@ -60,10 +63,25 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
         </label>
       )}
 
+      {selected?.kind === "text" && selected.embedded && (() => {
+        const missing = missingChars(selected.embedded, selected.text);
+        const name = selected.embedded.baseFont.replace(/^[A-Z]{6}\+/, "");
+        return missing.length === 0 ? (
+          <p className="font-status ok">
+            Police d'origine du PDF : <strong>{name}</strong> (incorporée, rendu identique).
+          </p>
+        ) : (
+          <p className="font-status warn">
+            Caractère(s) absent(s) de la police d'origine <strong>{name}</strong> : « {missing.join(" ")} ». Le texte
+            utilise la police de remplacement ci-dessous ; retirez ces caractères pour retrouver la police d'origine.
+          </p>
+        );
+      })()}
+
       {showText && (
         <>
           <div className="field">
-            Police
+            {selected?.kind === "text" && selected.embedded ? "Police de remplacement" : "Police"}
             <FontPicker value={v.fontKey} onChange={(fontKey) => set({ fontKey })} onError={onError} />
           </div>
           <label className="field">

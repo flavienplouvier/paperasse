@@ -9,6 +9,7 @@ import { extractRuns, runAt, type TextRun } from "../lib/text";
 import { LINE_HEIGHT } from "../lib/exportPdf";
 import { getFont } from "../lib/fonts";
 import { Icon } from "./Icon";
+import { displayText, usesEmbedded } from "../lib/embeddedFonts";
 
 export interface ToolStyle {
   color: string;
@@ -25,6 +26,8 @@ export interface EditTextRequest {
   page: PDFPageProxy;
   /** Couleur du texte d'origine, estimée d'après le rendu de la page. */
   color?: string;
+  /** Couleur du fond autour du texte (pour le cache qui masque l'original). */
+  background?: string;
 }
 
 interface Props {
@@ -237,7 +240,10 @@ function PageViewImpl(props: Props) {
         break;
       case "editText": {
         const run = runs ? runAt(runs, p) : undefined;
-        if (run && page) props.onEditText({ pageId, run, page, color: sampleTextColor(run.rect) });
+        if (run && page) {
+          const { ink, background } = sampleColors(run.rect);
+          props.onEditText({ pageId, run, page, color: ink, background });
+        }
         break;
       }
     }
@@ -383,7 +389,9 @@ function PageViewImpl(props: Props) {
       case "text": {
         const [x, y] = toView(a.origin);
         const size = a.fontSize * scale;
-        const css = fontCss(a.fontKey);
+        // Police incorporée d'origine si tous les caractères y figurent.
+        const original = usesEmbedded(a) ? a.embedded : null;
+        const css = original ? { fontFamily: original.cssFamily } : fontCss(a.fontKey);
         return (
           <text
             key={a.id}
@@ -394,16 +402,14 @@ function PageViewImpl(props: Props) {
             fill={a.color}
             fontSize={size}
             fontFamily={css.fontFamily}
-            fontWeight={css.fontWeight}
-            fontStyle={css.fontStyle}
+            fontWeight={"fontWeight" in css ? css.fontWeight : undefined}
+            fontStyle={"fontStyle" in css ? css.fontStyle : undefined}
             transform={`rotate(${rotation - a.rotation} ${x} ${y})`}
-            // Masqué pendant l'édition sur la page (la zone de saisie le remplace).
-            visibility={editing?.id === a.id ? "hidden" : undefined}
             style={{ ...common.style, whiteSpace: "pre", userSelect: "none" }}
           >
             {a.text.split(/\r?\n/).map((line, i) => (
               <tspan key={i} x={x} dy={i === 0 ? 0 : size * LINE_HEIGHT}>
-                {line || " "}
+                {(original ? displayText(original, line) : line) || " "}
               </tspan>
             ))}
           </text>
@@ -482,7 +488,9 @@ function PageViewImpl(props: Props) {
           value={a.text}
           rows={lines.length}
           cols={Math.max(2, ...lines.map((l) => l.length))}
-          style={{ ...fontCss(a.fontKey), fontSize: size, lineHeight: LINE_HEIGHT, color: a.color, opacity: a.opacity }}
+          // Texte de saisie transparent : le rendu visible reste celui de la page
+          // (police incorporée comprise) ; seuls le curseur et la sélection s'affichent.
+          style={{ ...fontCss(a.fontKey), fontSize: size, lineHeight: LINE_HEIGHT, color: "transparent" }}
           onFocus={(e) => (editStart.current = e.target.value)}
           onChange={(e) => props.onChange({ ...a, text: e.target.value }, false)}
           onBlur={(e) => {
@@ -626,30 +634,60 @@ function PageViewImpl(props: Props) {
   );
 
   /** Pixel le plus éloigné du fond dans la zone du texte : sa couleur d'encre. */
-  function sampleTextColor(rect: Rect): string | undefined {
+  /**
+   * Couleurs d'un texte d'après le rendu de la page :
+   *  - fond : couleur la plus fréquente sur le pourtour de la zone (fond coloré
+   *    d'un tableau, d'un bandeau…), pour que le cache se fonde dans la page ;
+   *  - encre : pixel de la zone le plus éloigné de ce fond.
+   */
+  function sampleColors(rect: Rect): { ink?: string; background?: string } {
     const canvas = canvasRef.current;
-    if (!canvas || !canvas.width || !viewport) return undefined;
+    if (!canvas || !canvas.width || !viewport) return {};
     const r = viewRect(rect);
     const k = canvas.width / viewport.width;
-    const x = Math.max(0, Math.floor(r.x * k));
-    const y = Math.max(0, Math.floor(r.y * k));
-    const w = Math.min(canvas.width - x, Math.ceil(r.w * k));
-    const h = Math.min(canvas.height - y, Math.ceil(r.h * k));
-    if (w <= 0 || h <= 0) return undefined;
+    const margin = Math.max(2, Math.round(3 * k));
+    const x = Math.max(0, Math.floor(r.x * k) - margin);
+    const y = Math.max(0, Math.floor(r.y * k) - margin);
+    const w = Math.min(canvas.width - x, Math.ceil(r.w * k) + 2 * margin);
+    const h = Math.min(canvas.height - y, Math.ceil(r.h * k) + 2 * margin);
+    if (w <= 2 || h <= 2) return {};
     const data = canvas.getContext("2d", { willReadFrequently: true })!.getImageData(x, y, w, h).data;
-    // Fond estimé = coin supérieur gauche de la zone.
-    const bg = [data[0], data[1], data[2]];
+    const hex = (c: number[]) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+
+    // Fond : pixels du pourtour regroupés par couleur approchée, groupe majoritaire moyenné.
+    const buckets = new Map<number, { n: number; r: number; g: number; b: number }>();
+    const visit = (px: number, py: number) => {
+      const i = (py * w + px) * 4;
+      if (data[i + 3] === 0) return;
+      const key = ((data[i] >> 3) << 10) | ((data[i + 1] >> 3) << 5) | (data[i + 2] >> 3);
+      const s = buckets.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
+      s.n++;
+      s.r += data[i];
+      s.g += data[i + 1];
+      s.b += data[i + 2];
+      buckets.set(key, s);
+    };
+    for (let px = 0; px < w; px++) {
+      visit(px, 0);
+      visit(px, h - 1);
+    }
+    for (let py = 1; py < h - 1; py++) {
+      visit(0, py);
+      visit(w - 1, py);
+    }
+    const top = [...buckets.values()].sort((a, b) => b.n - a.n)[0];
+    const bg = top ? [top.r / top.n, top.g / top.n, top.b / top.n] : [255, 255, 255];
+
     let best = -1;
-    let rgb: [number, number, number] = [0, 0, 0];
+    let ink = [0, 0, 0];
     for (let i = 0; i < data.length; i += 4) {
       const d = Math.abs(data[i] - bg[0]) + Math.abs(data[i + 1] - bg[1]) + Math.abs(data[i + 2] - bg[2]);
       if (d > best) {
         best = d;
-        rgb = [data[i], data[i + 1], data[i + 2]];
+        ink = [data[i], data[i + 1], data[i + 2]];
       }
     }
-    if (best < 60) return undefined;
-    return `#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+    return { background: hex(bg), ink: best >= 60 ? hex(ink) : undefined };
   }
 
   function applyDrag(d: NonNullable<Drag>, dx: number, dy: number, p: Point): Annotation {

@@ -1,3 +1,5 @@
+import type { EmbeddedFont } from "./embeddedFonts";
+
 /** Point dans l'espace utilisateur PDF (unités PDF, axe Y vers le haut). */
 export type Point = [number, number];
 
@@ -54,6 +56,12 @@ export interface TextAnnotation extends AnnotationBase {
   fontSize: number;
   /** Rotation de la page (degrés, sens horaire) au moment de la création. */
   rotation: number;
+  /**
+   * Police incorporée d'origine (« Modifier le texte »). Utilisée tant que tous
+   * les caractères du texte existent dans le sous-ensemble incorporé ; sinon
+   * `fontKey` sert de police de remplacement.
+   */
+  embedded?: EmbeddedFont;
 }
 
 export interface ImageAnnotation extends AnnotationBase {
