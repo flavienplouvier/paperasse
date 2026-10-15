@@ -473,15 +473,17 @@ input[type="checkbox"] {
   stroke: #e46a00;
   stroke-width: 1.5;
 }
+/* Lignes modifiables en mode « Modifier le texte » : simple repère discret,
+   surligné seulement au survol (ou à la sélection). */
 .overlay .run {
-  fill: rgba(10, 108, 255, 0.04);
-  stroke: rgba(10, 108, 255, 0.35);
-  stroke-width: 0.75;
-  stroke-dasharray: 3 3;
+  fill: transparent;
+  stroke: rgba(10, 108, 255, 0.22);
+  stroke-width: 0.6;
+  stroke-dasharray: 2 3;
 }
 .overlay .run.hover {
-  fill: rgba(10, 108, 255, 0.14);
-  stroke: var(--focus);
+  fill: rgba(10, 108, 255, 0.08);
+  stroke: rgba(10, 108, 255, 0.6);
   stroke-dasharray: none;
 }
 .inline-text {

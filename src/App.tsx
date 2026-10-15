@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PDFDocument } from "pdf-lib";
 import { fontInfo, openPdf, PasswordRequired, pdfjs, type PDFDocumentProxy } from "./lib/pdfjs";
-import type { Annotation, DocState, Point, Rect, Tool } from "./lib/types";
+import type { Annotation, DocState, Point, Rect, TextAnnotation, Tool } from "./lib/types";
 import { newId } from "./lib/types";
 import * as ops from "./lib/pageOps";
 import { exportPdf } from "./lib/exportPdf";
@@ -177,13 +177,26 @@ export default function App() {
    * la modification à partir de l'état le plus récent : indispensable pour les
    * opérations asynchrones (deux « Modifier le texte » rapides ne s'écrasent pas).
    */
+  const lastCommit = useRef<object | null>(null);
+  /** Le prochain enregistrement prolonge l'étape d'historique précédente (édition de texte). */
+  const mergeNext = useRef(false);
   const commit = useCallback((next: Partial<Snapshot> | ((d: DocState) => Partial<Snapshot>)) => {
+    const token = {};
+    const merge = mergeNext.current;
+    mergeNext.current = false;
     setDoc((d) => {
       if (!d) return d;
-      past.current.push(dragBase.current ?? snapshot(d));
-      if (past.current.length > 100) past.current.shift();
-      dragBase.current = null;
-      future.current = [];
+      // L'historique n'est mis à jour qu'une fois par enregistrement, même si React
+      // rappelle cette fonction (mode strict en développement).
+      if (lastCommit.current !== token) {
+        lastCommit.current = token;
+        if (!merge) {
+          past.current.push(dragBase.current ?? snapshot(d));
+          if (past.current.length > 100) past.current.shift();
+        }
+        dragBase.current = null;
+        future.current = [];
+      }
       return { ...d, ...(typeof next === "function" ? next(d) : next) };
     });
     forceHistory((n) => n + 1);
@@ -505,15 +518,36 @@ export default function App() {
 
   // ------------------------------------------------------------- annotations
 
+  /**
+   * Texte du PDF ouvert avec « Modifier le texte » mais pas encore changé : il est
+   * affiché et éditable, sans entrer dans le document ni dans l'historique. Il
+   * n'est enregistré qu'au premier vrai changement (texte, police, taille…).
+   */
+  type PendingEdit = { cover: Annotation; text: TextAnnotation; snapshot: string };
+  const [pendingEdit, setPendingEditState] = useState<PendingEdit | null>(null);
+  const pendingRef = useRef<PendingEdit | null>(null);
+  const setPendingEdit = useCallback((p: PendingEdit | null) => {
+    pendingRef.current = p;
+    setPendingEditState(p);
+  }, []);
+
+  // Quitter un texte ouvert sans l'avoir changé ne laisse aucune trace.
+  useEffect(() => {
+    const p = pendingRef.current;
+    if (p && selectedId !== p.text.id) setPendingEdit(null);
+    if (!selectedId) mergeNext.current = false;
+  }, [selectedId, setPendingEdit]);
+
   const annotationsByPage = useMemo(() => {
     const m = new Map<string, Annotation[]>();
-    doc?.annotations.forEach((a) => {
+    const all = pendingEdit ? [...(doc?.annotations ?? []), pendingEdit.cover, pendingEdit.text] : (doc?.annotations ?? []);
+    all.forEach((a) => {
       const l = m.get(a.pageId) ?? [];
       l.push(a);
       m.set(a.pageId, l);
     });
     return m;
-  }, [doc?.annotations]);
+  }, [doc?.annotations, pendingEdit]);
 
   const hitsByPage = useMemo(() => {
     const m = new Map<number, Rect[]>();
@@ -525,7 +559,8 @@ export default function App() {
     return m;
   }, [hits]);
 
-  const selected = doc?.annotations.find((a) => a.id === selectedId) ?? null;
+  const selected =
+    (pendingEdit?.text.id === selectedId ? pendingEdit.text : doc?.annotations.find((a) => a.id === selectedId)) ?? null;
 
   const onCreate = useCallback(
     (a: Annotation) => {
@@ -554,6 +589,19 @@ export default function App() {
   const onChange = useCallback(
     (a: Annotation, final: boolean) => {
       if (!doc) return;
+      const p = pendingRef.current;
+      if (p && a.id === p.text.id) {
+        if (JSON.stringify(a) === p.snapshot) {
+          setPendingEdit({ ...p, text: a as TextAnnotation });
+          return;
+        }
+        // Premier vrai changement : le texte modifié et son cache entrent dans le
+        // document, en une seule étape d'annulation avec la suite de la saisie.
+        setPendingEdit(null);
+        addAnnotations(p.cover, a);
+        if (!final) mergeNext.current = true;
+        return;
+      }
       const annotations = doc.annotations.map((x) => (x.id === a.id ? a : x));
       if (final) commit({ annotations });
       else {
@@ -561,14 +609,20 @@ export default function App() {
         setDoc({ ...doc, annotations });
       }
     },
-    [doc, commit],
+    [doc, commit, addAnnotations, setPendingEdit],
   );
 
   const deleteSelected = useCallback(() => {
     if (!doc || !selectedId) return;
+    if (pendingRef.current?.text.id === selectedId) {
+      // Texte seulement ouvert : rien à retirer du document.
+      setPendingEdit(null);
+      setSelectedId(null);
+      return;
+    }
     commit({ annotations: doc.annotations.filter((a) => a.id !== selectedId) });
     setSelectedId(null);
-  }, [doc, selectedId, commit]);
+  }, [doc, selectedId, commit, setPendingEdit]);
 
   const duplicateSelected = () => {
     if (!doc || !selected) return;
@@ -617,7 +671,8 @@ export default function App() {
         rotation: run.angle,
         ...(embedded ? { embedded } : {}),
       };
-      addAnnotations(cover, text);
+      // Ouvert en édition seulement : rien n'est enregistré tant que le texte n'a pas changé.
+      setPendingEdit({ cover, text: text as TextAnnotation, snapshot: JSON.stringify(text) });
       // On reste en mode « Modifier le texte » pour enchaîner les modifications.
       setSelectedId(text.id);
       setPropsOpen(true);
@@ -632,7 +687,7 @@ export default function App() {
         notify(`Police d'origine « ${original} » remplacée par l'équivalent « ${chosen.label} ».`);
       }
     },
-    [doc, addAnnotations, notify],
+    [doc, setPendingEdit, notify],
   );
 
   const onPlace = useCallback(
