@@ -6,8 +6,14 @@
 const CACHE = "paperasse-v2";
 const FONT_CACHE = "paperasse-catalogue-polices";
 const CATALOG_FONTS = "https://raw.githubusercontent.com/google/fonts/";
-// Marianne, chargée depuis le serveur officiel pour les documents de l'État qui l'utilisent.
-const STATE_FONTS = "https://fonts.forge.apps.education.fr/marianne/";
+// Polices complètes des documents, téléchargées une seule fois par appareil :
+// Marianne (serveur officiel, documents de l'État), polices libres par graisse
+// (Fontsource) et DejaVu (paquet officiel).
+const DOCUMENT_FONTS = [
+  "https://fonts.forge.apps.education.fr/marianne/",
+  "https://cdn.jsdelivr.net/fontsource/fonts/",
+  "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@",
+];
 
 function cacheFirst(req, cacheName) {
   return caches.match(req).then(
@@ -40,7 +46,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
-  if (req.url.startsWith(CATALOG_FONTS) || req.url.startsWith(STATE_FONTS)) {
+  if (req.url.startsWith(CATALOG_FONTS) || DOCUMENT_FONTS.some((p) => req.url.startsWith(p))) {
     event.respondWith(cacheFirst(req, FONT_CACHE));
     return;
   }

@@ -10,6 +10,7 @@ import { fillForm, type FormValues } from "./lib/forms";
 import {
   DEFAULT_FONT_KEY,
   ensureCssFont,
+  fontBytes,
   getFont,
   loadLibrary,
   matchFont,
@@ -208,7 +209,13 @@ export default function App() {
     // Bibliothèque chargée d'abord : chaque police du fichier trouve sa meilleure correspondance.
     loadLibrary(import.meta.env.BASE_URL)
       .then(() => listFileFonts(doc.bytes))
-      .then((list) => alive && setFileFonts(list))
+      .then((list) => {
+        if (!alive) return;
+        setFileFonts(list);
+        // Préchargement en arrière-plan : les polices du fichier sont prêtes (et gardées en
+        // cache sur l'appareil) avant d'en avoir besoin pour modifier ou ajouter du texte.
+        for (const f of list) fontBytes(f.key).catch(() => undefined);
+      })
       .catch(() => undefined);
     return () => {
       alive = false;
