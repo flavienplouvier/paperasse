@@ -102,6 +102,7 @@ export function FontPicker({
     const list = f ? fonts.filter((x) => x.label.toLowerCase().includes(f)) : fonts;
     const lib = (cat: string) => list.filter((x) => x.source === "library" && x.category === cat);
     return [
+      { label: "Police du document (État)", items: lib("etat") },
       { label: "Polices importées", items: list.filter((x) => x.source === "file") },
       { label: "Polices de l'ordinateur", items: list.filter((x) => x.source === "local").slice(0, 800) },
       { label: "Équivalents Office / Windows (mêmes largeurs)", items: lib("metric") },

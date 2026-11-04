@@ -80,6 +80,13 @@ export function getFonts(): FontEntry[] {
   return snapshot;
 }
 
+/** Ajoute une entrée au registre (polices chargées à la demande, ex. polices de l'État). */
+export function registerFontEntry(entry: FontEntry): void {
+  if (registry.has(entry.key)) return;
+  registry.set(entry.key, entry);
+  changed();
+}
+
 export function getFont(key: string): FontEntry {
   return registry.get(key) ?? registry.get(DEFAULT_FONT_KEY)!;
 }

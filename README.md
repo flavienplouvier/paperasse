@@ -26,6 +26,11 @@ rien n'est envoyé sur un serveur.
   police du PDF, sinon seule la lettre manquante prend la police complète
   (installée, importée ou du catalogue libre) ; le reste du texte garde la police
   d'origine.
+- Documents de l'État composés en Marianne (Cerfa…) : la police Marianne est
+  chargée à la demande depuis le serveur officiel
+  (`fonts.forge.apps.education.fr`) pour compléter les lettres absentes. Elle
+  n'est pas incluse dans Paperasse : son usage est réservé à l'administration
+  (circulaire n° 6144/SG).
 - Bibliothèque de 75 familles de polices libres (près de 250 styles), dont des
   équivalents aux mêmes dimensions des polices Office/Windows : Carlito
   (Calibri), Caladea (Cambria), Arimo (Arial/Helvetica), Tinos (Times New
