@@ -11,6 +11,8 @@ export interface TextRun {
   fontName: string;
   /** Direction du texte dans l'espace PDF, en degrés (0 = horizontal). */
   angle: number;
+  /** Longueur du fragment le long de sa ligne de base. */
+  width?: number;
 }
 
 interface RawItem {
@@ -48,7 +50,7 @@ export async function extractRuns(page: PDFPageProxy): Promise<TextRun[]> {
       const ys = corners.map((p) => p[1]);
       rect = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
     }
-    runs.push({ str: raw.str, rect, baseline: [e, f], fontSize, fontName: raw.fontName ?? "", angle });
+    runs.push({ str: raw.str, rect, baseline: [e, f], fontSize, fontName: raw.fontName ?? "", angle, width });
   }
   return runs;
 }

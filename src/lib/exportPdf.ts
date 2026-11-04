@@ -10,8 +10,9 @@ import {
 import { compatFontkit, withPreferredFont } from "./fontkitCompat";
 import { drawEmbeddedText, usesEmbedded } from "./embeddedFonts";
 import { createFormField } from "./formFields";
+import { removeTextInRects } from "./removeText";
 import { shapeDef } from "./shapes";
-import type { Annotation, Point, TextAnnotation } from "./types";
+import type { Annotation, Point, ShapeAnnotation, TextAnnotation } from "./types";
 import { addScaled, arrowHead, hexToRgb01, normalizeRotation, screenAxes, shapeBox } from "./geometry";
 import { fontBytes, getFont } from "./fonts";
 
@@ -195,6 +196,27 @@ export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotat
 }
 
 /**
+ * Retire du contenu de la page le texte d'origine sous les caches de « Modifier
+ * le texte ». Renvoie les caches devenus inutiles : texte entièrement retiré et
+ * visible (pour une couche OCR invisible, l'image scannée montre encore l'ancien
+ * texte, le cache reste donc nécessaire).
+ */
+function removeOriginalText(doc: PDFDocument, page: PDFPage, list: Annotation[]): Set<Annotation> {
+  const covers = list.filter((a): a is ShapeAnnotation => a.kind === "whiteout" && !!a.removeText);
+  const done = new Set<Annotation>();
+  if (!covers.length) return done;
+  try {
+    const results = removeTextInRects(doc, page, covers.map((c) => c.removeText!));
+    results.forEach((r, k) => {
+      if (r.removed > 0 && r.invisible === 0) done.add(covers[k]);
+    });
+  } catch {
+    /* contenu illisible : on garde les caches */
+  }
+  return done;
+}
+
+/**
  * Produit le PDF final : les annotations sont dessinées dans le contenu des
  * pages (lisibles par tous les lecteurs PDF). Le reste du document — texte,
  * polices d'origine, images, liens, formulaires — est conservé tel quel.
@@ -220,8 +242,12 @@ export async function exportPdf(
   for (let i = 0; i < pages.length; i++) {
     const list = byPage.get(pageIds[i]);
     if (!list) continue;
+    // « Modifier le texte » : le texte d'origine est retiré du contenu de la page.
+    // Le cache n'est gardé que là où ce retrait n'a pas suffi.
+    const removed = removeOriginalText(doc, pages[i], list);
+    const drawn = list.filter((a) => !removed.has(a));
     // Les caches blancs d'abord pour que le texte de remplacement passe au-dessus.
-    const ordered = [...list.filter((a) => a.kind === "whiteout"), ...list.filter((a) => a.kind !== "whiteout")];
+    const ordered = [...drawn.filter((a) => a.kind === "whiteout"), ...drawn.filter((a) => a.kind !== "whiteout")];
     for (const a of ordered) await drawAnnotation(doc, pages[i], a, fonts);
   }
   if (options.flattenForms) {

@@ -40,12 +40,27 @@ export interface InkAnnotation extends AnnotationBase {
   width: number;
 }
 
+/** Ligne de texte d'origine du PDF : départ de la ligne de base, direction, longueur, taille. */
+export interface TextLine {
+  origin: Point;
+  /** Degrés, sens trigonométrique dans l'espace PDF (0 = horizontal). */
+  angle: number;
+  width: number;
+  fontSize: number;
+}
+
 export interface ShapeAnnotation extends AnnotationBase {
   kind: "rect" | "ellipse" | "highlight" | "whiteout";
   rect: Rect;
   /** Épaisseur du contour ; 0 = forme pleine. */
   width: number;
   fill: boolean;
+  /**
+   * Cache posé par « Modifier le texte » : à l'enregistrement, le texte d'origine
+   * sous cette zone est réellement retiré du fichier. Le cache n'est dessiné que
+   * si ce retrait est impossible (texte dans une image scannée, police non prise en charge).
+   */
+  removeText?: TextLine;
 }
 
 export interface LineAnnotation extends AnnotationBase {

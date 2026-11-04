@@ -700,6 +700,13 @@ export default function App() {
         opacity: 1,
         width: 0,
         fill: true,
+        // Le texte d'origine sera réellement retiré du fichier à l'enregistrement.
+        removeText: {
+          origin: run.baseline,
+          angle: run.angle,
+          width: run.width ?? x2 - x1,
+          fontSize: run.fontSize,
+        },
       };
       const text: Annotation = {
         id: newId("annot"),

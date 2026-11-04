@@ -4,6 +4,8 @@ Paperasse est un éditeur PDF qui fonctionne entièrement dans le navigateur : s
 ordinateur, tablette ou téléphone Android. Les fichiers restent sur l'appareil,
 rien n'est envoyé sur un serveur.
 
+**Utiliser Paperasse en ligne : https://flavienplouvier.github.io/paperasse/**
+
 ## Fonctionnalités
 
 **Lecture**
@@ -15,8 +17,8 @@ rien n'est envoyé sur un serveur.
 - PDF protégés par mot de passe (avec le mot de passe).
 
 **Modification**
-- *Modifier le texte* : touchez une ligne du PDF, elle est masquée et remplacée
-  par un texte modifiable, dans la police d'origine si elle est disponible.
+- *Modifier le texte* : touchez une ligne du PDF, elle est remplacée par un texte
+  modifiable, dans la police d'origine si elle est disponible.
 - Le texte sélectionné se modifie directement sur la page, dans sa police, sa
   taille et sa couleur d'origine (poignée pour le déplacer).
 - Bibliothèque de 75 familles de polices libres (près de 250 styles), dont des
@@ -106,19 +108,23 @@ polices Windows et Office l'autorisent pour l'impression et l'affichage.
 3. Le workflow `.github/workflows/deploy.yml` publie l'application à chaque
    push sur `main`, à l'adresse `https://<utilisateur>.github.io/<dépôt>/`.
 
+La version officielle est publiée sur https://flavienplouvier.github.io/paperasse/.
+
 Le build utilise des chemins relatifs : il fonctionne aussi sur tout hébergement
 statique (Netlify, Cloudflare Pages, serveur web…).
 
 ## Installer sur Android
 
-Ouvrez l'adresse publiée dans Chrome, puis menu ⋮ → **Installer l'application**
+Ouvrez https://flavienplouvier.github.io/paperasse/ dans Chrome, puis menu ⋮ → **Installer l'application**
 (ou **Ajouter à l'écran d'accueil**). Paperasse s'ouvre alors en plein écran et
 fonctionne sans connexion.
 
 ## Limites actuelles
 
-- *Modifier le texte* remplace une ligne par un nouveau texte posé par-dessus ;
-  le texte d'origine est masqué, pas supprimé du fichier.
+- *Modifier le texte* retire réellement l'ancien texte du fichier à l'enregistrement
+  (il n'est plus copiable ni indexable). Exceptions, où l'ancien texte est seulement
+  recouvert d'un cache : PDF scanné (le texte fait partie de l'image), texte placé
+  dans un sous-dessin (XObject) et polices à encodage CMap non standard.
 - Sur Android, les polices de l'appareil ne sont pas accessibles aux sites web :
   importez un fichier TTF/OTF pour écrire dans une autre police que les polices standard.
 - Les PDF chiffrés sont réenregistrés page par page en image (texte non
