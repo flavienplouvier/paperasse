@@ -159,6 +159,13 @@ export function fontCodeMap(info: FontDictInfo): { map: Map<number, string>; cod
   if (stream instanceof PDFRawStream) {
     const text = new TextDecoder("latin1").decode(decodePDFRawStream(stream).decode());
     const { map, codeBytes } = parseToUnicode(text);
+    if (info.subtype !== "Type0") {
+      // Police simple : toujours 1 octet par caractère, même si sa table ToUnicode
+      // déclare des codes sur 2 octets (fréquent, ex. <0000> <FFFF>). Écrire 2 octets
+      // ferait lire un caractère nul (petit carré) devant chaque lettre.
+      const simple = new Map([...map].filter(([code]) => code <= 0xff));
+      return { map: simple, codeBytes: 1 };
+    }
     if (codeBytes !== 1 && codeBytes !== 2) return null;
     return { map, codeBytes };
   }
@@ -211,9 +218,9 @@ export function displayText(font: EmbeddedFont, line: string): string {
   return [...line].map((ch) => font.glyphs[ch]?.display ?? ch).join("");
 }
 
-function hexCodes(font: EmbeddedFont, line: string): string {
+function hexCodes(font: EmbeddedFont, line: string, codeBytes: 1 | 2): string {
   return [...line]
-    .map((ch) => font.glyphs[ch].code.toString(16).padStart(font.codeBytes * 2, "0"))
+    .map((ch) => font.glyphs[ch].code.toString(16).padStart(codeBytes * 2, "0"))
     .join("");
 }
 
@@ -227,6 +234,11 @@ let resourceCounter = 0;
 export function drawEmbeddedText(doc: PDFDocument, page: PDFPage, a: TextAnnotation & { embedded: EmbeddedFont }): boolean {
   const info = findFontDict(doc, a.embedded.baseFont);
   if (!info) return false;
+  // Octets par code d'après la police réellement utilisée (et non la valeur
+  // mémorisée, qui pouvait être fausse pour les polices simples).
+  const codeBytes: 1 | 2 = info.subtype === "Type0" ? 2 : 1;
+  const chars = a.text.replace(/\r?\n/g, "").replace(/ /g, "");
+  if (codeBytes === 1 && [...chars].some((ch) => (a.embedded.glyphs[ch]?.code ?? 0) > 0xff)) return false;
   page.node.normalize();
   const fontKey = page.node.newFontDictionaryKey(`PaE${++resourceCounter}`);
   page.node.setFontDictionary(fontKey, info.ref);
@@ -255,7 +267,7 @@ export function drawEmbeddedText(doc: PDFDocument, page: PDFPage, a: TextAnnotat
       underlines.push([base, addScaled(base, right, lineWidth(line))]);
     }
     if (font.glyphs[" "]) {
-      ops.push(setTextMatrix(cos, sin, -sin, cos, start[0], start[1]), showText(PDFHexString.of(hexCodes(font, line))));
+      ops.push(setTextMatrix(cos, sin, -sin, cos, start[0], start[1]), showText(PDFHexString.of(hexCodes(font, line, codeBytes))));
       return;
     }
     // Pas de glyphe espace dans la police : chaque mot est placé à sa position.
@@ -263,7 +275,7 @@ export function drawEmbeddedText(doc: PDFDocument, page: PDFPage, a: TextAnnotat
     for (const word of line.split(" ")) {
       if (word) {
         const [x, y] = addScaled(start, right, advance * em);
-        ops.push(setTextMatrix(cos, sin, -sin, cos, x, y), showText(PDFHexString.of(hexCodes(font, word))));
+        ops.push(setTextMatrix(cos, sin, -sin, cos, x, y), showText(PDFHexString.of(hexCodes(font, word, codeBytes))));
       }
       advance += [...word].reduce((w, ch) => w + (font.glyphs[ch]?.width ?? 500), 0) + font.spaceWidth;
     }

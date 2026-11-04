@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { PDFDict, PDFDocument, PDFName } from "pdf-lib";
+import { PDFDict, PDFDocument, PDFName, StandardFonts } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import {
   findFontDict,
@@ -191,5 +191,53 @@ describe.skipIf(!ttf)("police incorporée d'origine", () => {
     expect(usesEmbedded(a)).toBe(false);
     const out = await exportPdf(bytes, ["p"], [a]);
     expect(await extractText(out)).toContain("Zébre");
+  });
+});
+
+describe("police simple avec une table ToUnicode sur 2 octets (Cerfa)", () => {
+  /** PDF dont la police simple (Helvetica, 1 octet par code) a une ToUnicode déclarée en <0000>-<FFFF>. */
+  async function cerfaLike() {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    doc.addPage([595, 842]).drawText("deux mois", { x: 72, y: 700, size: 12, font });
+    const cmap = [
+      "/CIDInit /ProcSet findresource begin 12 dict begin begincmap",
+      "1 begincodespacerange <0000> <FFFF> endcodespacerange",
+      "1 beginbfrange <0020> <007E> <0020> endbfrange",
+      "endcmap CMapName currentdict /CMap defineresource pop end end",
+    ].join("\n");
+    const saved = await PDFDocument.load(await doc.save());
+    const fontDict = findFontDict(saved, "Helvetica")!.dict;
+    fontDict.set(PDFName.of("ToUnicode"), saved.context.register(saved.context.flateStream(cmap)));
+    return saved.save();
+  }
+
+  it("lit 1 octet par code malgré la table sur 2 octets", async () => {
+    const doc = await PDFDocument.load(await cerfaLike());
+    const codes = fontCodeMap(findFontDict(doc, "Helvetica")!)!;
+    expect(codes.codeBytes).toBe(1);
+    expect(codes.map.get(0x72)).toBe("r");
+  });
+
+  it("le texte modifié s'écrit sans caractère nul (pas de petits carrés)", async () => {
+    const bytes = await cerfaLike();
+    const doc = await PDFDocument.load(bytes);
+    const embedded = embeddedFrom(doc, "Helvetica");
+    const text = (e: EmbeddedFont): TextAnnotation => ({
+      id: "t",
+      pageId: "p",
+      kind: "text",
+      origin: [72, 650],
+      text: "trois mois",
+      fontKey: "std:Helvetica",
+      fontSize: 12,
+      color: "#000000",
+      opacity: 1,
+      rotation: 0,
+      embedded: e,
+    });
+    expect(await extractText(await exportPdf(bytes, ["p"], [text(embedded)]))).toBe("deux mois|trois mois");
+    // Modification mémorisée avant le correctif (codeBytes: 2) : réécrite correctement.
+    expect(await extractText(await exportPdf(bytes, ["p"], [text({ ...embedded, codeBytes: 2 })]))).toBe("deux mois|trois mois");
   });
 });
