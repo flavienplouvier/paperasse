@@ -19,5 +19,9 @@ createRoot(document.getElementById("root")!).render(
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => undefined);
+    // Stockage persistant : le navigateur n'efface pas de lui-même le cache (polices
+    // téléchargées, application hors ligne) quand l'appareil manque de place.
+    // Accordé automatiquement pour une application installée ; sans effet sinon.
+    navigator.storage?.persist?.().catch(() => undefined);
   });
 }
