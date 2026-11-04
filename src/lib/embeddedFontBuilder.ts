@@ -2,6 +2,7 @@ import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument } from "pdf-lib";
 import type { PDFPageProxy } from "./pdfjs";
 import { findFontDict, fontCodeMap, type EmbeddedFont } from "./embeddedFonts";
+import { findAlternates } from "./fontAlternates";
 
 interface PdfjsFont {
   name?: string;
@@ -157,11 +158,19 @@ export async function buildEmbeddedFont(
   if (!Object.keys(glyphs).length) return null;
 
   const family = await registerFace(font.name, font.data);
+  // Caractères absents de ce sous-ensemble mais présents dans un autre sous-ensemble de la même police.
+  let alternates: EmbeddedFont["alternates"] = [];
+  try {
+    alternates = findAlternates(doc, info!, font.name, new Set(Object.keys(glyphs)));
+  } catch {
+    alternates = [];
+  }
   return {
     baseFont: font.name,
     cssFamily: `"${family}"`,
     codeBytes: codes.codeBytes,
     glyphs,
+    ...(alternates.length ? { alternates } : {}),
     // Espace typique d'une police latine (Arial, Helvetica : 278/1000).
     spaceWidth: glyphs[" "]?.width ?? 278,
   };

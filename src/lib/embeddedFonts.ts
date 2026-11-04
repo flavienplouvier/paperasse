@@ -8,6 +8,7 @@ import {
   type PDFPage,
   PDFRawStream,
   PDFRef,
+  type PDFFont,
   beginText,
   decodePDFRawStream,
   endText,
@@ -53,6 +54,17 @@ export interface EmbeddedFont {
   spaceWidth: number;
   /** Police d'origine non incorporée dans le fichier (police standard PDF). */
   notEmbedded?: boolean;
+  /**
+   * Autres sous-ensembles de la même police dans le PDF : ils apportent les vrais
+   * glyphes de caractères absents du sous-ensemble principal (ex. un « P »).
+   */
+  alternates?: AlternateFont[];
+}
+
+/** Sous-ensemble complémentaire de la même police (même dessin, autres caractères). */
+export interface AlternateFont {
+  baseFont: string;
+  glyphs: Record<string, { code: number; width?: number }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -199,18 +211,52 @@ export function fontCodeMap(info: FontDictInfo): { map: Map<number, string>; cod
 // Utilisation pour un texte
 
 /**
- * Caractères du texte absents de la police incorporée. Les retours à la ligne
- * et les espaces sont toujours possibles (les mots sont alors positionnés).
+ * Source d'un caractère : -1 = sous-ensemble principal, n ≥ 0 = sous-ensemble
+ * complémentaire n, "fallback" = police de remplacement (glyphe absent du PDF).
  */
+export type GlyphSource = number | "fallback";
+
+export function sourceOf(font: EmbeddedFont, ch: string): GlyphSource {
+  if (font.glyphs[ch]) return -1;
+  const i = font.alternates?.findIndex((alt) => alt.glyphs[ch]) ?? -1;
+  return i >= 0 ? i : "fallback";
+}
+
+/** Caractères absents de toute la police d'origine du PDF (écrits avec la police de remplacement). */
 export function missingChars(font: EmbeddedFont, text: string): string[] {
   const missing = new Set<string>();
-  for (const ch of text.replace(/\r?\n/g, "")) if (ch !== " " && !font.glyphs[ch]) missing.add(ch);
+  for (const ch of text.replace(/\r?\n/g, "")) if (ch !== " " && sourceOf(font, ch) === "fallback") missing.add(ch);
   return [...missing];
 }
 
-/** Le texte peut-il être écrit entièrement avec la police incorporée ? */
+/** Caractères pris dans un autre sous-ensemble de la même police (vrai glyphe d'origine). */
+export function borrowedChars(font: EmbeddedFont, text: string): string[] {
+  const out = new Set<string>();
+  for (const ch of text.replace(/\r?\n/g, "")) if (ch !== " " && typeof sourceOf(font, ch) === "number" && sourceOf(font, ch) !== -1) out.add(ch);
+  return [...out];
+}
+
+/** Le texte peut-il être écrit entièrement avec la police d'origine du PDF ? */
 export function usesEmbedded(a: TextAnnotation): a is TextAnnotation & { embedded: EmbeddedFont } {
   return !!a.embedded && missingChars(a.embedded, a.text).length === 0;
+}
+
+/**
+ * Découpe une ligne en segments de même source. Les espaces suivent le segment
+ * en cours (ou le principal) ; si la police principale n'a pas de glyphe espace,
+ * ils forment des segments « space » qui ne font qu'avancer.
+ */
+export function segmentLine(font: EmbeddedFont, line: string): { source: GlyphSource | "space"; text: string }[] {
+  const out: { source: GlyphSource | "space"; text: string }[] = [];
+  for (const ch of line) {
+    let src: GlyphSource | "space";
+    if (ch === " ") src = font.glyphs[" "] ? -1 : "space";
+    else src = sourceOf(font, ch);
+    const last = out[out.length - 1];
+    if (last && last.source === src) last.text += ch;
+    else out.push({ source: src, text: ch });
+  }
+  return out;
 }
 
 /** Texte à afficher à l'écran avec la police incorporée (caractères internes de pdf.js). */
@@ -218,30 +264,85 @@ export function displayText(font: EmbeddedFont, line: string): string {
   return [...line].map((ch) => font.glyphs[ch]?.display ?? ch).join("");
 }
 
-function hexCodes(font: EmbeddedFont, line: string, codeBytes: 1 | 2): string {
-  return [...line]
-    .map((ch) => font.glyphs[ch].code.toString(16).padStart(codeBytes * 2, "0"))
-    .join("");
+function hexCodes(glyphs: Record<string, { code: number }>, text: string, codeBytes: 1 | 2): string {
+  return [...text].map((ch) => glyphs[ch].code.toString(16).padStart(codeBytes * 2, "0")).join("");
 }
 
 let resourceCounter = 0;
 
 /**
- * Écrit le texte dans la page avec la ressource de police d'origine.
- * Retourne false si la police n'est pas retrouvée (l'appelant se replie alors
- * sur la police de remplacement).
+ * Écrit le texte dans la page avec la police d'origine du PDF, caractère par
+ * caractère : sous-ensemble principal, puis autres sous-ensembles de la même
+ * police, puis — seulement pour les caractères absents de tout le PDF — la police
+ * de remplacement. Chaque segment est placé à sa position exacte.
+ * Retourne false si la police d'origine n'est pas retrouvée (l'appelant écrit
+ * alors tout le texte avec la police de remplacement).
  */
-export function drawEmbeddedText(doc: PDFDocument, page: PDFPage, a: TextAnnotation & { embedded: EmbeddedFont }): boolean {
-  const info = findFontDict(doc, a.embedded.baseFont);
+export async function drawEmbeddedText(
+  doc: PDFDocument,
+  page: PDFPage,
+  a: TextAnnotation & { embedded: EmbeddedFont },
+  fallback?: () => Promise<PDFFont>,
+): Promise<boolean> {
+  const font = a.embedded;
+  const info = findFontDict(doc, font.baseFont);
   if (!info) return false;
-  // Octets par code d'après la police réellement utilisée (et non la valeur
-  // mémorisée, qui pouvait être fausse pour les polices simples).
-  const codeBytes: 1 | 2 = info.subtype === "Type0" ? 2 : 1;
-  const chars = a.text.replace(/\r?\n/g, "").replace(/ /g, "");
-  if (codeBytes === 1 && [...chars].some((ch) => (a.embedded.glyphs[ch]?.code ?? 0) > 0xff)) return false;
   page.node.normalize();
-  const fontKey = page.node.newFontDictionaryKey(`PaE${++resourceCounter}`);
-  page.node.setFontDictionary(fontKey, info.ref);
+
+  // Ressource et octets par code de chaque source utilisée.
+  type Res = { key: PDFName; codeBytes: 1 | 2; glyphs: Record<string, { code: number; width?: number }> };
+  const resources = new Map<GlyphSource, Res | null>();
+  const resourceFor = (src: number): Res | null => {
+    if (resources.has(src)) return resources.get(src)!;
+    const base = src === -1 ? font.baseFont : font.alternates![src].baseFont;
+    const found = src === -1 ? info : findFontDict(doc, base);
+    let res: Res | null = null;
+    if (found) {
+      const codeBytes: 1 | 2 = found.subtype === "Type0" ? 2 : 1;
+      const glyphs = src === -1 ? font.glyphs : font.alternates![src].glyphs;
+      const key = page.node.newFontDictionaryKey(`PaE${++resourceCounter}`);
+      page.node.setFontDictionary(key, found.ref);
+      res = { key, codeBytes, glyphs };
+    }
+    resources.set(src, res);
+    return res;
+  };
+
+  // Police de remplacement chargée seulement si un caractère en a besoin.
+  let fb: { font: PDFFont; key: PDFName } | null = null;
+  const fallbackFont = async () => {
+    if (!fb) {
+      if (!fallback) throw new Error("Caractère absent de la police d'origine et aucune police de remplacement.");
+      const f = await fallback();
+      fb = { font: f, key: page.node.newFontDictionary(`PaF${++resourceCounter}`, f.ref) };
+    }
+    return fb;
+  };
+
+  const em = a.fontSize / 1000;
+  const lines = a.text.split(/\r?\n/);
+  // Préparation : segments de chaque ligne, sources indisponibles basculées sur le remplacement.
+  const prepared: { source: GlyphSource | "space"; text: string; res?: Res }[][] = [];
+  for (const line of lines) {
+    const segs: { source: GlyphSource | "space"; text: string; res?: Res }[] = [];
+    for (const seg of segmentLine(font, line)) {
+      if (typeof seg.source === "number") {
+        const res = resourceFor(seg.source);
+        if (res && [...seg.text].every((ch) => ch === " " || res.codeBytes === 2 || (res.glyphs[ch]?.code ?? 0) <= 0xff)) {
+          segs.push({ ...seg, res });
+          continue;
+        }
+        segs.push({ source: "fallback", text: seg.text });
+      } else segs.push(seg);
+    }
+    prepared.push(segs);
+  }
+  const advance = async (seg: { source: GlyphSource | "space"; text: string; res?: Res }) => {
+    if (seg.source === "space") return [...seg.text].length * font.spaceWidth * em;
+    if (seg.source === "fallback") return (await fallbackFont()).font.widthOfTextAtSize(seg.text, a.fontSize);
+    return [...seg.text].reduce((w, ch) => w + (seg.res!.glyphs[ch]?.width ?? (ch === " " ? font.spaceWidth : 500)), 0) * em;
+  };
+
   const ops = [pushGraphicsState()];
   if (a.opacity < 1) {
     const gs = doc.context.obj({ Type: "ExtGState", ca: a.opacity, CA: a.opacity });
@@ -252,38 +353,42 @@ export function drawEmbeddedText(doc: PDFDocument, page: PDFPage, a: TextAnnotat
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
   const { down } = screenAxes(a.rotation);
-  ops.push(beginText(), setFillingColor(rgb(r, g, b)), setFontAndSize(fontKey, a.fontSize));
-  const font = a.embedded;
   const right: [number, number] = [cos, sin];
-  const em = a.fontSize / 1000;
-  const lineWidth = (line: string) =>
-    [...line].reduce((w, ch) => w + (ch === " " && !font.glyphs[" "] ? font.spaceWidth : (font.glyphs[ch]?.width ?? 500)), 0) * em;
+  ops.push(beginText(), setFillingColor(rgb(r, g, b)));
   const underlines: [[number, number], [number, number]][] = [];
-  a.text.split(/\r?\n/).forEach((line, i) => {
-    if (!line) return;
+  for (const [i, segs] of prepared.entries()) {
+    if (!segs.length) continue;
     const start = addScaled(a.origin, down, a.fontSize * 1.25 * i);
+    let x = 0;
+    for (const seg of segs) {
+      const w = await advance(seg);
+      if (seg.source !== "space") {
+        const [px, py] = addScaled(start, right, x);
+        ops.push(setTextMatrix(cos, sin, -sin, cos, px, py));
+        if (seg.source === "fallback") {
+          const f = await fallbackFont();
+          let encoded;
+          try {
+            encoded = f.font.encodeText(seg.text);
+          } catch {
+            throw new Error(`La police de remplacement ne contient pas certains caractères de « ${seg.text} ». Choisissez une police qui les couvre.`);
+          }
+          ops.push(setFontAndSize(f.key, a.fontSize), showText(encoded));
+        } else {
+          ops.push(setFontAndSize(seg.res!.key, a.fontSize), showText(PDFHexString.of(hexCodes(seg.res!.glyphs, seg.text, seg.res!.codeBytes))));
+        }
+      }
+      x += w;
+    }
     if (a.underline) {
       const base = addScaled(start, down, a.fontSize * 0.12);
-      underlines.push([base, addScaled(base, right, lineWidth(line))]);
+      underlines.push([base, addScaled(base, right, x)]);
     }
-    if (font.glyphs[" "]) {
-      ops.push(setTextMatrix(cos, sin, -sin, cos, start[0], start[1]), showText(PDFHexString.of(hexCodes(font, line, codeBytes))));
-      return;
-    }
-    // Pas de glyphe espace dans la police : chaque mot est placé à sa position.
-    let advance = 0;
-    for (const word of line.split(" ")) {
-      if (word) {
-        const [x, y] = addScaled(start, right, advance * em);
-        ops.push(setTextMatrix(cos, sin, -sin, cos, x, y), showText(PDFHexString.of(hexCodes(font, word, codeBytes))));
-      }
-      advance += [...word].reduce((w, ch) => w + (font.glyphs[ch]?.width ?? 500), 0) + font.spaceWidth;
-    }
-  });
+  }
   ops.push(endText());
   if (underlines.length) {
     ops.push(setStrokingColor(rgb(r, g, b)), setLineWidth(Math.max(0.5, a.fontSize * 0.07)));
-    for (const [s, e] of underlines) ops.push(moveTo(s[0], s[1]), lineTo(e[0], e[1]), stroke());
+    for (const [s0, e] of underlines) ops.push(moveTo(s0[0], s0[1]), lineTo(e[0], e[1]), stroke());
   }
   ops.push(popGraphicsState());
   page.pushOperators(...ops);

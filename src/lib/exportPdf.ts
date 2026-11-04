@@ -8,7 +8,7 @@ import {
   rgb,
 } from "pdf-lib";
 import { compatFontkit, withPreferredFont } from "./fontkitCompat";
-import { drawEmbeddedText, usesEmbedded } from "./embeddedFonts";
+import { drawEmbeddedText } from "./embeddedFonts";
 import { createFormField } from "./formFields";
 import { removeTextInRects } from "./removeText";
 import { shapeDef } from "./shapes";
@@ -160,8 +160,8 @@ export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotat
       return;
     }
     case "text":
-      // Police d'origine du PDF si tous les caractères y figurent, sinon police de remplacement.
-      if (usesEmbedded(a) && drawEmbeddedText(doc, page, a)) return;
+      // Police d'origine du PDF, lettre par lettre ; police de remplacement pour les seuls glyphes absents.
+      if (a.embedded && (await drawEmbeddedText(doc, page, { ...a, embedded: a.embedded }, () => fonts.get(a.fontKey)))) return;
       await drawText(page, a, await fonts.get(a.fontKey));
       return;
     case "field":

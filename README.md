@@ -21,6 +21,11 @@ rien n'est envoyé sur un serveur.
   modifiable, dans la police d'origine si elle est disponible.
 - Le texte sélectionné se modifie directement sur la page, dans sa police, sa
   taille et sa couleur d'origine (poignée pour le déplacer).
+- Lettres absentes de la police incorporée (un PDF n'en contient que les
+  caractères utilisés) : elles sont cherchées dans les autres parties de la même
+  police du PDF, sinon seule la lettre manquante prend la police complète
+  (installée, importée ou du catalogue libre) ; le reste du texte garde la police
+  d'origine.
 - Bibliothèque de 75 familles de polices libres (près de 250 styles), dont des
   équivalents aux mêmes dimensions des polices Office/Windows : Carlito
   (Calibri), Caladea (Cambria), Arimo (Arial/Helvetica), Tinos (Times New

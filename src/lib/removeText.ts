@@ -108,7 +108,7 @@ function nameOf(o: PDFObject | undefined): string | undefined {
 }
 
 /** Largeurs d'une police à partir de son dictionnaire ; undefined si non prise en charge. */
-function fontMetrics(doc: PDFDocument, font: PDFDict): FontMetrics | undefined {
+export function fontMetrics(doc: PDFDocument, font: PDFDict): FontMetrics | undefined {
   const ctx = doc.context;
   const look = (d: PDFDict, key: string) => ctx.lookup(d.get(PDFName.of(key)));
   const subtype = nameOf(look(font, "Subtype"));

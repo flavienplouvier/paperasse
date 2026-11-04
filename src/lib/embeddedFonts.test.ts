@@ -190,7 +190,9 @@ describe.skipIf(!ttf)("police incorporée d'origine", () => {
     };
     expect(usesEmbedded(a)).toBe(false);
     const out = await exportPdf(bytes, ["p"], [a]);
-    expect(await extractText(out)).toContain("Zébre");
+    // Seuls « Z », « é », « b » (absents du sous-ensemble) prennent la police de remplacement ;
+    // « re » garde la police d'origine.
+    expect(await extractText(out)).toContain("Zéb|re");
   });
 });
 

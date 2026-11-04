@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Annotation, FieldAnnotation, FieldType, Tool } from "../lib/types";
-import { missingChars } from "../lib/embeddedFonts";
+import { borrowedChars, missingChars } from "../lib/embeddedFonts";
 import { ensureCssFont, getFont, matchFont, styleVariant } from "../lib/fonts";
 import { STAMPS, renderStamp } from "../lib/stamp";
 import { SHAPES, shapeDef, type ShapeId } from "../lib/shapes";
@@ -151,16 +151,20 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
 
       {selected?.kind === "text" && selected.embedded && (() => {
         const missing = missingChars(selected.embedded, selected.text);
+        const borrowed = borrowedChars(selected.embedded, selected.text);
         const name = selected.embedded.baseFont.replace(/^[A-Z]{6}\+/, "");
         return missing.length === 0 ? (
           <p className="font-status ok">
             Police d'origine du PDF : <strong>{name}</strong>
             {selected.embedded.notEmbedded ? " (police standard, rendu identique)." : " (incorporée, rendu identique)."}
+            {borrowed.length > 0 && <> « {borrowed.join(" ")} » retrouvé{borrowed.length > 1 ? "s" : ""} ailleurs dans le PDF.</>}
           </p>
         ) : (
           <p className="font-status warn">
-            Caractère(s) absent(s) de la police d'origine <strong>{name}</strong> : « {missing.join(" ")} ». Le texte
-            utilise la police de remplacement ci-dessous ; retirez ces caractères pour retrouver la police d'origine.
+            « {missing.join(" ")} » n'existe pas dans la police <strong>{name}</strong> incorporée au PDF : seul
+            {missing.length > 1 ? "s ces caractères utilisent" : " ce caractère utilise"} la police de remplacement
+            ci-dessous, le reste garde la police d'origine. Pour le vrai glyphe, installez la police {name} sur
+            l'ordinateur ou importez-la (TTF/OTF) puis choisissez-la ci-dessous.
           </p>
         );
       })()}

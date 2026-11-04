@@ -9,7 +9,7 @@ import { extractRuns, runAt, type TextRun } from "../lib/text";
 import { LINE_HEIGHT } from "../lib/exportPdf";
 import { getFont } from "../lib/fonts";
 import { Icon } from "./Icon";
-import { displayText, usesEmbedded } from "../lib/embeddedFonts";
+import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
 
 export interface ToolStyle {
@@ -532,9 +532,11 @@ function PageViewImpl(props: Props) {
       case "text": {
         const [x, y] = toView(a.origin);
         const size = a.fontSize * scale;
-        // Police incorporée d'origine si tous les caractères y figurent.
-        const original = usesEmbedded(a) ? a.embedded : null;
-        const css = original ? { fontFamily: original.cssFamily } : fontCss(a.fontKey);
+        // Police incorporée d'origine, lettre par lettre : les caractères absents du
+        // sous-ensemble s'affichent avec la police de remplacement.
+        const original = a.embedded ?? null;
+        const fallbackCss = fontCss(a.fontKey);
+        const css = original ? { fontFamily: original.cssFamily } : fallbackCss;
         return (
           <text
             key={a.id}
@@ -553,7 +555,22 @@ function PageViewImpl(props: Props) {
           >
             {a.text.split(/\r?\n/).map((line, i) => (
               <tspan key={i} x={x} dy={i === 0 ? 0 : size * LINE_HEIGHT}>
-                {(original ? displayText(original, line) : line) || " "}
+                {original && line
+                  ? segmentLine(original, line).map((seg, k) =>
+                      seg.source === -1 || seg.source === "space" ? (
+                        <tspan key={k}>{displayText(original, seg.text)}</tspan>
+                      ) : (
+                        <tspan
+                          key={k}
+                          fontFamily={fallbackCss.fontFamily}
+                          fontWeight={"fontWeight" in fallbackCss ? fallbackCss.fontWeight : undefined}
+                          fontStyle={"fontStyle" in fallbackCss ? fallbackCss.fontStyle : undefined}
+                        >
+                          {seg.text}
+                        </tspan>
+                      ),
+                    )
+                  : line || " "}
               </tspan>
             ))}
           </text>
