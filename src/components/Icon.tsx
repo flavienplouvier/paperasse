@@ -10,6 +10,7 @@ const PATHS: Record<string, string> = {
   zoomOut: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-5-5 M8 11h6",
   fit: "M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5",
   select: "M5 3l13 8-6 1.5L9 19z",
+  compress: "M4 14h6v6 M20 10h-6V4 M14 10l7-7 M3 21l7-7",
   editText: "M4 20h4l10-10-4-4L4 16z M13 7l4 4 M14 20h6",
   text: "M5 5h14 M12 5v14 M9 19h6",
   ink: "M3 17c3-1 4-8 7-8s2 7 5 7 3-5 6-6",

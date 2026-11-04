@@ -189,10 +189,10 @@ export default function App() {
   const mergeInput = useRef<HTMLInputElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
 
-  const notify = useCallback((msg: string, error = false) => {
+  const notify = useCallback((msg: string, error = false, duration?: number) => {
     setToast({ msg, error });
     window.clearTimeout((notify as unknown as { t?: number }).t);
-    (notify as unknown as { t?: number }).t = window.setTimeout(() => setToast(null), error ? 7000 : 3500);
+    (notify as unknown as { t?: number }).t = window.setTimeout(() => setToast(null), duration ?? (error ? 7000 : 3500));
   }, []);
   const fail = useCallback((e: unknown) => notify(e instanceof Error ? e.message : String(e), true), [notify]);
 
@@ -890,7 +890,10 @@ export default function App() {
   }, [pdf]);
 
   /** Transformation de tout le document (numérotation, filigrane…), annulable. */
-  const applyToDocument = async (label: string, transform: (bytes: Uint8Array) => Promise<Uint8Array>) => {
+  const applyToDocument = async (
+    label: string,
+    transform: (bytes: Uint8Array) => Promise<Uint8Array | { bytes: Uint8Array; message: string }>,
+  ) => {
     if (!doc) return;
     if (!doc.rewritable) {
       notify("Ce PDF protégé ne peut pas être modifié de cette façon.", true);
@@ -898,9 +901,10 @@ export default function App() {
     }
     setBusy(label);
     try {
-      const bytes = await transform(doc.bytes);
-      commit({ bytes });
-      notify("Document mis à jour (Ctrl+Z pour annuler).");
+      const result = await transform(doc.bytes);
+      const bytes = result instanceof Uint8Array ? result : result.bytes;
+      if (bytes !== doc.bytes) commit({ bytes });
+      notify(result instanceof Uint8Array ? "Document mis à jour (Ctrl+Z pour annuler)." : result.message, false, 6000);
     } catch (e) {
       fail(e);
       throw e;
@@ -1156,6 +1160,9 @@ export default function App() {
                   </button>
                   <button role="menuitem" disabled={!editable} onClick={() => setDocTools("properties")}>
                     <Icon name="info" /> Propriétés du document
+                  </button>
+                  <button role="menuitem" disabled={!editable || !doc.rewritable} onClick={() => setDocTools("compress")}>
+                    <Icon name="compress" /> Compresser le PDF
                   </button>
                   <hr />
                   <button role="menuitem" onClick={exportPageImage}>

@@ -7,14 +7,19 @@ import {
   type HAlign,
   type VAlign,
 } from "../lib/pageDecor";
+import { COMPRESSION_LEVELS, compressPdf, formatSize, type CompressionLevel } from "../lib/compress";
+import { canvasEncoder } from "../lib/imageEncoder";
 import { Icon } from "./Icon";
 
-export type DocTab = "numbers" | "headers" | "watermark" | "properties";
+export type DocTab = "numbers" | "headers" | "watermark" | "properties" | "compress";
 
 interface Props {
   bytes: Uint8Array;
   initialTab: DocTab;
-  onApply: (label: string, transform: (bytes: Uint8Array) => Promise<Uint8Array>) => Promise<void>;
+  onApply: (
+    label: string,
+    transform: (bytes: Uint8Array) => Promise<Uint8Array | { bytes: Uint8Array; message: string }>,
+  ) => Promise<void>;
   onClose: () => void;
 }
 
@@ -23,6 +28,7 @@ const TABS: { id: DocTab; label: string }[] = [
   { id: "headers", label: "En-tête / pied" },
   { id: "watermark", label: "Filigrane" },
   { id: "properties", label: "Propriétés" },
+  { id: "compress", label: "Compresser" },
 ];
 
 /** Outils appliqués à tout le document (numérotation, en-tête/pied, filigrane, métadonnées). */
@@ -62,6 +68,9 @@ export function DocumentTools({ bytes, initialTab, onApply, onClose }: Props) {
       .catch(() => undefined);
   }, [bytes]);
 
+  // Compression
+  const [level, setLevel] = useState<CompressionLevel>("balanced");
+
   const [size, setSize] = useState(10);
   const [textColor, setTextColor] = useState("#333333");
 
@@ -80,6 +89,19 @@ export function DocumentTools({ bytes, initialTab, onApply, onClose }: Props) {
         await onApply("Filigrane…", (b) =>
           addWatermark(b, { text: wmText, size: 96, color: wmColor, opacity: wmOpacity, diagonal: wmDiagonal, skipFirst }),
         );
+      } else if (tab === "compress") {
+        await onApply("Compression…", async (b) => {
+          const { bytes: out, report } = await compressPdf(b, level, canvasEncoder);
+          if (report.after >= report.before) {
+            return { bytes: b, message: `Ce PDF est déjà bien compressé : taille inchangée (${formatSize(report.before)}).` };
+          }
+          const pct = Math.round((1 - report.after / report.before) * 100);
+          const imgs = report.images ? `, ${report.images} image${report.images > 1 ? "s" : ""} optimisée${report.images > 1 ? "s" : ""}` : "";
+          return {
+            bytes: out,
+            message: `PDF compressé : ${formatSize(report.before)} → ${formatSize(report.after)} (−${pct} %)${imgs}. Ctrl+Z pour annuler.`,
+          };
+        });
       } else {
         await onApply("Propriétés…", async (b) => {
           const d = await PDFDocument.load(b, { updateMetadata: false });
@@ -219,6 +241,22 @@ export function DocumentTools({ bytes, initialTab, onApply, onClose }: Props) {
             </>
           )}
 
+          {tab === "compress" && (
+            <>
+              <p className="hint">Taille actuelle : {formatSize(bytes.length)}. Tout se fait sur cet appareil.</p>
+              {(Object.keys(COMPRESSION_LEVELS) as CompressionLevel[]).map((id) => (
+                <label key={id} className="field inline choice">
+                  <input type="radio" name="compression" checked={level === id} onChange={() => setLevel(id)} />
+                  <span>
+                    <strong>{COMPRESSION_LEVELS[id].label}</strong>
+                    <br />
+                    <span className="hint">{COMPRESSION_LEVELS[id].detail}</span>
+                  </span>
+                </label>
+              ))}
+            </>
+          )}
+
           {(tab === "numbers" || tab === "headers") && (
             <div className="field-row">
               <label className="field">
@@ -231,7 +269,7 @@ export function DocumentTools({ bytes, initialTab, onApply, onClose }: Props) {
               </label>
             </div>
           )}
-          {tab !== "properties" && (
+          {tab !== "properties" && tab !== "compress" && (
             <label className="field inline">
               <input type="checkbox" checked={skipFirst} onChange={(e) => setSkipFirst(e.target.checked)} /> Ne rien ajouter sur la première page
             </label>

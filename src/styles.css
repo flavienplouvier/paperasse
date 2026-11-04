@@ -687,6 +687,13 @@ input[type="checkbox"] {
   flex-direction: row;
   align-items: center;
 }
+.field.inline.choice {
+  align-items: flex-start;
+  gap: 8px;
+}
+.field.inline.choice input {
+  margin-top: 3px;
+}
 .field-name {
   color: var(--text);
   word-break: break-word;

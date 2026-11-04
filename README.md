@@ -51,6 +51,10 @@ rien n'est envoyé sur un serveur.
 **Pages**
 - Rotation, suppression, duplication, réorganisation, page blanche.
 - Fusion de plusieurs PDF, extraction de pages, conversion d'images en PDF.
+- Compression (menu ⋮ → Compresser le PDF) : sans perte, recommandée (images à
+  150 ppp) ou forte (96 ppp). Les images sont réduites d'après leur taille
+  d'affichage réelle et réencodées en JPEG sur l'appareil ; une image n'est
+  remplacée que si le résultat est nettement plus léger.
 - Numérotation des pages, en-tête et pied de page (page, total, date, titre),
   filigrane, propriétés du document (titre, auteur, sujet, mots-clés).
 - Export d'une page en image PNG.
