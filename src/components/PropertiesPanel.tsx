@@ -53,6 +53,10 @@ interface Props {
   onError: (msg: string) => void;
   onStamp: (dataUrl: string) => void;
   onTool: (tool: Tool) => void;
+  /** Dernières couleurs prises à la pipette (la plus récente d'abord). */
+  pickedColors: string[];
+  /** Pipette : renvoie la couleur copiée sur la page, ou null si annulé. */
+  onPickColor: () => Promise<string | null>;
 }
 
 const DRAW_CHOICES: { id: string; label: string; icon: string; tool: Tool; doubleArrow?: boolean }[] = [
@@ -76,7 +80,20 @@ function ShapeIcon({ id }: { id: ShapeId }) {
   );
 }
 
-export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDelete, onDuplicate, onError, onStamp, onTool }: Props) {
+export function PropertiesPanel({
+  tool,
+  style,
+  selected,
+  onStyle,
+  onUpdate,
+  onDelete,
+  onDuplicate,
+  onError,
+  onStamp,
+  onTool,
+  pickedColors,
+  onPickColor,
+}: Props) {
   useFonts(); // re-rendu quand la bibliothèque de polices est chargée (boutons G / I)
   // Modifie l'annotation sélectionnée, et retient le réglage pour les suivantes.
   const set = (patch: Partial<ToolStyle> & { text?: string }, commit = true) => {
@@ -211,7 +228,28 @@ export function PropertiesPanel({ tool, style, selected, onStyle, onUpdate, onDe
               <button key={c} className={`swatch ${c === v.color ? "active" : ""}`} style={{ background: c }} onClick={() => set({ color: c })} aria-label={c} />
             ))}
             <input type="color" value={v.color} onChange={(e) => set({ color: e.target.value })} aria-label="Couleur personnalisée" />
+            <button
+              className="swatch-tool"
+              title="Pipette : copier une couleur de la page"
+              aria-label="Pipette"
+              onClick={async () => {
+                const c = await onPickColor();
+                if (c) set({ color: c });
+              }}
+            >
+              <Icon name="pipette" />
+            </button>
           </div>
+          {pickedColors.length > 0 && (
+            <>
+              <span className="hint">Pipette</span>
+              <div className="swatches">
+                {pickedColors.map((c) => (
+                  <button key={c} className={`swatch ${c === v.color ? "active" : ""}`} style={{ background: c }} onClick={() => set({ color: c })} aria-label={c} title={c} />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 

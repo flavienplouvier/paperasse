@@ -23,6 +23,7 @@ import { facesFor, restoreFaces } from "./lib/embeddedFontBuilder";
 import { duplicateAnnotation } from "./lib/annotations";
 import { buildEmbeddedFont } from "./lib/embeddedFontBuilder";
 import { restoreStateFont, stateFontFor } from "./lib/stateFonts";
+import { addPickedColor, loadPickedColors, toHex } from "./lib/pickedColors";
 import type { SearchHit } from "./lib/text";
 import { PageView, type EditTextRequest, type ToolStyle } from "./components/PageView";
 import { Thumbnails } from "./components/Thumbnails";
@@ -196,6 +197,39 @@ export default function App() {
     (notify as unknown as { t?: number }).t = window.setTimeout(() => setToast(null), duration ?? (error ? 7000 : 3500));
   }, []);
   const fail = useCallback((e: unknown) => notify(e instanceof Error ? e.message : String(e), true), [notify]);
+
+  // ------------------------------------------------------------- pipette
+  const [pickedColors, setPickedColors] = useState<string[]>(() => loadPickedColors());
+  const [picking, setPicking] = useState(false);
+  const pickResolve = useRef<((hex: string | null) => void) | null>(null);
+  /** Termine la pipette : mémorise la couleur (7 dernières) et la rend au panneau. */
+  const finishPick = useCallback((hex: string | null) => {
+    setPicking(false);
+    const resolve = pickResolve.current;
+    pickResolve.current = null;
+    if (hex) setPickedColors((l) => addPickedColor(l, hex));
+    resolve?.(hex);
+  }, []);
+  const pickColor = useCallback(async (): Promise<string | null> => {
+    // Pipette du navigateur (Chrome, Edge sur ordinateur) : tout l'écran, ajouts compris.
+    const Native = (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
+    if (Native) {
+      try {
+        const hex = toHex((await new Native().open()).sRGBHex);
+        if (hex) setPickedColors((l) => addPickedColor(l, hex));
+        return hex;
+      } catch {
+        return null; // Échap
+      }
+    }
+    // Ailleurs (Firefox, Safari, Android) : le prochain appui sur la page donne sa couleur.
+    pickResolve.current?.(null);
+    setPicking(true);
+    notify("Pipette : touchez la page pour copier sa couleur (Échap pour annuler).", false, 6000);
+    return new Promise((resolve) => {
+      pickResolve.current = resolve;
+    });
+  }, [notify]);
 
   // ------------------------------------------------------------- historique
 
@@ -962,6 +996,8 @@ export default function App() {
       } else if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
         e.preventDefault();
         deleteSelected();
+      } else if (e.key === "Escape" && pickResolve.current) {
+        finishPick(null);
       } else if (e.key === "Escape") {
         setTool("select");
         setSelectedId(null);
@@ -1323,7 +1359,7 @@ export default function App() {
 
       <main
         ref={viewerRef}
-        className={`viewer tool-${tool}`}
+        className={`viewer tool-${picking ? "pipette" : tool}`}
         onScroll={onScroll}
         onPointerDown={(e) => {
           // Clic hors d'un élément : désélection. En mode « Ajouter du texte », un clic sur
@@ -1358,6 +1394,7 @@ export default function App() {
                 onErase={onErase}
                 onFocusText={() => setPropsOpen(true)}
                 registerElement={registerElement}
+                onPickColor={picking ? finishPick : undefined}
               />
             ))}
         </div>
@@ -1397,6 +1434,8 @@ export default function App() {
             setPending(null);
           }}
           onError={(m) => notify(m, true)}
+          pickedColors={pickedColors}
+          onPickColor={pickColor}
         />
       </aside>
 

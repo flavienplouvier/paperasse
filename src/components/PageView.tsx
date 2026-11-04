@@ -58,6 +58,8 @@ interface Props {
   onErase: (ids: string[]) => void;
   onFocusText: () => void;
   registerElement: (index: number, el: HTMLElement | null) => void;
+  /** Mode pipette : le prochain appui sur la page renvoie la couleur du pixel touché. */
+  onPickColor?: (hex: string) => void;
 }
 
 type Draft =
@@ -234,6 +236,12 @@ function PageViewImpl(props: Props) {
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!viewport || e.button > 0) return;
     const [x, y] = local(e);
+    if (props.onPickColor) {
+      e.preventDefault();
+      const c = pixelAt(x, y);
+      if (c) props.onPickColor(c);
+      return;
+    }
     const p = toPdf(x, y);
     if (tool === "eraser") {
       svgRef.current!.setPointerCapture(e.pointerId);
@@ -445,7 +453,7 @@ function PageViewImpl(props: Props) {
         touchAction: "none",
       },
       onPointerDown: (e: React.PointerEvent) => {
-        if (erasable) return; // géré par la gomme (au niveau de la page)
+        if (erasable || props.onPickColor) return; // gomme ou pipette : géré au niveau de la page
         if (reopen) {
           e.stopPropagation();
           // Empêche le navigateur de reprendre le focus (mousedown) : la zone de saisie le garde.
@@ -832,7 +840,7 @@ function PageViewImpl(props: Props) {
 
   const width = viewport?.width ?? 595 * scale;
   const height = viewport?.height ?? 842 * scale;
-  const drawing = tool !== "select";
+  const drawing = tool !== "select" || !!props.onPickColor;
 
   return (
     <div
@@ -845,7 +853,7 @@ function PageViewImpl(props: Props) {
       <div ref={textLayerRef} className="textLayer" style={{ pointerEvents: drawing ? "none" : undefined }} />
       <svg
         ref={svgRef}
-        className={`overlay tool-${tool}`}
+        className={`overlay tool-${props.onPickColor ? "pipette" : tool}`}
         width={width}
         height={height}
         style={{ pointerEvents: drawing || drag ? "auto" : "none", touchAction: drawing ? "none" : "pan-x pan-y" }}
@@ -893,6 +901,19 @@ function PageViewImpl(props: Props) {
    *    d'un tableau, d'un bandeau…), pour que le cache se fonde dans la page ;
    *  - encre : pixel de la zone le plus éloigné de ce fond.
    */
+  /** Couleur de la page sous un point de l'affichage (moyenne 3 × 3 pixels, contre l'anticrénelage). */
+  function pixelAt(x: number, y: number): string | null {
+    const canvas = canvasRef.current;
+    if (!canvas || !canvas.width || !viewport) return null;
+    const k = canvas.width / viewport.width;
+    const px = Math.min(canvas.width - 2, Math.max(1, Math.round(x * k)));
+    const py = Math.min(canvas.height - 2, Math.max(1, Math.round(y * k)));
+    const d = canvas.getContext("2d", { willReadFrequently: true })!.getImageData(px - 1, py - 1, 3, 3).data;
+    const sum = [0, 0, 0];
+    for (let i = 0; i < d.length; i += 4) for (let c = 0; c < 3; c++) sum[c] += d[i + c];
+    return `#${sum.map((v) => Math.round(v / 9).toString(16).padStart(2, "0")).join("")}`;
+  }
+
   function sampleColors(rect: Rect): { ink?: string; background?: string } {
     const canvas = canvasRef.current;
     if (!canvas || !canvas.width || !viewport) return {};

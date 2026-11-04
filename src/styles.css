@@ -429,6 +429,10 @@ input[type="checkbox"] {
 .viewer.tool-eraser .overlay [data-annot] {
   cursor: cell;
 }
+.viewer.tool-pipette .overlay,
+.viewer.tool-pipette .overlay [data-annot] {
+  cursor: crosshair;
+}
 .viewer.tool-text .overlay {
   cursor: text;
 }
@@ -712,6 +716,17 @@ input[type="checkbox"] {
   padding: 0;
   border-radius: 50%;
   border: 2px solid var(--border);
+}
+.swatch-tool {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
 }
 .swatch.active {
   outline: 2px solid var(--focus);
