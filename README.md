@@ -32,7 +32,10 @@ rien n'est envoyé sur un serveur.
   PDF, polices installées sur l'ordinateur (Chrome/Edge), fichiers TTF/OTF/TTC
   importés. Les polices sont intégrées au PDF : cyrillique, grec, arabe, chinois, japonais…
 - Mise en forme : gras, italique, souligné.
-- Dessin à main levée, surligneur, rectangles, ellipses, traits, flèches, cache blanc.
+- Dessin à main levée, surligneur, rectangles, ellipses, traits, flèches.
+- Cache blanc : le texte qu'il recouvre est aussi retiré du fichier à
+  l'enregistrement (il n'est plus copiable ni indexable). Les images et dessins
+  sous le cache sont seulement recouverts.
 - Tampons (Approuvé, Payé, Reçu, Confidentiel… ou texte libre), avec date.
 - Signature au doigt, au stylet ou à la souris, ou importée depuis une photo /
   un scan (fond blanc retiré automatiquement) ; insertion d'images.
@@ -125,6 +128,8 @@ fonctionne sans connexion.
   (il n'est plus copiable ni indexable). Exceptions, où l'ancien texte est seulement
   recouvert d'un cache : PDF scanné (le texte fait partie de l'image), texte placé
   dans un sous-dessin (XObject) et polices à encodage CMap non standard.
+  Ces mêmes exceptions valent pour le cache blanc : sur un scan, ne comptez pas
+  sur lui pour supprimer une information de l'image.
 - Sur Android, les polices de l'appareil ne sont pas accessibles aux sites web :
   importez un fichier TTF/OTF pour écrire dans une autre police que les polices standard.
 - Les PDF chiffrés sont réenregistrés page par page en image (texte non

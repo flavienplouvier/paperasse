@@ -59,6 +59,8 @@ export interface ShapeAnnotation extends AnnotationBase {
    * Cache posé par « Modifier le texte » : à l'enregistrement, le texte d'origine
    * sous cette zone est réellement retiré du fichier. Le cache n'est dessiné que
    * si ce retrait est impossible (texte dans une image scannée, police non prise en charge).
+   * Sans ce champ (cache blanc dessiné à la main), le texte sous le cache est aussi
+   * retiré du fichier, et le cache reste dessiné.
    */
   removeText?: TextLine;
 }

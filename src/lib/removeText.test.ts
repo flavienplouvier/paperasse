@@ -255,6 +255,36 @@ describe("suppression réelle du texte d'origine", () => {
     expect(after.text).toContain("Haut");
   });
 
+  it("cache blanc dessiné à la main : le texte dessous est retiré et le cache reste visible", async () => {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const page = doc.addPage([595, 842]);
+    const line = "IBAN FR76 3000 6000 0112 3456 7890 189";
+    page.drawText(line, { x: 60, y: 600, size: 12, font });
+    page.drawText("Texte hors du cache", { x: 60, y: 560, size: 12, font });
+    const bytes = await doc.save();
+    // Le cache couvre la fin de l'IBAN, à partir de « 3456 ».
+    const x1 = 60 + font.widthOfTextAtSize("IBAN FR76 3000 6000 0112 ", 12) - 1;
+    const manual: Annotation = { id: "m", pageId: "p", kind: "whiteout", rect: [x1, 595, 400, 612], color: "#ffffff", opacity: 1, width: 0, fill: true };
+    const after = await readItems(await exportPdf(bytes, ["p"], [manual]));
+    expect(after.text).not.toMatch(/3456|7890|189/);
+    expect(after.text).toContain("IBAN FR76 3000 6000 0112");
+    expect(after.text).toContain("Texte hors du cache");
+    // Le rectangle blanc est toujours dessiné.
+    expect(after.ops).toContain("constructPath");
+  });
+
+  it("cache blanc : un caractère à moitié sous le bord du cache reste (seul son centre compte)", async () => {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Courier);
+    doc.addPage([595, 842]).drawText("ABCDEF", { x: 100, y: 500, size: 20, font });
+    const bytes = await doc.save();
+    // Courier : 12 pt par caractère. Le cache commence au milieu de « C » + 1 pt : C reste, D E F partent.
+    const manual: Annotation = { id: "m", pageId: "p", kind: "whiteout", rect: [100 + 24 + 7, 490, 300, 530], color: "#ffffff", opacity: 1, width: 0, fill: true };
+    const after = await readItems(await exportPdf(bytes, ["p"], [manual]));
+    expect(after.text).toBe("ABC");
+  });
+
   it("ne touche pas la page quand rien n'est dans la zone", async () => {
     const doc = await PDFDocument.create();
     const font = await doc.embedFont(StandardFonts.Helvetica);

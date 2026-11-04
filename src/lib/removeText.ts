@@ -11,7 +11,10 @@ import {
   type PDFPage,
 } from "pdf-lib";
 import { Encodings, Font as StandardFont, type IFontNames } from "@pdf-lib/standard-fonts";
-import type { TextLine } from "./types";
+import type { Rect, TextLine } from "./types";
+
+/** Zone à vider : une ligne de texte d'origine (« Modifier le texte ») ou un rectangle (cache blanc). */
+export type RemovalZone = TextLine | { rect: Rect };
 
 /**
  * Suppression réelle du texte d'origine (« Modifier le texte »).
@@ -482,7 +485,7 @@ function contentBytes(doc: PDFDocument, page: PDFPage): Uint8Array[] | undefined
  * (espace utilisateur PDF). Renvoie, pour chaque zone, le nombre de caractères
  * retirés. Ne modifie la page que si au moins un caractère est retiré.
  */
-export function removeTextInRects(doc: PDFDocument, page: PDFPage, lines: TextLine[]): RemovalResult[] {
+export function removeTextInRects(doc: PDFDocument, page: PDFPage, lines: RemovalZone[]): RemovalResult[] {
   const results: RemovalResult[] = lines.map(() => ({ removed: 0, invisible: 0 }));
   if (!lines.length) return results;
   const parts = contentBytes(doc, page);
@@ -521,23 +524,31 @@ export function removeTextInRects(doc: PDFDocument, page: PDFPage, lines: TextLi
 
   // Repère local de chaque ligne : u le long de la ligne de base, n perpendiculaire.
   const frames = lines.map((l) => {
+    if ("rect" in l) return { rect: l.rect };
     const rad = (l.angle * Math.PI) / 180;
-    return { ...l, ux: Math.cos(rad), uy: Math.sin(rad) };
+    return { line: l, ux: Math.cos(rad), uy: Math.sin(rad) };
   });
   /**
    * Lignes auxquelles appartient un caractère : sa ligne de base doit être celle
    * de la ligne (à 0,35 corps près) et son milieu doit tomber dans la longueur de la ligne.
    */
-  const onLines = (start: [number, number], end: [number, number]) => {
+  const onLines = (start: [number, number], end: [number, number], center: [number, number]) => {
     const hit: number[] = [];
     frames.forEach((f, i) => {
-      const dx = (start[0] + end[0]) / 2 - f.origin[0];
-      const dy = (start[1] + end[1]) / 2 - f.origin[1];
-      const along = dx * f.ux + dy * f.uy;
-      const across = -dx * f.uy + dy * f.ux;
-      const tol = f.fontSize * 0.35;
-      const slack = Math.min(f.fontSize * 0.15, 1);
-      if (Math.abs(across) <= tol && along >= -slack && along <= f.width + slack) hit.push(i);
+      if (f.rect) {
+        // Cache blanc : le caractère part si son centre est sous le cache.
+        const [x1, y1, x2, y2] = f.rect;
+        if (center[0] >= x1 && center[0] <= x2 && center[1] >= y1 && center[1] <= y2) hit.push(i);
+        return;
+      }
+      const l = f.line!;
+      const dx = (start[0] + end[0]) / 2 - l.origin[0];
+      const dy = (start[1] + end[1]) / 2 - l.origin[1];
+      const along = dx * f.ux! + dy * f.uy!;
+      const across = -dx * f.uy! + dy * f.ux!;
+      const tol = l.fontSize * 0.35;
+      const slack = Math.min(l.fontSize * 0.15, 1);
+      if (Math.abs(across) <= tol && along >= -slack && along <= l.width + slack) hit.push(i);
     });
     return hit;
   };
@@ -582,7 +593,10 @@ export function removeTextInRects(doc: PDFDocument, page: PDFPage, lines: TextLi
         const space = step === 1 && code === 32 ? gs.tw : 0;
         const tx = (w0 * gs.size + gs.tc + space) * gs.th;
         const trm = mul(tm, gs.ctm);
-        const hit = gs.size ? onLines(apply(trm, 0, gs.rise), apply(trm, w0 * gs.size * gs.th, gs.rise)) : [];
+        const adv = w0 * gs.size * gs.th;
+        const hit = gs.size
+          ? onLines(apply(trm, 0, gs.rise), apply(trm, adv, gs.rise), apply(trm, adv / 2, gs.rise + gs.size * 0.35))
+          : [];
         const glyph = Array.from(item.subarray(i, i + step));
         if (hit.length) {
           touched = true;

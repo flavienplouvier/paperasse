@@ -196,19 +196,22 @@ export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotat
 }
 
 /**
- * Retire du contenu de la page le texte d'origine sous les caches de « Modifier
- * le texte ». Renvoie les caches devenus inutiles : texte entièrement retiré et
- * visible (pour une couche OCR invisible, l'image scannée montre encore l'ancien
- * texte, le cache reste donc nécessaire).
+ * Retire du contenu de la page le texte d'origine sous les caches :
+ * - cache de « Modifier le texte » : la ligne d'origine est retirée ; le cache
+ *   devient inutile si tout le texte retiré était visible (pour une couche OCR
+ *   invisible, l'image scannée montre encore l'ancien texte : on le garde) ;
+ * - cache blanc dessiné à la main : le texte dessous est retiré du fichier
+ *   (plus copiable ni indexable) et le cache reste dessiné.
+ * Renvoie les caches à ne pas dessiner.
  */
 function removeOriginalText(doc: PDFDocument, page: PDFPage, list: Annotation[]): Set<Annotation> {
-  const covers = list.filter((a): a is ShapeAnnotation => a.kind === "whiteout" && !!a.removeText);
+  const covers = list.filter((a): a is ShapeAnnotation => a.kind === "whiteout");
   const done = new Set<Annotation>();
   if (!covers.length) return done;
   try {
-    const results = removeTextInRects(doc, page, covers.map((c) => c.removeText!));
+    const results = removeTextInRects(doc, page, covers.map((c) => c.removeText ?? { rect: c.rect }));
     results.forEach((r, k) => {
-      if (r.removed > 0 && r.invisible === 0) done.add(covers[k]);
+      if (covers[k].removeText && r.removed > 0 && r.invisible === 0) done.add(covers[k]);
     });
   } catch {
     /* contenu illisible : on garde les caches */
