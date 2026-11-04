@@ -22,7 +22,7 @@ import { clearDraft, draftInfo, formatSavedAt, loadDraft, saveDraft, type DraftI
 import { facesFor, restoreFaces } from "./lib/embeddedFontBuilder";
 import { duplicateAnnotation } from "./lib/annotations";
 import { buildEmbeddedFont } from "./lib/embeddedFontBuilder";
-import { restoreStateFont, stateFontFor } from "./lib/stateFonts";
+import { documentFontFor, restoreDocumentFont } from "./lib/documentFonts";
 import { addPickedColor, loadPickedColors, toHex } from "./lib/pickedColors";
 import type { SearchHit } from "./lib/text";
 import { PageView, type EditTextRequest, type ToolStyle } from "./components/PageView";
@@ -440,7 +440,7 @@ export default function App() {
       if (!d) return setDraft(null);
       await restoreFaces(d.faces ?? {});
       for (const [name, buffer] of Object.entries(d.importedFonts ?? {})) registerFontBytes(name, buffer);
-      for (const a of d.annotations) if (a.kind === "text") restoreStateFont(a.fontKey);
+      for (const a of d.annotations) if (a.kind === "text") restoreDocumentFont(a.fontKey);
       past.current = [];
       future.current = [];
       bytesRef.current = null;
@@ -716,15 +716,25 @@ export default function App() {
       await loadLibrary(import.meta.env.BASE_URL);
       const info = fontInfo(page, run.fontName);
       const real = info.name;
-      // Document de l'État composé en Marianne : la vraie Marianne (serveur officiel) complète
-      // les lettres absentes de la police incorporée ; sinon, la police la plus proche.
-      const fontKey = stateFontFor(real, info) ?? matchFont(real, undefined, info);
+      // Police complète du document quand une source autorisée existe (Marianne pour les
+      // documents de l'État, polices libres à la graisse exacte, DejaVu) : les lettres absentes
+      // de la police incorporée sont alors les vraies. Sinon, la police la plus proche.
+      let fontKey = documentFontFor(real, info) ?? matchFont(real, undefined, info);
       // Police incorporée dans le PDF, réutilisée telle quelle quand c'est possible.
       const embedded = doc.rewritable ? await buildEmbeddedFont(doc.bytes, page, run.fontName) : null;
       try {
         await ensureCssFont(fontKey);
       } catch {
-        /* aperçu avec une police de repli */
+        // Police du document indisponible (hors ligne, graisse absente de la source) : la plus proche.
+        const closest = matchFont(real, undefined, info);
+        if (closest !== fontKey) {
+          fontKey = closest;
+          try {
+            await ensureCssFont(fontKey);
+          } catch {
+            /* aperçu avec une police de repli */
+          }
+        }
       }
       const pad = Math.max(0.6, run.fontSize * 0.06);
       const [x1, y1, x2, y2] = run.rect;

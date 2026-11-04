@@ -31,6 +31,11 @@ rien n'est envoyé sur un serveur.
   (`fonts.forge.apps.education.fr`) pour compléter les lettres absentes. Elle
   n'est pas incluse dans Paperasse : son usage est réservé à l'administration
   (circulaire n° 6144/SG).
+- Plus généralement, la police complète d'un document est chargée à la demande
+  depuis une source officielle quand sa licence le permet, à la graisse exacte :
+  polices libres du catalogue en Light, Medium, SemiBold, ExtraBold, Black…
+  (Fontsource), DejaVu (paquet officiel). Les polices commerciales (Arial,
+  Calibri, Segoe UI…) restent remplacées par leur équivalent le plus proche.
 - Bibliothèque de 75 familles de polices libres (près de 250 styles), dont des
   équivalents aux mêmes dimensions des polices Office/Windows : Carlito
   (Calibri), Caladea (Cambria), Arimo (Arial/Helvetica), Tinos (Times New
