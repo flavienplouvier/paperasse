@@ -23,6 +23,7 @@ import { facesFor, restoreFaces } from "./lib/embeddedFontBuilder";
 import { duplicateAnnotation } from "./lib/annotations";
 import { buildEmbeddedFont } from "./lib/embeddedFontBuilder";
 import { documentFontFor, restoreDocumentFont } from "./lib/documentFonts";
+import { fileFonts as listFileFonts, type FileFont } from "./lib/fileFonts";
 import { addPickedColor, loadPickedColors, toHex } from "./lib/pickedColors";
 import type { SearchHit } from "./lib/text";
 import { PageView, type EditTextRequest, type ToolStyle } from "./components/PageView";
@@ -197,6 +198,24 @@ export default function App() {
     (notify as unknown as { t?: number }).t = window.setTimeout(() => setToast(null), duration ?? (error ? 7000 : 3500));
   }, []);
   const fail = useCallback((e: unknown) => notify(e instanceof Error ? e.message : String(e), true), [notify]);
+
+  // ------------------------------------------------------------- polices du fichier
+  const [fileFonts, setFileFonts] = useState<FileFont[]>([]);
+  useEffect(() => {
+    let alive = true;
+    setFileFonts([]);
+    if (!doc?.bytes) return;
+    // Bibliothèque chargée d'abord : chaque police du fichier trouve sa meilleure correspondance.
+    loadLibrary(import.meta.env.BASE_URL)
+      .then(() => listFileFonts(doc.bytes))
+      .then((list) => alive && setFileFonts(list))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+    // Recalcul seulement quand un autre document est ouvert (pas à chaque modification).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc?.name, pdf]);
 
   // ------------------------------------------------------------- pipette
   const [pickedColors, setPickedColors] = useState<string[]>(() => loadPickedColors());
@@ -1446,6 +1465,7 @@ export default function App() {
           onError={(m) => notify(m, true)}
           pickedColors={pickedColors}
           onPickColor={pickColor}
+          fileFonts={fileFonts}
         />
       </aside>
 

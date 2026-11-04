@@ -1,3 +1,4 @@
+import type { FileFont } from "../lib/fileFonts";
 import { useState } from "react";
 import type { Annotation, FieldAnnotation, FieldType, Tool } from "../lib/types";
 import { borrowedChars, missingChars } from "../lib/embeddedFonts";
@@ -57,6 +58,8 @@ interface Props {
   pickedColors: string[];
   /** Pipette : renvoie la couleur copiée sur la page, ou null si annulé. */
   onPickColor: () => Promise<string | null>;
+  /** Polices du fichier ouvert (proposées en premier dans le sélecteur). */
+  fileFonts: FileFont[];
 }
 
 const DRAW_CHOICES: { id: string; label: string; icon: string; tool: Tool; doubleArrow?: boolean }[] = [
@@ -93,6 +96,7 @@ export function PropertiesPanel({
   onTool,
   pickedColors,
   onPickColor,
+  fileFonts,
 }: Props) {
   useFonts(); // re-rendu quand la bibliothèque de polices est chargée (boutons G / I)
   // Modifie l'annotation sélectionnée, et retient le réglage pour les suivantes.
@@ -190,7 +194,13 @@ export function PropertiesPanel({
         <>
           <div className="field">
             {selected?.kind === "text" && selected.embedded ? "Police de remplacement" : "Police"}
-            <FontPicker value={v.fontKey} onChange={(fontKey) => set({ fontKey })} onError={onError} onLocalFonts={rematchOriginal} />
+            <FontPicker
+              value={v.fontKey}
+              onChange={(fontKey) => set({ fontKey })}
+              onError={onError}
+              onLocalFonts={rematchOriginal}
+              fileFonts={fileFonts}
+            />
           </div>
           <div className="format-row" role="group" aria-label="Mise en forme">
             <button

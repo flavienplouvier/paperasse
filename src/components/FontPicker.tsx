@@ -1,3 +1,4 @@
+import type { FileFont } from "../lib/fileFonts";
 import { type CSSProperties, type RefObject, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   addFontFiles,
@@ -83,7 +84,10 @@ export function FontPicker({
   onChange,
   onError,
   onLocalFonts,
+  fileFonts = [],
 }: {
+  /** Polices du fichier ouvert, proposées en premier. */
+  fileFonts?: FileFont[];
   value: string;
   onChange: (key: string) => void;
   onError: (msg: string) => void;
@@ -101,8 +105,12 @@ export function FontPicker({
     const f = filter.trim().toLowerCase();
     const list = f ? fonts.filter((x) => x.label.toLowerCase().includes(f)) : fonts;
     const lib = (cat: string) => list.filter((x) => x.source === "library" && x.category === cat);
+    // Polices du fichier, sous leur nom d'origine (et l'équivalent utilisé, s'il y en a un).
+    const fromFile = fileFonts
+      .map((ff) => ({ ...getFont(ff.key), label: ff.substitute ? `${ff.name} (≈ ${ff.substitute})` : ff.name }))
+      .filter((x) => !f || x.label.toLowerCase().includes(f));
     return [
-      { label: "Police du document (État)", items: lib("etat") },
+      { label: "Polices du fichier", items: fromFile },
       { label: "Polices importées", items: list.filter((x) => x.source === "file") },
       { label: "Polices de l'ordinateur", items: list.filter((x) => x.source === "local").slice(0, 800) },
       { label: "Équivalents Office / Windows (mêmes largeurs)", items: lib("metric") },
@@ -115,7 +123,7 @@ export function FontPicker({
       // Catalogue libre complet : affiché pendant une recherche (≈ 2 000 familles).
       { label: "Catalogue libre Google Fonts", items: f.length >= 2 ? lib("google").slice(0, 400) : [] },
     ].filter((g) => g.items.length);
-  }, [fonts, filter]);
+  }, [fonts, filter, fileFonts]);
   const families = useMemo(() => new Set(fonts.map((f) => f.family ?? f.label)).size, [fonts]);
   const current = getFont(value);
 
