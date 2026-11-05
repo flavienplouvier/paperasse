@@ -149,6 +149,21 @@ describe("modifier le texte (cache blanc + texte de remplacement)", () => {
   });
 });
 
+describe("texte surligné et barré", () => {
+  it("dessine le fond avant le texte et le barré par-dessus", async () => {
+    const annotations: Annotation[] = [text("a", "Important", [100, 600], { fontSize: 14, highlight: "#fff176", strike: true })];
+    const out = await exportPdf(await samplePdf(1), ["a"], annotations);
+    const fns = await operators(out);
+    const firstPath = fns.indexOf("constructPath");
+    const lastText = fns.lastIndexOf("showText");
+    // Fond (tracé) avant le texte ajouté, barré (tracé) après.
+    expect(firstPath).toBeGreaterThan(-1);
+    expect(firstPath).toBeLessThan(lastText);
+    expect(fns.lastIndexOf("constructPath")).toBeGreaterThan(lastText);
+    expect((await readPages(out))[0].text).toContain("Important");
+  });
+});
+
 describe("formes tournées et flèches courbes", () => {
   it("une forme tournée est dessinée avec une rotation autour de son centre", async () => {
     const annotations: Annotation[] = [{ id: "r", pageId: "a", color: "#0090ff", opacity: 1, kind: "rect", rect: [100, 400, 300, 500], width: 2, fill: false, angle: 30 }];

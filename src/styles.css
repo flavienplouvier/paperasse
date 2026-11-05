@@ -2525,3 +2525,7 @@ kbd {
   stroke-width: 1.5;
   pointer-events: none;
 }
+/* Pastille « aucune couleur » (surlignage désactivé). */
+.swatch.none {
+  background: linear-gradient(135deg, transparent 45%, #d33 45%, #d33 55%, transparent 55%), #fff !important;
+}

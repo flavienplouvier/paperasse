@@ -173,6 +173,8 @@ export default function App() {
     fontKey: DEFAULT_FONT_KEY,
     fontSize: 14,
     underline: false,
+    strike: false,
+    highlight: null,
     fieldType: "text",
     shape: "rect",
     doubleArrow: false,

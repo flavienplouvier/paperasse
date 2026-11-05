@@ -527,5 +527,7 @@
   "Texte du pourtour (haut)": "边缘文字（上）",
   "Tirer pour courber": "拖动以弯曲",
   "Tirer pour déplacer l'extrémité": "拖动以移动端点",
-  "Tirer pour faire pivoter": "拖动以旋转"
+  "Tirer pour faire pivoter": "拖动以旋转",
+  "Barré": "删除线",
+  "Sans surlignage": "无高亮"
 }

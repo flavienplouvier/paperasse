@@ -21,6 +21,9 @@ function withStrong(text: string, value: string) {
   );
 }
 
+/** Couleurs de surlignage du texte (fluo pastel). */
+export const TEXT_HIGHLIGHTS = ["#fff176", "#b9f6ca", "#ffcdd2", "#b3e5fc", "#ffe0b2"];
+
 export const COLORS = ["#000000", "#ffffff", "#e5484d", "#f76b15", "#ffe14d", "#30a46c", "#0090ff", "#1a2b6d", "#8e4ec6"];
 
 /**
@@ -40,7 +43,7 @@ export function applyStyle(
   if (selected) {
     const next = { ...selected } as Record<string, unknown>;
     for (const [k, v] of Object.entries(patch)) {
-      if (k in selected || (k === "underline" && selected.kind === "text")) next[k] = v;
+      if (k in selected || (["underline", "strike", "highlight"].includes(k) && selected.kind === "text")) next[k] = v ?? undefined;
     }
     if (text !== undefined) next.text = text;
     // Choisir une autre police abandonne la police incorporée d'origine.
@@ -59,6 +62,8 @@ export function currentStyle(selected: Annotation | null, style: ToolStyle) {
     fontKey: selected?.kind === "text" ? selected.fontKey : style.fontKey,
     fontSize: selected?.kind === "text" ? selected.fontSize : style.fontSize,
     underline: selected?.kind === "text" ? !!selected.underline : style.underline,
+    strike: selected?.kind === "text" ? !!selected.strike : style.strike,
+    highlight: selected?.kind === "text" ? (selected.highlight ?? null) : style.highlight,
   };
 }
 
@@ -237,6 +242,18 @@ export function PropertiesPanel({
             <button className={v.underline ? "active" : ""} title={t("Souligné")} onClick={() => set({ underline: !v.underline })}>
               <span style={{ textDecoration: "underline" }}>{t("S")}</span>
             </button>
+            <button className={v.strike ? "active" : ""} title={t("Barré")} onClick={() => set({ strike: !v.strike })}>
+              <span style={{ textDecoration: "line-through" }}>ab</span>
+            </button>
+          </div>
+          <div className="field">
+            {t("Surligner")}
+            <div className="swatches">
+              <button className={`swatch none ${!v.highlight ? "active" : ""}`} title={t("Sans surlignage")} aria-label={t("Sans surlignage")} onClick={() => set({ highlight: null })} />
+              {TEXT_HIGHLIGHTS.map((c) => (
+                <button key={c} className={`swatch ${v.highlight === c ? "active" : ""}`} style={{ background: c }} aria-label={t("Couleur {color}", { color: c })} onClick={() => set({ highlight: c })} />
+              ))}
+            </div>
           </div>
           <label className="field">
             {t("Taille : {n} pt", { n: Math.round(v.fontSize * 10) / 10 })}

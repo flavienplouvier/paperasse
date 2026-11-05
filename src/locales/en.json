@@ -527,5 +527,7 @@
   "Texte du pourtour (haut)": "Text around the edge (top)",
   "Tirer pour courber": "Drag to curve",
   "Tirer pour déplacer l'extrémité": "Drag to move the end",
-  "Tirer pour faire pivoter": "Drag to rotate"
+  "Tirer pour faire pivoter": "Drag to rotate",
+  "Barré": "Strikethrough",
+  "Sans surlignage": "No highlight"
 }

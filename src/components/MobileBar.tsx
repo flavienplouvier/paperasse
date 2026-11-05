@@ -3,7 +3,7 @@ import type { Annotation, Tool } from "../lib/types";
 import type { FileFont } from "../lib/fileFonts";
 import { getFont, styleVariant } from "../lib/fonts";
 import type { ToolStyle } from "./PageView";
-import { COLORS, applyStyle, currentStyle } from "./PropertiesPanel";
+import { COLORS, TEXT_HIGHLIGHTS, applyStyle, currentStyle } from "./PropertiesPanel";
 import { FontPicker, useFonts } from "./FontPicker";
 import { Icon } from "./Icon";
 import { msg, t, useLocale } from "../i18n";
@@ -100,7 +100,7 @@ const KIND_ICON: Partial<Record<Annotation["kind"], string>> = {
   field: "form",
 };
 
-type Sheet = "color" | "size" | "font" | "opacity" | null;
+type Sheet = "color" | "size" | "font" | "opacity" | "highlight" | null;
 
 interface Props {
   tool: Tool;
@@ -169,6 +169,8 @@ export function MobileBar(props: Props) {
     { key: "bold", label: t("Gras"), glyph: t("G"), glyphStyle: { fontWeight: 800 }, active: !!font.bold, disabled: !boldKey, onClick: () => boldKey && set({ fontKey: boldKey }) },
     { key: "italic", label: t("Italique"), glyph: t("I"), glyphStyle: { fontStyle: "italic", fontFamily: "Georgia, serif" }, active: !!font.italic, disabled: !italicKey, onClick: () => italicKey && set({ fontKey: italicKey }) },
     { key: "underline", label: t("Souligné"), glyph: t("S"), glyphStyle: { textDecoration: "underline" }, active: v.underline, onClick: () => set({ underline: !v.underline }) },
+    { key: "strike", label: t("Barré"), glyph: "ab", glyphStyle: { textDecoration: "line-through" }, active: v.strike, onClick: () => set({ strike: !v.strike }) },
+    { key: "highlight", label: t("Surligner"), swatch: v.highlight ?? "transparent", active: sheet === "highlight" || !!v.highlight, onClick: () => toggle("highlight") },
   ];
   const settings = (k: Tool | Annotation["kind"]): Item[] => {
     switch (k) {
@@ -293,6 +295,14 @@ export function MobileBar(props: Props) {
                 <input type="range" min={0.5} max={kind === "highlight" ? 40 : 20} step={0.5} value={v.width} onChange={(e) => set({ width: +e.target.value }, false)} onPointerUp={() => set({}, true)} />
               </label>
             ))}
+          {sheet === "highlight" && (
+            <div className="swatches">
+              <button className={`swatch none ${!v.highlight ? "active" : ""}`} aria-label={t("Sans surlignage")} title={t("Sans surlignage")} onClick={() => set({ highlight: null })} />
+              {TEXT_HIGHLIGHTS.map((c) => (
+                <button key={c} className={`swatch ${v.highlight === c ? "active" : ""}`} style={{ background: c }} onClick={() => set({ highlight: c })} aria-label={c} />
+              ))}
+            </div>
+          )}
           {sheet === "opacity" && (
             <label className="field">
               {t("Opacité : {n} %", { n: Math.round(v.opacity * 100) })}

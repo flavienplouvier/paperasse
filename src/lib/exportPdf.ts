@@ -61,6 +61,18 @@ export function underlineSegment(a: TextAnnotation, lineIndex: number, width: nu
   return [base, addScaled(base, right, width)];
 }
 
+/** Soulignement et barré d'une ligne. */
+export function decorations(a: TextAnnotation, lineIndex: number, width: number): [Point, Point][] {
+  const out: [Point, Point][] = [];
+  if (a.underline) out.push(underlineSegment(a, lineIndex, width));
+  if (a.strike) {
+    const { right, down } = screenAxes(a.rotation);
+    const base = addScaled(a.origin, down, a.fontSize * LINE_HEIGHT * lineIndex - a.fontSize * 0.3);
+    out.push([base, addScaled(base, right, width)]);
+  }
+  return out;
+}
+
 async function drawText(page: PDFPage, a: TextAnnotation, font: PDFFont) {
   const { down } = screenAxes(a.rotation);
   const lines = a.text.split(/\r?\n/);
@@ -77,6 +89,22 @@ async function drawText(page: PDFPage, a: TextAnnotation, font: PDFFont) {
       );
     }
     const [x, y] = addScaled(a.origin, down, a.fontSize * LINE_HEIGHT * i);
+    const width = font.widthOfTextAtSize(line, a.fontSize);
+    if (a.highlight) {
+      // Fond sous la ligne (multiplié : le contenu de la page reste lisible).
+      const [bx, by] = addScaled([x, y], down, a.fontSize * 0.26);
+      const back = addScaled([bx, by], screenAxes(a.rotation).right, -a.fontSize * 0.06);
+      page.drawRectangle({
+        x: back[0],
+        y: back[1],
+        width: width + a.fontSize * 0.12,
+        height: a.fontSize * 1.12,
+        rotate: degrees(a.rotation),
+        color: color(a.highlight),
+        opacity: a.opacity,
+        blendMode: BlendMode.Multiply,
+      });
+    }
     page.drawText(line, {
       x,
       y,
@@ -86,8 +114,7 @@ async function drawText(page: PDFPage, a: TextAnnotation, font: PDFFont) {
       opacity: a.opacity,
       rotate: degrees(a.rotation),
     });
-    if (a.underline) {
-      const [from, to] = underlineSegment(a, i, font.widthOfTextAtSize(line, a.fontSize));
+    for (const [from, to] of decorations(a, i, width)) {
       page.drawLine({
         start: { x: from[0], y: from[1] },
         end: { x: to[0], y: to[1] },

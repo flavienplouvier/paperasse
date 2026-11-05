@@ -12,6 +12,8 @@ import {
   beginText,
   decodePDFRawStream,
   endText,
+  closePath,
+  fill,
   lineTo,
   moveTo,
   popGraphicsState,
@@ -355,8 +357,10 @@ export async function drawEmbeddedText(
   const sin = Math.sin(rad);
   const { down } = screenAxes(a.rotation);
   const right: [number, number] = [cos, sin];
+  const textStart = ops.length;
   ops.push(beginText(), setFillingColor(rgb(r, g, b)));
   const underlines: [[number, number], [number, number]][] = [];
+  const backgrounds: [number, number][][] = [];
   for (const [i, segs] of prepared.entries()) {
     if (!segs.length) continue;
     const start = addScaled(a.origin, down, a.fontSize * 1.25 * i);
@@ -387,8 +391,29 @@ export async function drawEmbeddedText(
       const base = addScaled(start, down, a.fontSize * 0.12);
       underlines.push([base, addScaled(base, right, x)]);
     }
+    if (a.strike) {
+      const base = addScaled(start, down, -a.fontSize * 0.3);
+      underlines.push([base, addScaled(base, right, x)]);
+    }
+    if (a.highlight && x > 0) {
+      // Fond de la ligne : coins dans le repère tourné du texte.
+      const p0 = addScaled(addScaled(start, down, a.fontSize * 0.26), right, -a.fontSize * 0.06);
+      const p1 = addScaled(p0, right, x + a.fontSize * 0.12);
+      const p2 = addScaled(p1, down, -a.fontSize * 1.12);
+      const p3 = addScaled(p0, down, -a.fontSize * 1.12);
+      backgrounds.push([p0, p1, p2, p3]);
+    }
   }
   ops.push(endText());
+  if (backgrounds.length) {
+    // Fonds dessinés avant le texte, en mode « produit » (le contenu de la page reste lisible).
+    const gs = doc.context.obj({ Type: "ExtGState", BM: "Multiply", ca: a.opacity });
+    const [hr, hg, hb] = [1, 3, 5].map((i) => parseInt(a.highlight!.slice(i, i + 2), 16) / 255);
+    const bg = [pushGraphicsState(), setGraphicsState(page.node.newExtGState("PaHL", gs)), setFillingColor(rgb(hr, hg, hb))];
+    for (const [p0, p1, p2, p3] of backgrounds) bg.push(moveTo(p0[0], p0[1]), lineTo(p1[0], p1[1]), lineTo(p2[0], p2[1]), lineTo(p3[0], p3[1]), closePath(), fill());
+    bg.push(popGraphicsState());
+    ops.splice(textStart, 0, ...bg);
+  }
   if (underlines.length) {
     ops.push(setStrokingColor(rgb(r, g, b)), setLineWidth(Math.max(0.5, a.fontSize * 0.07)));
     for (const [s0, e] of underlines) ops.push(moveTo(s0[0], s0[1]), lineTo(e[0], e[1]), stroke());

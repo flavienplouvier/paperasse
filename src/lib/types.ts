@@ -90,6 +90,10 @@ export interface TextAnnotation extends AnnotationBase {
   /** Rotation de la page (degrés, sens horaire) au moment de la création. */
   rotation: number;
   underline?: boolean;
+  /** Texte barré. */
+  strike?: boolean;
+  /** Surlignage : couleur de fond derrière chaque ligne. */
+  highlight?: string;
   /** Police d'origine du texte modifié (pour retrouver la vraie police plus tard). */
   originalFont?: { name: string; bold?: boolean; italic?: boolean };
   /**

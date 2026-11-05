@@ -21,6 +21,9 @@ export interface ToolStyle {
   fontKey: string;
   fontSize: number;
   underline: boolean;
+  strike: boolean;
+  /** Surlignage du texte ajouté (couleur), null = aucun. */
+  highlight: string | null;
   fieldType: FieldType;
   shape: ShapeId;
   /** Outil « Flèche » : pointes aux deux extrémités. */
@@ -82,6 +85,15 @@ type Drag = {
 } | null;
 
 const MAX_CANVAS_PIXELS = 16_777_216;
+
+let measureCtx: CanvasRenderingContext2D | null = null;
+/** Largeur d'une ligne de texte à l'écran (police CSS complète). */
+function measureText(text: string, font: string): number {
+  measureCtx ??= document.createElement("canvas").getContext("2d");
+  if (!measureCtx) return text.length * 8;
+  measureCtx.font = font;
+  return measureCtx.measureText(text).width;
+}
 
 /** Style CSS d'aperçu d'une police (les polices standard n'ont qu'une famille CSS). */
 function fontCss(key: string) {
@@ -286,6 +298,8 @@ function PageViewImpl(props: Props) {
           fontSize: style.fontSize,
           rotation,
           underline: style.underline || undefined,
+          strike: style.strike || undefined,
+          ...(style.highlight ? { highlight: style.highlight } : {}),
         });
         props.onFocusText();
         break;
@@ -567,7 +581,7 @@ function PageViewImpl(props: Props) {
         const original = a.embedded ?? null;
         const fallbackCss = fontCss(a.fontKey);
         const css = original ? { fontFamily: original.cssFamily } : fallbackCss;
-        return (
+        const textEl = (
           <text
             key={a.id}
             data-annot={a.id}
@@ -580,7 +594,7 @@ function PageViewImpl(props: Props) {
             fontWeight={"fontWeight" in css ? css.fontWeight : undefined}
             fontStyle={"fontStyle" in css ? css.fontStyle : undefined}
             transform={`rotate(${rotation - a.rotation} ${x} ${y})`}
-            textDecoration={a.underline ? "underline" : undefined}
+            textDecoration={[a.underline && "underline", a.strike && "line-through"].filter(Boolean).join(" ") || undefined}
             style={{ ...common.style, whiteSpace: "pre", userSelect: "none" }}
           >
             {a.text.split(/\r?\n/).map((line, i) => (
@@ -604,6 +618,21 @@ function PageViewImpl(props: Props) {
               </tspan>
             ))}
           </text>
+        );
+        if (!a.highlight) return textEl;
+        // Surlignage : un fond par ligne, à la largeur du texte (mesurée avec la même police).
+        const font = `${"fontStyle" in css && css.fontStyle ? css.fontStyle : "normal"} ${"fontWeight" in css && css.fontWeight ? css.fontWeight : 400} ${size}px ${css.fontFamily}`;
+        return (
+          <g key={a.id}>
+            <g transform={`rotate(${rotation - a.rotation} ${x} ${y})`} style={{ pointerEvents: "none", mixBlendMode: "multiply" }} opacity={a.opacity}>
+              {a.text.split(/\r?\n/).map((line, i) =>
+                line ? (
+                  <rect key={i} x={x - size * 0.06} y={y + i * size * LINE_HEIGHT - size * 0.86} width={measureText(line, font) + size * 0.12} height={size * 1.12} fill={a.highlight} />
+                ) : null,
+              )}
+            </g>
+            {textEl}
+          </g>
         );
       }
       case "shape": {
