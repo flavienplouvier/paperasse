@@ -532,5 +532,7 @@
   "Sans surlignage": "Geen markering",
   "Le texte dépasse de {n} lignes la place d'origine.": "De tekst loopt {n} regels buiten de oorspronkelijke ruimte.",
   "Ajuster pour tenir": "Passend maken",
-  "Le texte dépasse d'une ligne la place d'origine.": "De tekst loopt één regel buiten de oorspronkelijke ruimte."
+  "Le texte dépasse d'une ligne la place d'origine.": "De tekst loopt één regel buiten de oorspronkelijke ruimte.",
+  "Recoller les lignes": "Regels samenvoegen",
+  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Voegt de regels van een alinea samen, zoals in een tekstverwerker"
 }

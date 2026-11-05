@@ -115,7 +115,10 @@ export async function blockParts(a: TextAnnotation, loadFont: (key: string) => P
     });
     return out;
   };
-  const measure = (str: string, offset: number) => runsOf(str, offset).reduce((w, r) => w + widthOf(r.font, r.text), 0);
+  // Espaces : largeur réelle mesurée dans le PDF d'origine, sinon celle de la police.
+  const spaceW = (offset: number) => box.space ?? widthOf(at(offset), " ");
+  const measure = (str: string, offset: number) =>
+    runsOf(str, offset).reduce((w, r) => w + (box.space !== undefined ? widthOf(r.font, r.text.replace(/ /g, "")) + (r.text.split(" ").length - 1) * box.space : widthOf(r.font, r.text)), 0);
   const { right, down } = screenAxes(a.rotation);
   const parts: TextAnnotation[] = [];
   const base = { ...a, box: undefined, styles: undefined, fonts: undefined };
@@ -123,12 +126,12 @@ export async function blockParts(a: TextAnnotation, loadFont: (key: string) => P
     if (!l.text) return;
     const start = addScaled(addScaled(a.origin, down, i * box.lineHeight), right, l.x);
     let x = 0;
-    // Ligne justifiée : chaque mot est placé séparément, les espaces élargies.
-    const pieces = l.wordSpacing ? l.text.split(/( )/) : [l.text];
+    // Chaque mot est placé lui-même : espaces à leur largeur d'origine, élargies si justifié.
+    const pieces = l.wordSpacing || box.space !== undefined ? l.text.split(/( )/) : [l.text];
     let offset = l.start;
     for (const piece of pieces) {
       if (piece === " ") {
-        x += measure(" ", offset) + l.wordSpacing;
+        x += spaceW(offset) + l.wordSpacing;
         offset += 1;
         continue;
       }

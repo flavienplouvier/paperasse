@@ -12,8 +12,8 @@ import { Icon } from "./Icon";
 import { t, tn, useLocale } from "../i18n";
 import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
-import { blockAt, blocksOf, fontIndexAt, layoutText, shiftStyles, type TextBlock } from "../lib/textBlocks";
-import type { EmbeddedFont } from "../lib/embeddedFonts";
+import { blockAt, blocksOf, fontIndexAt, layoutText, reflowText, shiftStyles, type TextBlock } from "../lib/textBlocks";
+import { embeddedTextWidth, type EmbeddedFont } from "../lib/embeddedFonts";
 
 export interface ToolStyle {
   color: string;
@@ -492,7 +492,12 @@ function PageViewImpl(props: Props) {
       const fallbackCss = fontCss(fontKey);
       const css = original ? { fontFamily: original.cssFamily } : fallbackCss;
       const font = `${"fontStyle" in css && css.fontStyle ? css.fontStyle : "normal"} ${"fontWeight" in css && css.fontWeight ? css.fontWeight : 400} ${a.fontSize}px ${css.fontFamily}`;
-      return { original, fallbackCss, css, measure: (str: string) => measureText(original ? displayText(original, str) : str, font) };
+      const fbFont = `${"fontStyle" in fallbackCss && fallbackCss.fontStyle ? fallbackCss.fontStyle : "normal"} ${"fontWeight" in fallbackCss && fallbackCss.fontWeight ? fallbackCss.fontWeight : 400} ${a.fontSize}px ${fallbackCss.fontFamily}`;
+      // Police d'origine : largeurs du PDF (identiques à l'export) ; sinon mesure du navigateur.
+      const measure = original
+        ? (str: string) => embeddedTextWidth(original, str, a.fontSize, (x) => measureText(x, fbFont))
+        : (str: string) => measureText(str, font);
+      return { original, fallbackCss, css, measure };
     };
     const main = ctxOf(a.fontKey, a.embedded);
     const others = (a.fonts ?? []).map((f) => ctxOf(f.fontKey, f.embedded));
@@ -508,7 +513,12 @@ function PageViewImpl(props: Props) {
       });
       return out;
     };
-    const measure = (str: string, offset: number) => (a.styles?.length ? runsOf(str, offset).reduce((w, r) => w + ctx(r.font).measure(r.text), 0) : main.measure(str));
+    // Espaces : largeur réelle mesurée dans le PDF d'origine (le bloc s'ouvre à l'identique).
+    const fontSpace = main.measure(" ");
+    const spaceFix = a.box?.space !== undefined ? a.box.space - fontSpace : 0;
+    const spaces = (str: string) => str.split(" ").length - 1;
+    const measure = (str: string, offset: number) =>
+      (a.styles?.length ? runsOf(str, offset).reduce((w, r) => w + ctx(r.font).measure(r.text), 0) : main.measure(str)) + spaceFix * spaces(str);
     let start = 0;
     const laid = a.box
       ? layoutText(a.text, a.box.width, a.box.align, measure)
@@ -517,7 +527,7 @@ function PageViewImpl(props: Props) {
           start += line.length + 1;
           return l;
         });
-    return { ...main, laid, ctx, runsOf };
+    return { ...main, laid, ctx, runsOf, spaceFix };
   };
 
   /** Rendu d'un élément, tourné de son angle propre autour de son centre. */
@@ -636,7 +646,7 @@ function PageViewImpl(props: Props) {
       case "text": {
         const [x, y] = toView(a.origin);
         const size = a.fontSize * scale;
-        const { css, laid, ctx, runsOf } = textLayout(a);
+        const { css, laid, ctx, runsOf, spaceFix } = textLayout(a);
         const step = (a.box ? a.box.lineHeight : a.fontSize * LINE_HEIGHT) * scale;
         /** Un morceau de même style : police d'origine lettre par lettre, remplacement pour les absentes. */
         const runContent = (text: string, k: number) => {
@@ -688,7 +698,7 @@ function PageViewImpl(props: Props) {
             style={{ ...common.style, whiteSpace: "pre", userSelect: "none" }}
           >
             {laid.map((l, i) => (
-              <tspan key={i} x={x + l.x * scale} y={y + i * step} style={l.wordSpacing ? { wordSpacing: `${l.wordSpacing * scale}px` } : undefined}>
+              <tspan key={i} x={x + l.x * scale} y={y + i * step} style={l.wordSpacing || spaceFix ? { wordSpacing: `${(l.wordSpacing + spaceFix) * scale}px` } : undefined}>
                 {lineContent(l.text, l.start)}
               </tspan>
             ))}
@@ -858,6 +868,11 @@ function PageViewImpl(props: Props) {
             >
               {t("Ajuster pour tenir")}
             </button>
+            {reflowText(a.text) !== a.text && (
+              <button onPointerDown={(e) => e.preventDefault()} onClick={() => props.onChange({ ...a, text: reflowText(a.text) }, true)} title={t("Recolle les lignes d'un même paragraphe, comme dans un traitement de texte")}>
+                {t("Recoller les lignes")}
+              </button>
+            )}
           </div>
         )}
         <textarea

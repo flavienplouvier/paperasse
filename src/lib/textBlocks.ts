@@ -49,6 +49,8 @@ export interface TextBlock {
   text: string;
   /** Police (nom pdf.js) de chaque caractère de `text` : gras, liens, symboles… */
   fonts: string[];
+  /** Largeur réelle d'une espace entre deux mots dans le PDF (points), si mesurable. */
+  space?: number;
 }
 
 const right = (p: Piece) => p.baseline[0] + (p.width ?? 0);
@@ -164,7 +166,22 @@ export function groupBlocks(lines: BlockLine[]): TextBlock[] {
     const top = g[0].origin[1] + fontSize * 0.95;
     const bottom = g[g.length - 1].origin[1] - fontSize * 0.25;
     const lineHeight = g.length > 1 ? (g[0].origin[1] - g[g.length - 1].origin[1]) / (g.length - 1) : fontSize * 1.2;
+    // Écart réel entre deux mots (le PDF place souvent chaque mot lui-même) : médiane.
+    const gaps: number[] = [];
+    for (const l of g) {
+      const words = l.pieces.filter((p) => p.str.trim());
+      for (let k = 1; k < words.length; k++) {
+        const prev = words[k - 1];
+        const cur = words[k];
+        const gap = cur.baseline[0] - right(prev);
+        // Mots voisins séparés par un vide (espace placée ou implicite), sans espace dans le texte lui-même.
+        if (gap > 0.15 * fontSize && gap < 1.2 * fontSize && !/\s$/.test(prev.str) && !/^\s/.test(cur.str)) gaps.push(gap);
+      }
+    }
+    gaps.sort((a, b) => a - b);
+    const space = gaps.length >= 2 ? gaps[Math.floor(gaps.length / 2)] : undefined;
     return {
+      ...(space ? { space } : {}),
       lines: g,
       rect: [left, bottom, rightEdge, top],
       fontName: dominantFont(g),
@@ -182,25 +199,39 @@ export function groupBlocks(lines: BlockLine[]): TextBlock[] {
 const BULLET = /^([–—•→▪●◦■□*-]|\(?\d{1,2}[.)\]]|\d{1,3}(\.\d{1,3})+\.?|\[\d{1,2}\]|[a-z][.)])\s/u;
 
 /**
- * Texte du bloc : les lignes d'un même paragraphe sont recollées par une
- * espace (la coupure se refait à la mise en page) ; un retour à la ligne est
- * gardé avant un élément de liste et après une ligne courte qui finit une phrase.
+ * Texte du bloc : une ligne d'origine = une ligne du texte (séparées par des
+ * retours à la ligne), pour que le bloc s'ouvre exactement comme dans le PDF.
+ * Seule une ligne devenue trop longue se coupe à la mise en page ;
+ * `reflowText` recolle à la demande les lignes d'un même paragraphe.
  */
-export function joinLines(lines: BlockLine[], rightEdge: number): { text: string; fonts: string[] } {
+export function joinLines(lines: BlockLine[], _rightEdge?: number): { text: string; fonts: string[] } {
   let text = "";
   const fonts: string[] = [];
   lines.forEach((l, i) => {
     if (i) {
       const prev = lines[i - 1];
-      const short = rightEdge - (prev.origin[0] + prev.width) > 2 * l.fontSize;
-      const hard = BULLET.test(l.text) || (short && /[.:;!?…»)]$/.test(prev.text));
-      text += hard ? "\n" : " ";
+      text += "\n";
       fonts.push(prev.fonts[prev.fonts.length - 1]);
     }
     text += l.text;
     fonts.push(...l.fonts);
   });
   return { text, fonts };
+}
+
+/** Le retour à la ligne entre ces deux lignes est-il interne à un paragraphe ? */
+export function continues(prev: string, next: string): boolean {
+  return !!prev.trim() && !!next.trim() && !BULLET.test(next) && !/[.:;!?…»)]$/.test(prev.trimEnd());
+}
+
+/**
+ * Recolle les lignes d'un même paragraphe (retour à la ligne remplacé par une
+ * espace, même longueur : les styles restent en place) ; les éléments de liste
+ * et les fins de phrase gardent leur retour à la ligne.
+ */
+export function reflowText(text: string): string {
+  const lines = text.split("\n");
+  return lines.map((l, i) => (i < lines.length - 1 ? l + (continues(l, lines[i + 1]) ? " " : "\n") : l)).join("");
 }
 
 // ------------------------------------------------------------------ styles mélangés
@@ -297,7 +328,10 @@ export interface LaidLine {
 export function layoutText(text: string, maxWidth: number, align: Align, measure: (s: string, offset: number) => number): LaidLine[] {
   const out: LaidLine[] = [];
   let offset = 0;
-  for (const para of text.split("\n")) {
+  const paras = text.split("\n");
+  for (const [p, para] of paras.entries()) {
+    // Ligne d'origine suivie d'une autre ligne du même paragraphe : justifiée elle aussi.
+    const goesOn = p < paras.length - 1 && continues(para, paras[p + 1]);
     type Word = { w: string; at: number };
     const words: Word[] = [];
     let at = offset;
@@ -317,7 +351,8 @@ export function layoutText(text: string, maxWidth: number, align: Align, measure
         lines.push([{ w: word.w.slice(0, n), at: word.at }]);
         word = { w: word.w.slice(n), at: word.at + n };
       }
-      if (cur.length && measure(span([...cur, word]), cur[0].at) > maxWidth + 0.01) {
+      // Petite tolérance : une ligne d'origine ne doit pas se couper pour un arrondi de mesure.
+      if (cur.length && measure(span([...cur, word]), cur[0].at) > maxWidth * 1.015 + 0.01) {
         lines.push(cur);
         cur = [word];
       } else cur.push(word);
@@ -328,7 +363,8 @@ export function layoutText(text: string, maxWidth: number, align: Align, measure
       const line = ws.length ? span(ws) : "";
       const width = line ? measure(line, start) : 0;
       const free = Math.max(0, maxWidth - width);
-      const last = i === lines.length - 1;
+      // Dernière ligne d'un paragraphe : pas étirée, sauf si le paragraphe continue et qu'elle est presque pleine.
+      const last = i === lines.length - 1 && !(goesOn && width > maxWidth * 0.7);
       const spaces = ws.length - 1;
       if (align === "justify" && !last && spaces > 0) out.push({ text: line, start, x: 0, wordSpacing: free / spaces, width: maxWidth });
       else out.push({ text: line, start, x: align === "center" ? free / 2 : align === "right" ? free : 0, wordSpacing: 0, width });

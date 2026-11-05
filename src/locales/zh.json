@@ -532,5 +532,7 @@
   "Sans surlignage": "无高亮",
   "Le texte dépasse de {n} lignes la place d'origine.": "文本超出原有空间 {n} 行。",
   "Ajuster pour tenir": "缩放以适应",
-  "Le texte dépasse d'une ligne la place d'origine.": "文本超出原有空间一行。"
+  "Le texte dépasse d'une ligne la place d'origine.": "文本超出原有空间一行。",
+  "Recoller les lignes": "合并行",
+  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "像文字处理器一样合并同一段落的行"
 }

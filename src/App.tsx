@@ -867,6 +867,7 @@ export default function App() {
                 align: asBlock.align,
                 lineHeight: Math.round(asBlock.lineHeight * 100) / 100,
                 lines: asBlock.lines.length,
+                ...(asBlock.space ? { space: Math.round(asBlock.space * 100) / 100 } : {}),
               },
               ...(mixed && mixed.styles.length ? { styles: mixed.styles, fonts: extraFonts } : {}),
             }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blockAt, blocksOf, layoutText, shiftStyles, stylesFromFonts, type Piece } from "./textBlocks";
+import { blockAt, blocksOf, layoutText, reflowText, shiftStyles, stylesFromFonts, type Piece } from "./textBlocks";
 
 const piece = (str: string, x: number, y: number, width: number, fontSize = 18, fontName = "f1"): Piece => ({ str, baseline: [x, y], width, fontSize, fontName, angle: 0 });
 
@@ -40,8 +40,12 @@ describe("blocs de texte", () => {
     expect(blocks).toHaveLength(1);
     const b = blocks[0];
     expect(b.lines.map((l) => l.text)).toEqual(["Récépissé de dépôt d’une demande de permis", "de construire une maison individuelle et/ou ses annexes*"]);
-    expect(b.text).toBe("Récépissé de dépôt d’une demande de permis de construire une maison individuelle et/ou ses annexes*");
+    // Le bloc s'ouvre tel quel : une ligne d'origine = une ligne du texte.
+    expect(b.text).toBe("Récépissé de dépôt d’une demande de permis\nde construire une maison individuelle et/ou ses annexes*");
     expect(b.lineHeight).toBeCloseTo(20);
+    // Écart réel entre les mots du PDF (≈ 4,9 pt), même sans les morceaux « espace ».
+    expect(b.space).toBeCloseTo(4.9, 1);
+    expect(blocksOf(title.filter((p) => p.str.trim()))[0].space).toBeCloseTo(4.9, 1);
     expect(b.align).toBe("left");
     expect(b.left).toBe(51);
   });
@@ -87,7 +91,8 @@ describe("blocs de texte", () => {
     ] as const;
     const pieces = lines.map(([str, r], i) => piece(str, 51, 500 - i * 15, r - 51, size, "f3"));
     const [b] = blocksOf(pieces);
-    expect(b.text).toBe(
+    // Recollées à la demande : seules les lignes d'un même paragraphe se rejoignent.
+    expect(reflowText(b.text)).toBe(
       "de votre dossier, l’administration peut vous contacter :\n– soit pour vous avertir qu’un autre délai est applicable, lorsque le code l’a prévu ;\n– soit pour vous indiquer qu’il manque une pièce",
     );
   });
@@ -109,6 +114,17 @@ describe("mise en page", () => {
   it("coupe aux espaces dans la largeur", () => {
     const lines = layoutText("un deux trois quatre", 100, "left", measure);
     expect(lines.map((l) => l.text)).toEqual(["un deux", "trois", "quatre"]);
+  });
+
+  it("garde les lignes d'origine ; seule une ligne trop longue se coupe", () => {
+    const lines = layoutText("aa bb cc\ndd ee", 60, "left", measure);
+    expect(lines.map((l) => l.text)).toEqual(["aa bb", "cc", "dd ee"]);
+  });
+
+  it("justifie une ligne d'origine qui continue le paragraphe", () => {
+    const lines = layoutText("aa bb\ncc dd.", 60, "justify", measure);
+    expect(lines[0].wordSpacing).toBeCloseTo(10);
+    expect(lines[1].wordSpacing).toBe(0);
   });
 
   it("justifie toutes les lignes sauf la dernière", () => {

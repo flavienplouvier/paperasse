@@ -106,6 +106,8 @@ export interface TextAnnotation extends AnnotationBase {
     lineHeight: number;
     /** Nombre de lignes du bloc d'origine : au-delà, le texte déborde sur ce qui suit. */
     lines?: number;
+    /** Largeur d'une espace entre deux mots, mesurée dans le PDF d'origine (points). */
+    space?: number;
   };
   /** Styles mélangés d'un bloc : plages écrites dans d'autres polices (gras, lien, symbole…). */
   styles?: { start: number; end: number; font: number }[];
