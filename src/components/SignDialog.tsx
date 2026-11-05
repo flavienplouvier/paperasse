@@ -362,29 +362,33 @@ export function SignDialog({ pdf, currentPage, annotations, pageIds, fileFonts, 
               {tab === "initials" && ofTab.length > 1 && <p className="hint">{t("Cochez plusieurs paraphes pour les poser côte à côte (plusieurs signataires).")}</p>}
               {tab === "initials" && chosenInitials.length > 0 && (
                 <div className="initials-all">
-                  <label className="check">
-                    <input type="checkbox" checked={allPages} onChange={(e) => setAllPages(e.target.checked)} />
-                    {t("Parapher toutes les pages")}
-                  </label>
-                  {allPages && (
-                    <>
-                      <label className="field">
-                        <span>{t("Taille : {n} %", { n: initialsScale })}</span>
-                        <input type="range" min={30} max={200} step={5} value={initialsScale} onChange={(e) => setInitialsScale(+e.target.value)} />
+                  {(() => {
+                    const lead = (
+                      <label className="check">
+                        <input type="checkbox" checked={allPages} onChange={(e) => setAllPages(e.target.checked)} />
+                        {t("Parapher toutes les pages")}
                       </label>
-                      {pdf && previewPart && (
-                        <InitialsPreview
-                          pdf={pdf}
-                          page={Math.min(currentPage, pageIds.length - 1)}
-                          pageId={pageIds[Math.min(currentPage, pageIds.length - 1)]}
-                          annotations={annotations}
-                          part={previewPart}
-                          pos={initialsPos}
-                          onPos={setInitialsPos}
-                        />
-                      )}
-                    </>
-                  )}
+                    );
+                    if (!allPages || !pdf || !previewPart) return lead;
+                    return (
+                      <InitialsPreview
+                        lead={lead}
+                        extra={
+                          <label className="field">
+                            <span>{t("Taille : {n} %", { n: initialsScale })}</span>
+                            <input type="range" min={30} max={200} step={5} value={initialsScale} onChange={(e) => setInitialsScale(+e.target.value)} />
+                          </label>
+                        }
+                        pdf={pdf}
+                        page={Math.min(currentPage, pageIds.length - 1)}
+                        pageId={pageIds[Math.min(currentPage, pageIds.length - 1)]}
+                        annotations={annotations}
+                        part={previewPart}
+                        pos={initialsPos}
+                        onPos={setInitialsPos}
+                      />
+                    );
+                  })()}
                 </div>
               )}
             </>
@@ -492,7 +496,13 @@ function InitialsPreview({
   part,
   pos,
   onPos,
+  lead,
+  extra,
 }: {
+  /** Case « Parapher toutes les pages », sur la même ligne que le choix gauche / droite. */
+  lead: React.ReactNode;
+  /** Réglage de taille, sous cette ligne. */
+  extra: React.ReactNode;
   pdf: PDFDocumentProxy;
   page: number;
   pageId: string;
@@ -502,6 +512,7 @@ function InitialsPreview({
   onPos: (p: PagePosition) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const wrap = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<{ s: number; width: number; height: number; obstacles: Box[]; placed: { a: Annotation; box: Box }[] } | null>(null);
   const [drag, setDrag] = useState<{ x: number; y: number; pos: PagePosition } | null>(null);
   const [dragPos, setDragPos] = useState<PagePosition | null>(null);
@@ -513,7 +524,8 @@ function InitialsPreview({
       const p = await pdf.getPage(page + 1);
       const base = p.getViewport({ scale: 1 });
       // Seule la moitié basse de la page est montrée, plus grande : c'est là que se posent les paraphes.
-      const s = Math.min(340 / base.width, 300 / (base.height / 2));
+      const room = wrap.current?.clientWidth || 340;
+      const s = Math.min(room / base.width, 360 / (base.height / 2));
       const vp = p.getViewport({ scale: s * (window.devicePixelRatio || 1) });
       const c = canvas.current;
       if (!alive || !c) return;
@@ -548,14 +560,18 @@ function InitialsPreview({
   };
 
   return (
-    <div className="initials-place">
-      <div className="seg" role="radiogroup" aria-label={t("Position")}>
-        {(["left", "right"] as const).map((side) => (
-          <button key={side} role="radio" aria-checked={near(side)} className={near(side) ? "active" : ""} onClick={() => preset(side)}>
-            {side === "left" ? t("À gauche") : t("À droite")}
-          </button>
-        ))}
+    <div className="initials-place" ref={wrap}>
+      <div className="initials-head">
+        {lead}
+        <div className="seg" role="radiogroup" aria-label={t("Position")}>
+          {(["left", "right"] as const).map((side) => (
+            <button key={side} role="radio" aria-checked={near(side)} className={near(side) ? "active" : ""} onClick={() => preset(side)}>
+              {side === "left" ? t("À gauche") : t("À droite")}
+            </button>
+          ))}
+        </div>
       </div>
+      {extra}
       <p className="hint">{t("Faites glisser la paraphe dans l'aperçu pour choisir sa place : elle sera au même endroit sur chaque page, à côté des éléments déjà posés.")}</p>
       <div className="initials-preview half" style={view ? { width: view.width * view.s, height: (view.height / 2) * view.s } : undefined}>
         <canvas ref={canvas} />

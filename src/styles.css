@@ -2403,19 +2403,6 @@ kbd {
   height: auto;
   pointer-events: none;
 }
-@media (min-width: 700px) {
-  /* Ordinateur : réglages à gauche, aperçu à droite, pour tout voir sans défiler. */
-  .initials-place {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto 1fr;
-    column-gap: 14px;
-  }
-  .initials-place .initials-preview {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-  }
-}
 
 /* ----------------------------------------------------------------- tampons */
 
@@ -2510,4 +2497,17 @@ kbd {
 .initials-preview.half canvas {
   display: block;
   transform: translateY(-50%);
+}
+.initials-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.initials-head .seg {
+  flex: 0 1 220px;
+}
+.initials-place .initials-preview {
+  align-self: center;
 }
