@@ -43,6 +43,8 @@ import { suggestFieldName } from "./lib/formFields";
 import type { ShapeId } from "./lib/shapes";
 import { Icon } from "./components/Icon";
 import { FileNameDialog } from "./components/FileNameDialog";
+import { LanguagePicker } from "./components/LanguagePicker";
+import { initialLanguage } from "./lib/language";
 import { buildFileName, isoDate, loadNamePrefs } from "./lib/fileName";
 
 /** Écran de numérisation chargé à la demande (caméra, détection, nettoyage). */
@@ -187,6 +189,8 @@ export default function App() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [ocrOpen, setOcrOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  /** Langue de l'utilisateur (détectée au démarrage, modifiable par le drapeau) : langue d'OCR par défaut. */
+  const [language, setLanguage] = useState(initialLanguage);
   // Le scanner est préchargé en arrière-plan : le service worker le garde pour un usage hors ligne.
   useEffect(() => {
     const t = window.setTimeout(() => void import("./components/Scanner").catch(() => undefined), 5000);
@@ -1183,6 +1187,7 @@ export default function App() {
     return (
       <div className={`welcome ${dragOver ? "drag" : ""}`}>
         {filePickers}
+        <LanguagePicker className="welcome-lang" value={language} onChange={setLanguage} withLabel />
         <div className="welcome-card">
           <div className="logo">
             <Icon name="pages" size={40} />
@@ -1241,6 +1246,7 @@ export default function App() {
         <div className="doc-name" title={doc.name}>
           {doc.name}
         </div>
+        <LanguagePicker className="desktop-only" value={language} onChange={setLanguage} />
         <div className="top-actions">
           <button className="open-btn" title="Ouvrir un fichier PDF ou une image (Ctrl+O)" onClick={() => openInput.current?.click()}>
             <Icon name="open" />
@@ -1415,6 +1421,7 @@ export default function App() {
                 <strong>{doc.name}</strong>
                 {pdf && <small>{pdf.numPages} page{pdf.numPages > 1 ? "s" : ""}</small>}
               </span>
+              <LanguagePicker className="drawer-lang" value={language} onChange={setLanguage} />
             </div>
             {[
               { icon: "open", label: "Ouvrir un fichier", run: () => openInput.current?.click() },
@@ -1629,6 +1636,7 @@ export default function App() {
       {ocrOpen && pdf && (
         <OcrDialog
           pdf={pdf}
+          language={language.language}
           currentPage={currentPage}
           onClose={() => setOcrOpen(false)}
           onError={(m) => notify(m, true)}

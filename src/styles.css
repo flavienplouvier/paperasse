@@ -242,7 +242,7 @@ input[type="checkbox"] {
   min-width: 0;
 }
 .doc-name {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   font-weight: 600;
   white-space: nowrap;
@@ -253,6 +253,7 @@ input[type="checkbox"] {
   display: flex;
   align-items: center;
   gap: 2px;
+  margin-left: auto;
 }
 .sep {
   width: 1px;
@@ -1907,4 +1908,74 @@ kbd {
   font-size: 13px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------------------------------- langue */
+
+.lang-picker {
+  position: relative;
+  flex: none;
+}
+.lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+}
+.lang-btn:hover {
+  border-color: var(--border);
+}
+.flag {
+  display: block;
+  flex: none;
+}
+.lang-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 60;
+  min-width: 180px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.lang-list button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  text-align: left;
+}
+.lang-list button.active {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.welcome {
+  position: relative;
+}
+.welcome-lang {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 12px;
+}
+.welcome-lang .lang-btn {
+  border-color: var(--border);
+  background: var(--surface);
+}
+.drawer-lang {
+  margin-left: auto;
 }

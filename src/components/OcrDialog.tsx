@@ -3,11 +3,14 @@ import type { PDFDocumentProxy } from "../lib/pdfjs";
 import { pageHasText, recognizePages, type OcrLanguage, type OcrProgress } from "../lib/ocr";
 import type { OcrWord } from "../lib/ocrLayer";
 import { Icon } from "./Icon";
+import { languageByOcr, ocrChoices, type Language } from "../lib/language";
 
 type Scope = "missing" | "all" | "current";
 
 interface Props {
   pdf: PDFDocumentProxy;
+  /** Langue de l'utilisateur, proposée par défaut. */
+  language: Language;
   currentPage: number;
   onDone: (pages: Map<number, OcrWord[]>) => Promise<void>;
   onClose: () => void;
@@ -15,9 +18,10 @@ interface Props {
 }
 
 /** Reconnaissance de texte (OCR) : rend un PDF scanné cherchable et sélectionnable. */
-export function OcrDialog({ pdf, currentPage, onDone, onClose, onError }: Props) {
+export function OcrDialog({ pdf, language, currentPage, onDone, onClose, onError }: Props) {
   const [scope, setScope] = useState<Scope>("missing");
-  const [lang, setLang] = useState<OcrLanguage>("fra");
+  const [lang, setLang] = useState<OcrLanguage>(language.ocr);
+  const toDownload = lang.split("+").map(languageByOcr).filter((l) => !l.bundled);
   const [progress, setProgress] = useState<OcrProgress | null>(null);
   const [running, setRunning] = useState(false);
   const abort = useRef<AbortController | null>(null);
@@ -84,9 +88,11 @@ export function OcrDialog({ pdf, currentPage, onDone, onClose, onError }: Props)
           <label className="field">
             Langue du document
             <select value={lang} disabled={running} onChange={(e) => setLang(e.target.value as OcrLanguage)}>
-              <option value="fra">Français</option>
-              <option value="eng">Anglais</option>
-              <option value="fra+eng">Français et anglais</option>
+              {ocrChoices(language).map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
             </select>
           </label>
           {progress && running && (
@@ -101,6 +107,7 @@ export function OcrDialog({ pdf, currentPage, onDone, onClose, onError }: Props)
           <p className="hint">
             Le premier lancement télécharge le moteur de reconnaissance (environ 5 à 8 Mo), ensuite disponible hors ligne.
             Comptez quelques secondes par page.
+            {toDownload.length > 0 && ` La langue « ${toDownload[0].label} » est téléchargée à sa première utilisation (2 à 4 Mo), puis gardée sur l'appareil.`}
           </p>
         </div>
         <div className="modal-row modal-actions">

@@ -59,8 +59,13 @@ rien n'est envoyé sur un serveur.
   cocher, listes déroulantes, enregistrées comme de vrais champs PDF.
 - Reconnaissance de texte (OCR, Tesseract) : un PDF scanné devient cherchable,
   sélectionnable et modifiable ; le texte reconnu est ajouté de façon
-  invisible sans changer l'aspect. Français et anglais, entièrement sur
-  l'appareil ; les scans sont détectés à l'ouverture.
+  invisible sans changer l'aspect. Français et anglais fournis ; allemand,
+  espagnol, italien, portugais, néerlandais et chinois téléchargés une fois au
+  premier usage. La reconnaissance se fait entièrement sur l'appareil ; les scans
+  sont détectés à l'ouverture.
+- Langue de l'utilisateur détectée au démarrage (drapeau à droite du nom du
+  document, sur l'accueil et dans le menu du téléphone) : elle règle la langue
+  proposée pour la reconnaissance de texte. Le choix est retenu.
 - Déplacement, redimensionnement, duplication, annulation/rétablissement.
 
 **Pages**
