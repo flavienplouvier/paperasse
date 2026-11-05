@@ -502,5 +502,7 @@
   "Nom (facultatif), ex. Pro": "Naam (optioneel), bv. Werk",
   "Nom de l'élément": "Naam van het item",
   "Ajouter « Fait à …, le »": "„Getekend te …, op” toevoegen",
-  "Choisir une police": "Lettertype kiezen"
+  "Choisir une police": "Lettertype kiezen",
+  "Paraphe (toutes les pages)": "Paraaf (alle pagina's)",
+  "Taille : {n} %": "Grootte: {n}%"
 }

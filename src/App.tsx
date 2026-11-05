@@ -1746,6 +1746,8 @@ export default function App() {
       )}
       {signing && (
         <SignDialog
+          pdf={pdf}
+          currentPage={currentPage}
           fileFonts={fileFonts}
           onClose={() => setSigning(false)}
           onError={(m) => notify(m, true)}

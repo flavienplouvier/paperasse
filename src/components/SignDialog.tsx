@@ -4,6 +4,7 @@ import { DrawPad, clearPad, importSignature, renderScript, trimToPng } from "./D
 import { currentLocale, msg, t, tn, useLocale } from "../i18n";
 import { DEFAULT_FONT_KEY, ensureCssFont, getFont } from "../lib/fonts";
 import type { FileFont } from "../lib/fileFonts";
+import type { PDFDocumentProxy } from "../lib/pdfjs";
 import { FontSelect } from "./FontSelect";
 import { renderStamp } from "../lib/stamp";
 import { newId } from "../lib/types";
@@ -87,6 +88,9 @@ export async function toPart(item: SignItem, date?: string, docFont = DEFAULT_FO
 }
 
 interface Props {
+  /** Document ouvert et page affichée : aperçu de la paraphe sur toutes les pages. */
+  pdf: PDFDocumentProxy | null;
+  currentPage: number;
   /** Polices du document ouvert : la première sert de police par défaut à l'identité. */
   fileFonts: FileFont[];
   onPlace: (parts: PlacePart[]) => void;
@@ -97,7 +101,7 @@ interface Props {
   onInfo: (msg: string) => void;
 }
 
-export function SignDialog({ fileFonts, onPlace, onInitialsEverywhere, onClose, onError, onInfo }: Props) {
+export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEverywhere, onClose, onError, onInfo }: Props) {
   const docFont = fileFonts[0]?.key ?? DEFAULT_FONT_KEY;
   useLocale();
   const [items, setItems] = useState<SignItem[]>([]);
@@ -113,6 +117,11 @@ export function SignDialog({ fileFonts, onPlace, onInitialsEverywhere, onClose, 
     }
   });
   const loadInput = useRef<HTMLInputElement>(null);
+  /** Paraphe sur toutes les pages, et sa taille en % (retenues). */
+  const [allPages, setAllPages] = useState(() => readPref("paperasse-paraphe-partout") === "1");
+  const [initialsScale, setInitialsScale] = useState(() => Number(readPref("paperasse-paraphe-taille")) || 100);
+  useEffect(() => writePref("paperasse-paraphe-partout", allPages ? "1" : "0"), [allPages]);
+  useEffect(() => writePref("paperasse-paraphe-taille", String(initialsScale)), [initialsScale]);
 
   useEffect(() => {
     listSignItems()
@@ -150,17 +159,23 @@ export function SignDialog({ fileFonts, onPlace, onInitialsEverywhere, onClose, 
     setItems((l) => l.filter((i) => i.id !== item.id));
   };
 
+  const chosenInitials = items.find((i) => i.kind === "initials" && chosen.initials === i.id);
+  const everywhere = allPages && !!chosenInitials;
+
+  /** Paraphe à la taille réglée. */
+  const scaled = (part: PlacePart): PlacePart =>
+    part.type === "image" ? { ...part, width: (part.width * initialsScale) / 100, height: (part.height * initialsScale) / 100 } : part;
+
   const place = async () => {
     try {
-      onPlace(await Promise.all(selection.map((i) => toPart(i, signDate, docFont))));
+      // Paraphe sur toutes les pages tout de suite ; le reste se pose d'un appui sur la page.
+      const rest = everywhere ? selection.filter((i) => i.kind !== "initials") : selection;
+      if (everywhere) onInitialsEverywhere(scaled(await toPart(chosenInitials, signDate, docFont)));
+      if (rest.length) onPlace(await Promise.all(rest.map((i) => toPart(i, signDate, docFont))));
+      else if (!everywhere) onClose();
     } catch (e) {
       onError((e as Error).message);
     }
-  };
-
-  const initialsEverywhere = async () => {
-    const item = items.find((i) => i.kind === "initials" && chosen.initials === i.id);
-    if (item) onInitialsEverywhere(await toPart(item, signDate, docFont));
   };
 
   const download = () => {
@@ -255,19 +270,37 @@ export function SignDialog({ fileFonts, onPlace, onInitialsEverywhere, onClose, 
                 <button onClick={() => setEditing(true)}>
                   <Icon name="plus" size={18} /> {t("Nouveau")}
                 </button>
-                {tab === "initials" && (
-                  <button disabled={!chosen.initials || !ofTab.some((i) => i.id === chosen.initials)} onClick={initialsEverywhere}>
-                    <Icon name="pages" size={18} /> {t("Parapher toutes les pages")}
-                  </button>
-                )}
               </div>
+              {tab === "initials" && chosenInitials && (
+                <div className="initials-all">
+                  <label className="check">
+                    <input type="checkbox" checked={allPages} onChange={(e) => setAllPages(e.target.checked)} />
+                    {t("Parapher toutes les pages")}
+                  </label>
+                  {allPages && (
+                    <>
+                      <label className="field">
+                        <span>{t("Taille : {n} %", { n: initialsScale })}</span>
+                        <input type="range" min={30} max={200} step={5} value={initialsScale} onChange={(e) => setInitialsScale(+e.target.value)} />
+                      </label>
+                      {pdf && chosenInitials.dataUrl && (
+                        <InitialsPreview pdf={pdf} page={currentPage} dataUrl={chosenInitials.dataUrl} widthPt={(WIDTH.initials * initialsScale) / 100} />
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
 
         <footer className="sign-foot">
           <span className="sign-summary">
-            {selection.length ? selection.map((i) => t(TABS.find((x) => x.kind === i.kind)!.label)).join(" + ") : t("Cochez ce que vous voulez placer.")}
+            {selection.length
+              ? selection
+                  .map((i) => (i.kind === "initials" && everywhere ? t("Paraphe (toutes les pages)") : t(TABS.find((x) => x.kind === i.kind)!.label)))
+                  .join(" + ")
+              : t("Cochez ce que vous voulez placer.")}
           </span>
           <button className="primary" disabled={!selection.length || editing} onClick={place}>
             {t("Placer")}
@@ -279,6 +312,56 @@ export function SignDialog({ fileFonts, onPlace, onInitialsEverywhere, onClose, 
 }
 
 // ------------------------------------------------------------------ aperçu
+
+function readPref(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writePref(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* navigation privée */
+  }
+}
+
+/** Page affichée en miniature, paraphe en bas à droite à la taille réglée (marge de 28 pt, comme à la pose). */
+function InitialsPreview({ pdf, page, dataUrl, widthPt }: { pdf: PDFDocumentProxy; page: number; dataUrl: string; widthPt: number }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [scale, setScale] = useState(0);
+  useEffect(() => {
+    let task: { cancel: () => void; promise: Promise<unknown> } | null = null;
+    let alive = true;
+    (async () => {
+      const p = await pdf.getPage(Math.min(page, pdf.numPages - 1) + 1);
+      const base = p.getViewport({ scale: 1 });
+      const s = Math.min(240 / base.width, 320 / base.height);
+      const vp = p.getViewport({ scale: s * (window.devicePixelRatio || 1) });
+      const c = canvas.current;
+      if (!alive || !c) return;
+      c.width = vp.width;
+      c.height = vp.height;
+      c.style.width = `${base.width * s}px`;
+      c.style.height = `${base.height * s}px`;
+      task = p.render({ canvas: c, viewport: vp });
+      await task.promise.catch(() => undefined);
+      if (alive) setScale(s);
+    })().catch(() => undefined);
+    return () => {
+      alive = false;
+      task?.cancel();
+    };
+  }, [pdf, page]);
+  return (
+    <div className="initials-preview">
+      <canvas ref={canvas} />
+      {scale > 0 && <img src={dataUrl} alt="" style={{ width: widthPt * scale, right: 28 * scale, bottom: 28 * scale }} />}
+    </div>
+  );
+}
 
 function Preview({ item, date, docFont }: { item: SignItem; date: string; docFont: string }) {
   return (

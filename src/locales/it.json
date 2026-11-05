@@ -502,5 +502,7 @@
   "Nom (facultatif), ex. Pro": "Nome (facoltativo), es. Lavoro",
   "Nom de l'élément": "Nome dell'elemento",
   "Ajouter « Fait à …, le »": "Aggiungi «…, lì»",
-  "Choisir une police": "Scegli un font"
+  "Choisir une police": "Scegli un font",
+  "Paraphe (toutes les pages)": "Sigla (tutte le pagine)",
+  "Taille : {n} %": "Dimensione: {n}%"
 }

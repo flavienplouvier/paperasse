@@ -502,5 +502,7 @@
   "Nom (facultatif), ex. Pro": "Name (optional), z. B. Beruflich",
   "Nom de l'élément": "Name des Elements",
   "Ajouter « Fait à …, le »": "„…, den“ hinzufügen",
-  "Choisir une police": "Schrift wählen"
+  "Choisir une police": "Schrift wählen",
+  "Paraphe (toutes les pages)": "Paraphe (alle Seiten)",
+  "Taille : {n} %": "Größe: {n} %"
 }

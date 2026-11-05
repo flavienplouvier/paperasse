@@ -2306,3 +2306,22 @@ kbd {
 .font-select-pop .font-list {
   max-height: 240px;
 }
+.initials-all {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.initials-preview {
+  position: relative;
+  align-self: center;
+  line-height: 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+.initials-preview img {
+  position: absolute;
+  height: auto;
+  outline: 1px dashed var(--accent);
+}

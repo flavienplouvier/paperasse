@@ -502,5 +502,7 @@
   "Nom (facultatif), ex. Pro": "名称（可选），如：工作",
   "Nom de l'élément": "项目名称",
   "Ajouter « Fait à …, le »": "添加“签于……，日期”",
-  "Choisir une police": "选择字体"
+  "Choisir une police": "选择字体",
+  "Paraphe (toutes les pages)": "简签（所有页面）",
+  "Taille : {n} %": "大小：{n}%"
 }

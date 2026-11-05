@@ -502,5 +502,7 @@
   "Nom (facultatif), ex. Pro": "Name (optional), e.g. Work",
   "Nom de l'élément": "Item name",
   "Ajouter « Fait à …, le »": "Add “Signed in …, on”",
-  "Choisir une police": "Choose a font"
+  "Choisir une police": "Choose a font",
+  "Paraphe (toutes les pages)": "Initials (all pages)",
+  "Taille : {n} %": "Size: {n}%"
 }

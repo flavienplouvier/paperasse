@@ -502,5 +502,7 @@
   "Nom (facultatif), ex. Pro": "Nombre (opcional), p. ej. Trabajo",
   "Nom de l'élément": "Nombre del elemento",
   "Ajouter « Fait à …, le »": "Añadir «En …, a»",
-  "Choisir une police": "Elegir una fuente"
+  "Choisir une police": "Elegir una fuente",
+  "Paraphe (toutes les pages)": "Rúbrica (todas las páginas)",
+  "Taille : {n} %": "Tamaño: {n} %"
 }
