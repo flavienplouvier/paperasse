@@ -345,6 +345,37 @@ export interface OriginalLine {
   w: number;
 }
 
+/**
+ * Mise en page d'un texte : bloc (remis en page dans sa largeur) ou texte libre
+ * (une ligne par retour à la ligne, alignées sur la plus longue).
+ */
+export function layoutFor(
+  a: { text: string; align?: Align; box?: { width: number; align: Align; from?: Align; original?: OriginalLine[] } },
+  measure: (s: string, offset: number) => number,
+): LaidLine[] {
+  if (a.box) {
+    // Lignes d'origine gardées à l'identique tant que l'alignement d'origine est conservé.
+    const keep = (a.box.from ?? a.box.align) === a.box.align;
+    return layoutText(a.text, a.box.width, a.box.align, measure, keep ? a.box.original : undefined);
+  }
+  let start = 0;
+  const lines = a.text.split(/\r?\n/).map((text) => {
+    const l: LaidLine = { text, start, x: 0, wordSpacing: 0, width: text ? measure(text, start) : 0 };
+    start += text.length + 1;
+    return l;
+  });
+  const align = a.align ?? "left";
+  if (align === "left") return lines;
+  const max = Math.max(0, ...lines.map((l) => l.width));
+  return lines.map((l, i) => {
+    const free = max - l.width;
+    if (align !== "justify") return { ...l, x: align === "center" ? free / 2 : free };
+    // Justifié : toutes les lignes à la largeur de la plus longue, sauf la dernière.
+    const spaces = l.text.trim().split(/ +/).length - 1;
+    return i < lines.length - 1 && spaces > 0 && free > 0 && l.text === l.text.trim() ? { ...l, wordSpacing: free / spaces, width: max } : l;
+  });
+}
+
 export function layoutText(
   text: string,
   maxWidth: number,

@@ -94,6 +94,8 @@ export interface TextAnnotation extends AnnotationBase {
   underline?: boolean;
   /** Texte barré. */
   strike?: boolean;
+  /** Alignement des lignes d'un texte sans bloc (sur la plus longue ligne). */
+  align?: "left" | "center" | "right" | "justify";
   /** Surlignage : couleur de fond derrière chaque ligne. */
   highlight?: string;
   /**
@@ -103,6 +105,8 @@ export interface TextAnnotation extends AnnotationBase {
   box?: {
     width: number;
     align: "left" | "center" | "right" | "justify";
+    /** Alignement détecté dans le PDF : les lignes d'origine ne restent à l'identique que s'il est conservé. */
+    from?: "left" | "center" | "right" | "justify";
     lineHeight: number;
     /** Nombre de lignes du bloc d'origine : au-delà, le texte déborde sur ce qui suit. */
     lines?: number;

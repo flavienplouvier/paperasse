@@ -534,5 +534,9 @@
   "Ajuster pour tenir": "Passend maken",
   "Le texte dépasse d'une ligne la place d'origine.": "De tekst loopt één regel buiten de oorspronkelijke ruimte.",
   "Recoller les lignes": "Regels samenvoegen",
-  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Voegt de regels van een alinea samen, zoals in een tekstverwerker"
+  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Voegt de regels van een alinea samen, zoals in een tekstverwerker",
+  "Aligné à droite": "Rechts uitlijnen",
+  "Aligné à gauche": "Links uitlijnen",
+  "Centré": "Gecentreerd",
+  "Justifié": "Uitgevuld"
 }

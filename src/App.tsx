@@ -175,6 +175,7 @@ export default function App() {
     fontSize: 14,
     underline: false,
     strike: false,
+    align: "left",
     highlight: null,
     fieldType: "text",
     shape: "rect",

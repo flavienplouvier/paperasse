@@ -534,5 +534,9 @@
   "Ajuster pour tenir": "Shrink to fit",
   "Le texte dépasse d'une ligne la place d'origine.": "The text runs one line past its original space.",
   "Recoller les lignes": "Rejoin lines",
-  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Joins the lines of each paragraph, as in a word processor"
+  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Joins the lines of each paragraph, as in a word processor",
+  "Aligné à droite": "Align right",
+  "Aligné à gauche": "Align left",
+  "Centré": "Centered",
+  "Justifié": "Justified"
 }

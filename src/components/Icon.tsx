@@ -59,6 +59,10 @@ const PATHS: Record<string, string> = {
   flashOff: "M13 2l-3.5 5.2 M7.7 10L5 14h6l-1 8 4.2-6.3 M15.5 12.4L18 10h-6l1-3.4 M3 3l18 18",
   crop: "M6 2v16h16 M2 6h16v16",
   check: "M5 12.5l4.5 4.5L19 7",
+  alignLeft: "M4 6h16 M4 10h10 M4 14h16 M4 18h10",
+  alignCenter: "M4 6h16 M7 10h10 M4 14h16 M7 18h10",
+  alignRight: "M4 6h16 M10 10h10 M4 14h16 M10 18h10",
+  alignJustify: "M4 6h16 M4 10h16 M4 14h16 M4 18h16",
   swap: "M7 4L3 8l4 4 M3 8h14 M17 12l4 4-4 4 M21 16H7",
 };
 

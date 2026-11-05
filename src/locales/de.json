@@ -534,5 +534,9 @@
   "Ajuster pour tenir": "Anpassen",
   "Le texte dépasse d'une ligne la place d'origine.": "Der Text ist eine Zeile länger als der ursprüngliche Platz.",
   "Recoller les lignes": "Zeilen zusammenführen",
-  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Führt die Zeilen eines Absatzes zusammen, wie in einer Textverarbeitung"
+  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Führt die Zeilen eines Absatzes zusammen, wie in einer Textverarbeitung",
+  "Aligné à droite": "Rechtsbündig",
+  "Aligné à gauche": "Linksbündig",
+  "Centré": "Zentriert",
+  "Justifié": "Blocksatz"
 }

@@ -534,5 +534,9 @@
   "Ajuster pour tenir": "Ajustar para que quepa",
   "Le texte dépasse d'une ligne la place d'origine.": "El texto sobrepasa en una línea el espacio original.",
   "Recoller les lignes": "Unir las líneas",
-  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Une las líneas de cada párrafo, como en un procesador de textos"
+  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Une las líneas de cada párrafo, como en un procesador de textos",
+  "Aligné à droite": "Alineado a la derecha",
+  "Aligné à gauche": "Alineado a la izquierda",
+  "Centré": "Centrado",
+  "Justifié": "Justificado"
 }

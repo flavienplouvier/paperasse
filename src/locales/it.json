@@ -534,5 +534,9 @@
   "Ajuster pour tenir": "Adatta",
   "Le texte dépasse d'une ligne la place d'origine.": "Il testo supera di una riga lo spazio originale.",
   "Recoller les lignes": "Ricongiungi le righe",
-  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Ricongiunge le righe di ogni paragrafo, come in un elaboratore di testi"
+  "Recolle les lignes d'un même paragraphe, comme dans un traitement de texte": "Ricongiunge le righe di ogni paragrafo, come in un elaboratore di testi",
+  "Aligné à droite": "Allineato a destra",
+  "Aligné à gauche": "Allineato a sinistra",
+  "Centré": "Centrato",
+  "Justifié": "Giustificato"
 }

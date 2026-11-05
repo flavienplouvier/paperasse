@@ -3,7 +3,7 @@ import type { Annotation, Tool } from "../lib/types";
 import type { FileFont } from "../lib/fileFonts";
 import { getFont, styleVariant } from "../lib/fonts";
 import type { ToolStyle } from "./PageView";
-import { COLORS, TEXT_HIGHLIGHTS, applyStyle, currentStyle } from "./PropertiesPanel";
+import { COLORS, TEXT_ALIGNS, TEXT_HIGHLIGHTS, applyStyle, currentStyle } from "./PropertiesPanel";
 import { FontPicker, useFonts } from "./FontPicker";
 import { Icon } from "./Icon";
 import { msg, t, useLocale } from "../i18n";
@@ -170,6 +170,12 @@ export function MobileBar(props: Props) {
     { key: "italic", label: t("Italique"), glyph: t("I"), glyphStyle: { fontStyle: "italic", fontFamily: "Georgia, serif" }, active: !!font.italic, disabled: !italicKey, onClick: () => italicKey && set({ fontKey: italicKey }) },
     { key: "underline", label: t("Souligné"), glyph: t("S"), glyphStyle: { textDecoration: "underline" }, active: v.underline, onClick: () => set({ underline: !v.underline }) },
     { key: "strike", label: t("Barré"), glyph: "ab", glyphStyle: { textDecoration: "line-through" }, active: v.strike, onClick: () => set({ strike: !v.strike }) },
+    (() => {
+      // Un seul bouton : chaque appui passe à l'alignement suivant.
+      const i = Math.max(0, TEXT_ALIGNS.findIndex((al) => al.id === v.align));
+      const next = TEXT_ALIGNS[(i + 1) % TEXT_ALIGNS.length];
+      return { key: "align", label: t(TEXT_ALIGNS[i].label), icon: TEXT_ALIGNS[i].icon, active: v.align !== "left", onClick: () => set({ align: next.id }) };
+    })(),
     { key: "highlight", label: t("Surligner"), swatch: v.highlight ?? "transparent", active: sheet === "highlight" || !!v.highlight, onClick: () => toggle("highlight") },
   ];
   const settings = (k: Tool | Annotation["kind"]): Item[] => {

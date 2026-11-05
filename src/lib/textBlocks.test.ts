@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Rule } from "./rules";
-import { blockAt, blocksOf, layoutText, reflowText, shiftStyles, stylesFromFonts, type Piece } from "./textBlocks";
+import { blockAt, blocksOf, layoutFor, layoutText, reflowText, shiftStyles, stylesFromFonts, type Piece } from "./textBlocks";
 
 const piece = (str: string, x: number, y: number, width: number, fontSize = 18, fontName = "f1"): Piece => ({ str, baseline: [x, y], width, fontSize, fontName, angle: 0 });
 
@@ -173,6 +173,23 @@ describe("mise en page", () => {
       { text: "ab", start: 0, x: 40, wordSpacing: 0, width: 20 },
       { text: "cd", start: 3, x: 40, wordSpacing: 0, width: 20 },
     ]);
+  });
+
+  it("aligne un texte libre sur sa plus longue ligne", () => {
+    const text = "aa bb cc\ndd ee\nf";
+    expect(layoutFor({ text }, measure).map((l) => l.x)).toEqual([0, 0, 0]);
+    expect(layoutFor({ text, align: "center" }, measure).map((l) => l.x)).toEqual([0, 15, 35]);
+    expect(layoutFor({ text, align: "right" }, measure).map((l) => l.x)).toEqual([0, 30, 70]);
+    const just = layoutFor({ text, align: "justify" }, measure);
+    expect(just.map((l) => l.width)).toEqual([80, 80, 10]);
+    expect(just[1].wordSpacing).toBe(30);
+  });
+
+  it("un bloc dont on change l'alignement abandonne les positions d'origine", () => {
+    const box = { width: 100, align: "left" as const, original: [{ text: "ab", x: 3, w: 22 }] };
+    expect(layoutFor({ text: "ab", box }, measure)[0].x).toBe(3);
+    expect(layoutFor({ text: "ab", box: { ...box, align: "right", from: "left" } }, measure)[0].x).toBe(80);
+    expect(layoutFor({ text: "ab", box: { ...box, align: "left", from: "left" } }, measure)[0].x).toBe(3);
   });
 
   it("coupe un mot plus large que la ligne", () => {

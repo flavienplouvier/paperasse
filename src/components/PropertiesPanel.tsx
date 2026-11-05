@@ -43,6 +43,12 @@ export function applyStyle(
   if (selected) {
     const next = { ...selected } as Record<string, unknown>;
     for (const [k, v] of Object.entries(patch)) {
+      if (k === "align" && selected.kind === "text") {
+        // Bloc : remis en page avec ce nouvel alignement (l'alignement d'origine est retenu).
+        if (selected.box) next.box = { ...selected.box, align: v, from: selected.box.from ?? selected.box.align };
+        else next.align = v === "left" ? undefined : v;
+        continue;
+      }
       if (k in selected || (["underline", "strike", "highlight"].includes(k) && selected.kind === "text")) next[k] = v ?? undefined;
     }
     if (text !== undefined) next.text = text;
@@ -57,6 +63,14 @@ export function applyStyle(
   }
 }
 
+/** Alignements du texte (boutons du panneau, bouton tournant de la barre mobile). */
+export const TEXT_ALIGNS = [
+  { id: "left", label: msg("Aligné à gauche"), icon: "alignLeft" },
+  { id: "center", label: msg("Centré"), icon: "alignCenter" },
+  { id: "right", label: msg("Aligné à droite"), icon: "alignRight" },
+  { id: "justify", label: msg("Justifié"), icon: "alignJustify" },
+] as const;
+
 /** Valeurs affichées : celles de l'élément sélectionné, sinon celles de l'outil. */
 export function currentStyle(selected: Annotation | null, style: ToolStyle) {
   return {
@@ -68,6 +82,7 @@ export function currentStyle(selected: Annotation | null, style: ToolStyle) {
     fontSize: selected?.kind === "text" ? selected.fontSize : style.fontSize,
     underline: selected?.kind === "text" ? !!selected.underline : style.underline,
     strike: selected?.kind === "text" ? !!selected.strike : style.strike,
+    align: selected?.kind === "text" ? (selected.box?.align ?? selected.align ?? "left") : style.align,
     highlight: selected?.kind === "text" ? (selected.highlight ?? null) : style.highlight,
   };
 }
@@ -250,6 +265,13 @@ export function PropertiesPanel({
             <button className={v.strike ? "active" : ""} title={t("Barré")} onClick={() => set({ strike: !v.strike })}>
               <span style={{ textDecoration: "line-through" }}>ab</span>
             </button>
+          </div>
+          <div className="format-row" role="radiogroup" aria-label={t("Alignement")}>
+            {TEXT_ALIGNS.map((al) => (
+              <button key={al.id} role="radio" aria-checked={v.align === al.id} className={v.align === al.id ? "active" : ""} title={t(al.label)} aria-label={t(al.label)} onClick={() => set({ align: al.id })}>
+                <Icon name={al.icon} size={18} />
+              </button>
+            ))}
           </div>
           <div className="field">
             {t("Surligner")}

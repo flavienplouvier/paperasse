@@ -13,7 +13,7 @@ import { t, tn, useLocale } from "../i18n";
 import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
 import { extractRules, type Rule } from "../lib/rules";
-import { blockAt, blocksOf, fontIndexAt, layoutText, reflowText, shiftStyles, type TextBlock } from "../lib/textBlocks";
+import { layoutFor, blockAt, blocksOf, fontIndexAt, reflowText, shiftStyles, type TextBlock } from "../lib/textBlocks";
 import { embeddedTextWidth, type EmbeddedFont } from "../lib/embeddedFonts";
 
 export interface ToolStyle {
@@ -25,6 +25,8 @@ export interface ToolStyle {
   fontSize: number;
   underline: boolean;
   strike: boolean;
+  /** Alignement du texte ajouté. */
+  align: "left" | "center" | "right" | "justify";
   /** Surlignage du texte ajouté (couleur), null = aucun. */
   highlight: string | null;
   fieldType: FieldType;
@@ -318,6 +320,7 @@ function PageViewImpl(props: Props) {
           rotation,
           underline: style.underline || undefined,
           strike: style.strike || undefined,
+          ...(style.align !== "left" ? { align: style.align } : {}),
           ...(style.highlight ? { highlight: style.highlight } : {}),
         });
         props.onFocusText();
@@ -525,14 +528,7 @@ function PageViewImpl(props: Props) {
     const spaces = (str: string) => str.split(" ").length - 1;
     const measure = (str: string, offset: number) =>
       (a.styles?.length ? runsOf(str, offset).reduce((w, r) => w + ctx(r.font).measure(r.text), 0) : main.measure(str)) + spaceFix * spaces(str);
-    let start = 0;
-    const laid = a.box
-      ? layoutText(a.text, a.box.width, a.box.align, measure, a.box.original)
-      : a.text.split(/\r?\n/).map((line) => {
-          const l = { text: line, start, x: 0, wordSpacing: 0, width: line ? measure(line, start) : 0 };
-          start += line.length + 1;
-          return l;
-        });
+    const laid = layoutFor(a, measure);
     return { ...main, laid, ctx, runsOf, spaceFix, measure };
   };
 

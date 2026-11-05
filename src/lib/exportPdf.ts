@@ -12,7 +12,7 @@ import {
 } from "pdf-lib";
 import { compatFontkit, withPreferredFont } from "./fontkitCompat";
 import { drawEmbeddedText, embeddedTextWidth, missingChars } from "./embeddedFonts";
-import { fontIndexAt, layoutText } from "./textBlocks";
+import { fontIndexAt, layoutFor } from "./textBlocks";
 import { createFormField } from "./formFields";
 import { removeTextInRects } from "./removeText";
 import { curvePoints, rectCenter } from "./annotations";
@@ -85,7 +85,8 @@ async function drawTextAnnotation(doc: PDFDocument, page: PDFPage, a: TextAnnota
  * (gras, lien, symbole…) sur chaque ligne, par mot sur une ligne justifiée.
  */
 export async function blockParts(a: TextAnnotation, loadFont: (key: string) => Promise<PDFFont>): Promise<TextAnnotation[]> {
-  const box = a.box!;
+  // Texte libre aligné : lignes alignées sur la plus longue (pas de largeur imposée).
+  const box = a.box ?? { width: 0, align: a.align ?? "left", lineHeight: a.fontSize * LINE_HEIGHT, space: undefined };
   const styles = a.styles ?? [];
   const at = (i: number) => fontIndexAt(styles, i);
   const styleOf = (k: number) => (k >= 0 && a.fonts?.[k]) || { fontKey: a.fontKey, embedded: a.embedded };
@@ -121,8 +122,8 @@ export async function blockParts(a: TextAnnotation, loadFont: (key: string) => P
     runsOf(str, offset).reduce((w, r) => w + (box.space !== undefined ? widthOf(r.font, r.text.replace(/ /g, "")) + (r.text.split(" ").length - 1) * box.space : widthOf(r.font, r.text)), 0);
   const { right, down } = screenAxes(a.rotation);
   const parts: TextAnnotation[] = [];
-  const base = { ...a, box: undefined, styles: undefined, fonts: undefined };
-  layoutText(a.text, box.width, box.align, measure, box.original).forEach((l, i) => {
+  const base = { ...a, box: undefined, align: undefined, styles: undefined, fonts: undefined };
+  layoutFor(a, measure).forEach((l, i) => {
     if (!l.text) return;
     const start = addScaled(addScaled(a.origin, down, i * box.lineHeight), right, l.x);
     let x = 0;
@@ -291,7 +292,7 @@ async function drawAnnotationBase(doc: PDFDocument, page: PDFPage, a: Annotation
       return;
     }
     case "text":
-      if (a.box) {
+      if (a.box || (a.align && a.align !== "left")) {
         // Bloc : remis en page dans sa largeur, puis écrit ligne par ligne (mot par mot si justifié).
         for (const part of await blockParts(a, (key) => fonts.get(key))) await drawTextAnnotation(doc, page, part, fonts);
         return;
