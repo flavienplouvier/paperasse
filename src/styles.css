@@ -1879,7 +1879,10 @@ kbd {
   border-radius: 10px;
   background: var(--surface-2);
   font-size: 14px;
-  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+.nowrap {
+  white-space: nowrap;
 }
 
 .banner-actions {
@@ -1888,14 +1891,20 @@ kbd {
   gap: 8px;
 }
 .name-switches {
+  flex-wrap: nowrap;
   gap: 8px;
 }
 .switch-btn {
+  flex: 1 1 0;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 5px;
   min-height: 36px;
-  padding: 0 12px;
+  padding: 0 8px;
   border-radius: 18px;
+  font-size: 13px;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }

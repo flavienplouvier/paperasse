@@ -69,10 +69,14 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props
         )}
         <label className="check">
           <input type="checkbox" checked={prefs.underscores} onChange={(e) => change({ underscores: e.target.checked })} />
-          Remplacer les espaces par des « _ »
+          Remplacer les espaces par « _ »
         </label>
         <p className="file-name-preview" aria-live="polite">
-          <Icon name="pages" size={16} /> <span>{fileName}</span>
+          <Icon name="pages" size={16} />{" "}
+          <span>
+            {fileName.slice(0, -4)}
+            <span className="nowrap">.pdf</span>
+          </span>
         </p>
         <div className="modal-row modal-actions">
           <span className="spacer" />
