@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "./Icon";
-import { buildFileName, formatDate, isoDate, loadNamePrefs, saveNamePrefs, type NamePrefs } from "../lib/fileName";
+import { buildFileName, findDate, formatDate, isoDate, loadNamePrefs, saveNamePrefs, type NamePrefs } from "../lib/fileName";
 
 interface Props {
   /** Nom proposé (sans date ni extension). */
@@ -19,8 +19,33 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props
   const [withDate, setWithDate] = useState(date !== null);
   const [day, setDay] = useState(date ?? isoDate());
   const [prefs, setPrefs] = useState<NamePrefs>(loadNamePrefs);
+  /** Nom d'origine et nom sans sa date, quand la date du nom a été retirée pour la remplacer. */
+  const [replaced, setReplaced] = useState<{ original: string; rest: string } | null>(null);
+  /** Date déjà écrite dans le nom (« Facture_2025-03-01 ») : elle peut être remplacée. */
+  const found = withDate ? null : findDate(name);
   const chosenDate = withDate && day ? day : null;
   const fileName = buildFileName({ base: name, date: chosenDate, ...prefs });
+
+  const toggleDate = (on: boolean) => {
+    if (on && found) {
+      // La date du nom est retirée ; la nouvelle reprend son format, sa place et son séparateur.
+      setReplaced({ original: name, rest: found.rest });
+      setName(found.rest);
+      setPrefs((p) => ({
+        ...p,
+        format: found.format,
+        position: found.position,
+        ...(found.underscores !== null ? { underscores: found.underscores } : {}),
+      }));
+      setDay(isoDate());
+    }
+    if (!on && replaced) {
+      // Nom non retouché depuis : on remet l'ancienne date.
+      if (name === replaced.rest) setName(replaced.original);
+      setReplaced(null);
+    }
+    setWithDate(on);
+  };
 
   const change = (patch: Partial<NamePrefs>) => {
     const next = { ...prefs, ...patch };
@@ -52,8 +77,8 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props
         </label>
         <div className="modal-row">
           <label className="check">
-            <input type="checkbox" checked={withDate} onChange={(e) => setWithDate(e.target.checked)} />
-            Ajouter une date
+            <input type="checkbox" checked={withDate} onChange={(e) => toggleDate(e.target.checked)} />
+            {found || replaced ? "Remplacer la date" : "Ajouter une date"}
           </label>
           <input type="date" value={day} disabled={!withDate} aria-label="Date" onChange={(e) => setDay(e.target.value)} />
         </div>

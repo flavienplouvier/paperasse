@@ -72,3 +72,52 @@ export function saveNamePrefs(prefs: NamePrefs): void {
     /* navigation privée */
   }
 }
+
+export interface FoundDate {
+  /** Date trouvée, au format AAAA-MM-JJ. */
+  date: string;
+  format: DateFormat;
+  position: DatePosition;
+  /** Séparateur entre la date et le nom : « _ » ou espace (null pour « - » ou rien). */
+  underscores: boolean | null;
+  /** Nom sans la date. */
+  rest: string;
+}
+
+const ISO = "(\\d{4})[-_.](\\d{2})[-_.](\\d{2})";
+const FR = "(\\d{2})[-_.](\\d{2})[-_.](\\d{4})";
+
+function validDate(y: string, m: string, d: string): string | null {
+  const mm = +m, dd = +d, yy = +y;
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31 || yy < 1900 || yy > 2199) return null;
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Date en tête ou en fin de nom (« Facture_EDF_2026-11-05 », « 05-11-2026 Facture ») :
+ * renvoie la date, son format, sa position et le nom sans elle.
+ */
+export function findDate(name: string): FoundDate | null {
+  const stem = name.replace(/\.pdf$/i, "").trim();
+  for (const [format, pattern] of [
+    ["iso", ISO],
+    ["fr", FR],
+  ] as const) {
+    const end = new RegExp(`^(.*?)([ _-]*)${pattern}$`).exec(stem);
+    const start = new RegExp(`^${pattern}([ _-]*)(.*)$`).exec(stem);
+    for (const [m, position] of [
+      [end, "end"],
+      [start, "start"],
+    ] as const) {
+      if (!m) continue;
+      const [rest, sep, a, b, c] = position === "end" ? [m[1], m[2], m[3], m[4], m[5]] : [m[5], m[4], m[1], m[2], m[3]];
+      // Une date collée à du texte (« ref20261105 ») n'en est probablement pas une.
+      if (rest && !sep) continue;
+      const date = format === "iso" ? validDate(a, b, c) : validDate(c, b, a);
+      if (!date) continue;
+      const s = sep.trim() ? sep.trim()[0] : sep ? " " : "";
+      return { date, format, position: rest ? position : "end", underscores: s === "_" ? true : s === " " ? false : null, rest: rest.trim() };
+    }
+  }
+  return null;
+}

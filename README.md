@@ -95,7 +95,9 @@ rien n'est envoyé sur un serveur.
 - Nom du fichier choisi à chaque enregistrement ou partage, avec une date
   facultative : format `2026-11-05` ou `05-11-2026`, au début ou à la fin du nom,
   espaces remplacés ou non par des « _ » (`Facture_EDF_2026-11-05.pdf`). Les
-  réglages sont retenus d'une fois sur l'autre.
+  réglages sont retenus d'une fois sur l'autre. Si le nom contient déjà une date
+  (au début ou à la fin), elle peut être remplacée : la nouvelle reprend son
+  format, sa place et son séparateur.
 
 ## Démarrer
 
