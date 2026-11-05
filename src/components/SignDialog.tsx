@@ -7,7 +7,8 @@ import type { FileFont } from "../lib/fileFonts";
 import type { PDFDocumentProxy } from "../lib/pdfjs";
 import type { Annotation } from "../lib/types";
 import { FontSelect } from "./FontSelect";
-import { renderStamp } from "../lib/stamp";
+import { renderStamp, renderStampSpec } from "../lib/stamp";
+import { stampSpecOf } from "./StampPanel";
 import { newId } from "../lib/types";
 import { addPickedColor, loadPickedColors, toHex } from "../lib/pickedColors";
 import { isoDate as isoToday } from "../lib/fileName";
@@ -43,7 +44,6 @@ const TABS: { kind: SignKind; label: string; icon: string }[] = [
   { kind: "initials", label: msg("Paraphe"), icon: "pen" },
   { kind: "mention", label: msg("Mention"), icon: "text" },
   { kind: "identity", label: msg("Identité"), icon: "form" },
-  { kind: "stamp", label: msg("Tampon"), icon: "stamp" },
 ];
 
 const INK = ["#1a2b6d", "#000000", "#0b6b3a", "#b3261e"];
@@ -90,7 +90,8 @@ export async function toPart(item: SignItem, date?: string, docFont = DEFAULT_FO
     await ensureCssFont(fontKey).catch(() => undefined);
     return { type: "text", text: identityText(item, date), fontKey, fontSize: 11, color: item.color ?? "#000000" };
   }
-  const dataUrl = item.stamp ? renderStamp(item.stamp.label, item.stamp.color, item.stamp.withDate) : item.dataUrl!;
+  const spec = item.kind === "stamp" ? stampSpecOf(item) : null;
+  const dataUrl = spec ? renderStampSpec(spec) : item.dataUrl!;
   const { w, h } = await imageSize(dataUrl);
   const width = WIDTH[item.kind];
   return { type: "image", dataUrl, width, height: (width * h) / w };
@@ -160,7 +161,8 @@ export function SignDialog({ pdf, currentPage, annotations, pageIds, fileFonts, 
   }, []);
 
   // Choix retenu d'une fois sur l'autre, en ignorant les éléments supprimés.
-  const selection = useMemo(() => sortForStack(items.filter((i) => chosen[i.kind]?.includes(i.id))), [items, chosen]);
+  // Les tampons ont leur propre outil : ils ne sont plus posés depuis « Signer ».
+  const selection = useMemo(() => sortForStack(items.filter((i) => i.kind !== "stamp" && chosen[i.kind]?.includes(i.id))), [items, chosen]);
   useEffect(() => {
     try {
       localStorage.setItem(CHOICE_KEY, JSON.stringify(chosen));
@@ -607,7 +609,7 @@ function Preview({ item, date, docFont }: { item: SignItem; date: string; docFon
 }
 
 function PreviewBody({ item, date, docFont }: { item: SignItem; date: string; docFont: string }) {
-  const stampUrl = useMemo(() => (item.stamp ? renderStamp(item.stamp.label, item.stamp.color, item.stamp.withDate) : null), [item.stamp]);
+  const stampUrl = useMemo(() => (item.kind === "stamp" && item.stamp ? renderStampSpec(stampSpecOf(item)!, 1) : null), [item]);
   const [mentionFont, setMentionFont] = useState<string | undefined>();
   useEffect(() => {
     if (item.kind !== "mention" || !item.text) return;

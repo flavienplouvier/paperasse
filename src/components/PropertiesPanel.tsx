@@ -1,9 +1,8 @@
 import type { FileFont } from "../lib/fileFonts";
-import { useState } from "react";
 import type { Annotation, FieldAnnotation, FieldType, Tool } from "../lib/types";
 import { borrowedChars, missingChars } from "../lib/embeddedFonts";
 import { ensureCssFont, getFont, matchFont, styleVariant } from "../lib/fonts";
-import { STAMPS, renderStamp } from "../lib/stamp";
+import { StampPanel } from "./StampPanel";
 import { SHAPES, shapeDef, type ShapeId } from "../lib/shapes";
 import type { ToolStyle } from "./PageView";
 import { FontPicker, useFonts } from "./FontPicker";
@@ -19,40 +18,6 @@ function withStrong(text: string, value: string) {
       <strong>{value}</strong>
       {after}
     </>
-  );
-}
-
-/** Choix d'un tampon prédéfini ou personnalisé, avec date facultative. */
-function StampPicker({ onStamp }: { onStamp: (dataUrl: string) => void }) {
-  const [custom, setCustom] = useState("");
-  const [color, setColor] = useState("#c62828");
-  const [withDate, setWithDate] = useState(true);
-  useLocale();
-  return (
-    <div className="stamp-picker">
-      <div className="stamp-grid">
-        {STAMPS.map((s) => (
-          <button key={s.label} className="stamp-btn" style={{ color: s.color, borderColor: s.color }} onClick={() => onStamp(renderStamp(t(s.label), s.color, withDate))}>
-            {t(s.label)}
-          </button>
-        ))}
-      </div>
-      <label className="field inline">
-        <input type="checkbox" checked={withDate} onChange={(e) => setWithDate(e.target.checked)} />{" "}
-        {t("Ajouter la date du jour")}
-      </label>
-      <div className="field">
-        {t("Tampon personnalisé")}
-        <div className="search-row" style={{ padding: 0 }}>
-          <input value={custom} placeholder={t("Ex. : Bon pour accord")} onChange={(e) => setCustom(e.target.value)} />
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} aria-label={t("Couleur du tampon")} />
-          <button className="primary" disabled={!custom.trim()} onClick={() => onStamp(renderStamp(custom, color, withDate))}>
-            OK
-          </button>
-        </div>
-      </div>
-      <p className="hint">{t("Choisissez un tampon, puis touchez la page à l'endroit où le poser.")}</p>
-    </div>
   );
 }
 
@@ -327,7 +292,7 @@ export function PropertiesPanel({
         </label>
       )}
 
-      {tool === "stamp" && !selected && <StampPicker onStamp={onStamp} />}
+      {tool === "stamp" && !selected && <StampPanel onStamp={onStamp} onError={onError} />}
 
       {["ink", "highlight", "line", "arrow"].includes(tool) && !selected && (
         <div className="field">

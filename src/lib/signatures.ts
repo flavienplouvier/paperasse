@@ -29,8 +29,8 @@ export interface SignItem {
   city?: string;
   /** Identité : ajoute la ligne « Fait à …, le {date} ». */
   withDate?: boolean;
-  /** Tampon texte : libellé, couleur, date du jour. */
-  stamp?: { label: string; color: string; withDate: boolean };
+  /** Tampon : description complète (forme, textes, encre…) ; ancien format { label, color, withDate } accepté. */
+  stamp?: { color: string; withDate: boolean; label?: string; text?: string; [key: string]: unknown };
   color?: string;
 }
 

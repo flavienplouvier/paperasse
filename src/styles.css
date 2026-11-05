@@ -2415,3 +2415,92 @@ kbd {
     grid-row: 1 / span 2;
   }
 }
+
+/* ----------------------------------------------------------------- tampons */
+
+.stamp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.stamp-panel section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.stamp-panel h4 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.stamp-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.stamp-tile {
+  position: relative;
+}
+.stamp-tile > button {
+  width: 100%;
+  min-height: 64px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: #fff;
+  border-radius: 10px;
+}
+.stamp-tile img {
+  max-width: 100%;
+  max-height: 70px;
+  object-fit: contain;
+}
+.stamp-tile small {
+  font-size: 11px;
+  color: #555;
+}
+.stamp-tile-actions {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  flex-direction: column;
+}
+.stamp-tile-actions .icon-btn {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  color: #555;
+}
+.stamp-designer textarea {
+  resize: vertical;
+  font: inherit;
+}
+.stamp-logo {
+  max-height: 40px;
+  max-width: 80px;
+  object-fit: contain;
+}
+.stamp-preview {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+.stamp-preview img {
+  max-width: 100%;
+  max-height: 240px;
+}
+.stamp-name {
+  flex: 1;
+  min-width: 0;
+}

@@ -51,9 +51,12 @@ rien n'est envoyé sur un serveur.
 - Cache blanc : le texte qu'il recouvre est aussi retiré du fichier à
   l'enregistrement (il n'est plus copiable ni indexable). Les images et dessins
   sous le cache sont seulement recouverts.
-- Tampons (Approuvé, Payé, Reçu, Confidentiel… ou texte libre), avec date.
+- Tampons façon encre : modèles (Approuvé, Payé, Reçu, Confidentiel…) ou création
+  libre — rectangle (cadre simple ou double), rond avec texte sur le pourtour et
+  texte ou logo au centre, ovale — date du jour, couleur, police, encre plus ou
+  moins usée et inclinaison ; « Mes tampons » enregistrés sur l'appareil.
 - *Signer* : signatures, paraphes, mentions (« Lu et approuvé »…), identité
-  (nom, « Fait à …, le … ») et tampons, dessinés au doigt / au stylet, écrits
+  (nom, « Fait à …, le … »), dessinés au doigt / au stylet, écrits
   en police manuscrite ou importés d'une photo (fond blanc retiré). Ils sont
   enregistrés sur l'appareil pour être réutilisés ; on coche ce qu'on veut
   poser et un appui sur la page les place empilés, chacun dans son cadre.
