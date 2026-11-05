@@ -94,6 +94,8 @@ export interface TextAnnotation extends AnnotationBase {
   underline?: boolean;
   /** Texte barré. */
   strike?: boolean;
+  /** Centre de la rotation propre (`angle`), fixé au premier pivotement (espace PDF). */
+  pivot?: Point;
   /** Alignement des lignes d'un texte sans bloc (sur la plus longue ligne). */
   align?: "left" | "center" | "right" | "justify";
   /** Surlignage : couleur de fond derrière chaque ligne. */

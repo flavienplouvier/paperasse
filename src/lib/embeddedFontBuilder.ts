@@ -149,6 +149,13 @@ export async function buildEmbeddedFont(
     program = null;
   }
 
+  // Glyphe « absent » (carré barré) : pdf.js en recopie un pour les caractères manquants du sous-ensemble.
+  let notdef: string | null = null;
+  try {
+    notdef = program?.getGlyph(0)?.path?.toSVG() || null;
+  } catch {
+    notdef = null;
+  }
   const glyphs: EmbeddedFont["glyphs"] = {};
   for (const [code, text] of codes.map) {
     const chars = [...text];
@@ -161,6 +168,7 @@ export async function buildEmbeddedFont(
       // Les sous-ensembles gardent parfois des glyphes vides pour les caractères non utilisés.
       const commands = (glyph.path as unknown as { commands?: unknown[] } | undefined)?.commands;
       if (!/\s/.test(text) && !commands?.length) continue;
+      if (notdef && commands?.length && glyph.path.toSVG() === notdef) continue;
     }
     const width = lookup(font.widths, code) ?? font.defaultWidth;
     glyphs[text] = { code, display: String.fromCodePoint(fontChar), width };

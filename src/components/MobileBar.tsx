@@ -3,7 +3,7 @@ import type { Annotation, Tool } from "../lib/types";
 import type { FileFont } from "../lib/fileFonts";
 import { getFont, styleVariant } from "../lib/fonts";
 import type { ToolStyle } from "./PageView";
-import { COLORS, TEXT_ALIGNS, TEXT_HIGHLIGHTS, applyStyle, currentStyle } from "./PropertiesPanel";
+import { COLORS, TEXT_ALIGNS, TEXT_HIGHLIGHTS, applyStyle, currentStyle, turnText } from "./PropertiesPanel";
 import { FontPicker, useFonts } from "./FontPicker";
 import { Icon } from "./Icon";
 import { msg, t, useLocale } from "../i18n";
@@ -176,6 +176,9 @@ export function MobileBar(props: Props) {
       const next = TEXT_ALIGNS[(i + 1) % TEXT_ALIGNS.length];
       return { key: "align", label: t(TEXT_ALIGNS[i].label), icon: TEXT_ALIGNS[i].icon, active: v.align !== "left", onClick: () => set({ align: next.id }) };
     })(),
+    ...(selected?.kind === "text"
+      ? [{ key: "turn", label: t("Pivoter"), icon: "rotateR", active: !!selected.angle, onClick: () => onUpdate(turnText(selected, (selected.angle ?? 0) + 90), true) }]
+      : []),
     { key: "highlight", label: t("Surligner"), swatch: v.highlight ?? "transparent", active: sheet === "highlight" || !!v.highlight, onClick: () => toggle("highlight") },
   ];
   const settings = (k: Tool | Annotation["kind"]): Item[] => {

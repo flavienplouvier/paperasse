@@ -538,5 +538,12 @@
   "Aligné à droite": "Rechts uitlijnen",
   "Aligné à gauche": "Links uitlijnen",
   "Centré": "Gecentreerd",
-  "Justifié": "Uitgevuld"
+  "Justifié": "Uitgevuld",
+  "Largeur du cadre": "Kaderbreedte",
+  "Pivoter de 90° vers la droite": "90° naar rechts draaien",
+  "Pivoter de 90° vers la gauche": "90° naar links draaien",
+  "Remettre droit": "Rechtzetten",
+  "Retourner (180°)": "Omdraaien (180°)",
+  "Rotation : {n}°": "Rotatie: {n}°",
+  "Tirer pour élargir ou rétrécir le cadre": "Sleep om het kader breder of smaller te maken"
 }

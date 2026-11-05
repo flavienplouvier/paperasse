@@ -13,6 +13,7 @@ import { t, tn, useLocale } from "../i18n";
 import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
 import { extractRules, type Rule } from "../lib/rules";
+import { alongLine, frameCenter, unrotateText, withAngle } from "../lib/textFrame";
 import { layoutFor, blockAt, blocksOf, fontIndexAt, reflowText, shiftStyles, type TextBlock } from "../lib/textBlocks";
 import { embeddedTextWidth, type EmbeddedFont } from "../lib/embeddedFonts";
 
@@ -347,7 +348,14 @@ function PageViewImpl(props: Props) {
           ? ((touched && touched.fontName === block.fontName ? touched : block.lines.flatMap((l) => l.pieces).find((x) => x.fontName === block.fontName && x.str.trim())) as TextRun | undefined) ?? touched
           : touched;
         if (run && page) {
-          const { ink, background } = sampleColors(block ? block.rect : run.rect);
+          // Encre : seulement dans la hauteur des lettres (pas les lignes voisines, d'une autre couleur).
+          const fs = block ? block.fontSize : run.fontSize;
+          const inkRect: Rect | undefined = block
+            ? [block.left, block.lines[block.lines.length - 1].origin[1] - 0.1 * fs, block.left + block.width, block.lines[0].origin[1] + 0.6 * fs]
+            : run.angle === 0
+              ? [run.rect[0], run.baseline[1] - 0.1 * fs, run.rect[2], run.baseline[1] + 0.6 * fs]
+              : undefined;
+          const { ink, background } = sampleColors(block ? block.rect : run.rect, inkRect);
           props.onEditText({ pageId, run, page, color: ink, background, ...(block ? { block } : {}) });
         }
         break;
@@ -492,6 +500,25 @@ function PageViewImpl(props: Props) {
    * remplacement) et lignes — bloc remis en page dans sa largeur, sinon les
    * lignes saisies. Partagée par le rendu et la zone de saisie.
    */
+  /**
+   * Placement d'un texte à l'écran : rotation de la page autour de son origine,
+   * puis rotation propre (outil Pivoter) autour de son pivot.
+   */
+  const textTransform = (a: TextAnnotation) => {
+    const [x, y] = toView(a.origin);
+    const own = a.angle ?? 0;
+    let tx = 0;
+    let ty = 0;
+    if (own) {
+      const [px, py] = toView(a.pivot ?? a.origin);
+      const r = (own * Math.PI) / 180;
+      tx = px + (x - px) * Math.cos(r) - (y - py) * Math.sin(r) - x;
+      ty = py + (x - px) * Math.sin(r) + (y - py) * Math.cos(r) - y;
+    }
+    const deg = rotation - a.rotation + own;
+    return { svg: `translate(${tx} ${ty}) rotate(${deg} ${x} ${y})`, css: `translate(${tx}px, ${ty}px) rotate(${deg}deg)` };
+  };
+
   const textLayout = (a: TextAnnotation) => {
     // Une police par style : principale (-1) et polices des plages (gras, lien, symbole…).
     // Police incorporée d'origine, lettre par lettre ; les caractères absents du
@@ -709,7 +736,7 @@ function PageViewImpl(props: Props) {
             );
           });
         };
-        const turn = `rotate(${rotation - a.rotation} ${x} ${y})`;
+        const turn = textTransform(a).svg;
         const textEl = (
           <text
             key={a.id}
@@ -841,6 +868,7 @@ function PageViewImpl(props: Props) {
     if (el) setSel({ start: el.selectionStart, end: el.selectionEnd, focused: document.activeElement === el });
   };
   const selecting = useRef<{ pointerId: number; anchor: number } | null>(null);
+  const textHandle = useRef<{ pointerId: number; mode: "rotate" | "width"; original: TextAnnotation } | null>(null);
   const lastTap = useRef<{ time: number; idx: number } | null>(null);
 
   /**
@@ -879,7 +907,8 @@ function PageViewImpl(props: Props) {
       return best;
     };
     /** Caractère le plus proche d'un point de la page (repère PDF). */
-    const indexAt = (p: Point) => {
+    const indexAt = (pt: Point) => {
+      const p = unrotateText(a, pt);
       const { right, down } = screenAxes(a.rotation);
       const v = [p[0] - a.origin[0], p[1] - a.origin[1]];
       const dx = v[0] * right[0] + v[1] * right[1];
@@ -898,6 +927,33 @@ function PageViewImpl(props: Props) {
     const geo = caretGeometry(a);
     // Bloc qui s'allonge : nombre de lignes en trop par rapport au bloc d'origine.
     const overflow = a.box?.lines ? Math.max(0, geo.laid.length - a.box.lines) : 0;
+    const frame = { w: Math.max(a.box?.width ?? 0, ...geo.laid.map((l) => l.x + l.width)), h: geo.laid.length * geo.step };
+    const handleMove = (e: React.PointerEvent, final: boolean) => {
+      const h = textHandle.current;
+      if (!h || h.pointerId !== e.pointerId) return;
+      const o = h.original;
+      const [vx, vy] = local(e);
+      let next: TextAnnotation;
+      if (h.mode === "rotate") {
+        const [px, py] = toView(o.pivot!);
+        let deg = (Math.atan2(vy - py, vx - px) * 180) / Math.PI + 90 - (rotation - o.rotation);
+        deg = ((deg % 360) + 540) % 360 - 180;
+        // Aimanté tous les 15° (droit, 45°, 90°…).
+        const snap = Math.round(deg / 15) * 15;
+        if (Math.abs(snap - deg) < 4) deg = snap;
+        next = withAngle(o, deg, o.pivot!);
+      } else {
+        // Largeur du cadre : un texte libre devient un bloc qui revient à la ligne dans cette largeur.
+        const width = Math.round(Math.max(o.fontSize * 2, alongLine(o, toPdf(vx, vy))) * 10) / 10;
+        if (o.box) next = { ...o, box: { ...o.box, width } };
+        else {
+          const { align, ...rest } = o;
+          next = { ...rest, box: { width, align: align ?? "left", lineHeight: o.fontSize * LINE_HEIGHT } };
+        }
+      }
+      props.onChange(next, final);
+      if (final) textHandle.current = null;
+    };
     const gripMove = (e: React.PointerEvent, final: boolean) => {
       const g = grip.current;
       if (!g || g.pointerId !== e.pointerId) return;
@@ -913,7 +969,7 @@ function PageViewImpl(props: Props) {
         style={{
           left: x,
           top: y - asc,
-          transform: `rotate(${rotation - a.rotation}deg)`,
+          transform: textTransform(a).css,
           transformOrigin: `0 ${asc}px`,
         }}
       >
@@ -933,6 +989,28 @@ function PageViewImpl(props: Props) {
         >
           <Icon name="move" size={16} />
         </button>
+        {/* Poignées du cadre : pivoter (en haut) et largeur (à droite), comme pour les formes. */}
+        {(["rotate", "width"] as const).map((mode) => (
+          <button
+            key={mode}
+            className={`text-handle ${mode}`}
+            style={mode === "rotate" ? { left: (frame.w * scale) / 2, top: -26 } : { left: frame.w * scale + 10, top: (frame.h * scale) / 2 }}
+            title={mode === "rotate" ? t("Tirer pour faire pivoter") : t("Tirer pour élargir ou rétrécir le cadre")}
+            aria-label={mode === "rotate" ? t("Pivoter") : t("Largeur du cadre")}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              // Premier pivotement : autour du centre du cadre.
+              textHandle.current = { pointerId: e.pointerId, mode, original: a.angle ? a : { ...a, pivot: frameCenter(a, frame.w, frame.h) } };
+            }}
+            onPointerMove={(e) => handleMove(e, false)}
+            onPointerUp={(e) => handleMove(e, true)}
+            onPointerCancel={() => (textHandle.current = null)}
+          >
+            <Icon name={mode === "rotate" ? "rotateR" : "swap"} size={13} />
+          </button>
+        ))}
         {overflow > 0 && (
           <div className="block-overflow">
             <span>{tn("Le texte dépasse d'une ligne la place d'origine.", "Le texte dépasse de {n} lignes la place d'origine.", overflow)}</span>
@@ -1288,7 +1366,7 @@ function PageViewImpl(props: Props) {
     return `#${sum.map((v) => Math.round(v / 9).toString(16).padStart(2, "0")).join("")}`;
   }
 
-  function sampleColors(rect: Rect): { ink?: string; background?: string } {
+  function sampleColors(rect: Rect, inkRect: Rect = rect): { ink?: string; background?: string } {
     const canvas = canvasRef.current;
     if (!canvas || !canvas.width || !viewport) return {};
     const r = viewRect(rect);
@@ -1326,16 +1404,32 @@ function PageViewImpl(props: Props) {
     const top = [...buckets.values()].sort((a, b) => b.n - a.n)[0];
     const bg = top ? [top.r / top.n, top.g / top.n, top.b / top.n] : [255, 255, 255];
 
-    let best = -1;
-    let ink = [0, 0, 0];
-    for (let i = 0; i < data.length; i += 4) {
-      const d = Math.abs(data[i] - bg[0]) + Math.abs(data[i + 1] - bg[1]) + Math.abs(data[i + 2] - bg[2]);
-      if (d > best) {
-        best = d;
-        ink = [data[i], data[i + 1], data[i + 2]];
-      }
+    // Encre : couleur dominante des pixels les plus marqués de la zone des lettres
+    // (le cœur des traits, pas les bords lissés ni un pixel isolé d'une ligne voisine).
+    const ir = viewRect(inkRect);
+    const ix = Math.max(0, Math.floor(ir.x * k));
+    const iy = Math.max(0, Math.floor(ir.y * k));
+    const iw = Math.min(canvas.width - ix, Math.ceil(ir.w * k));
+    const ih = Math.min(canvas.height - iy, Math.ceil(ir.h * k));
+    if (iw < 1 || ih < 1) return { background: hex(bg) };
+    const ink = canvas.getContext("2d", { willReadFrequently: true })!.getImageData(ix, iy, iw, ih).data;
+    const dist = (i: number) => Math.abs(ink[i] - bg[0]) + Math.abs(ink[i + 1] - bg[1]) + Math.abs(ink[i + 2] - bg[2]);
+    let best = 0;
+    for (let i = 0; i < ink.length; i += 4) best = Math.max(best, dist(i));
+    if (best < 60) return { background: hex(bg) };
+    const groups = new Map<number, { n: number; r: number; g: number; b: number }>();
+    for (let i = 0; i < ink.length; i += 4) {
+      if (dist(i) < 0.6 * best) continue;
+      const key = ((ink[i] >> 4) << 8) | ((ink[i + 1] >> 4) << 4) | (ink[i + 2] >> 4);
+      const s = groups.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
+      s.n++;
+      s.r += ink[i];
+      s.g += ink[i + 1];
+      s.b += ink[i + 2];
+      groups.set(key, s);
     }
-    return { background: hex(bg), ink: best >= 60 ? hex(ink) : undefined };
+    const main = [...groups.values()].sort((a, b) => b.n - a.n)[0];
+    return { background: hex(bg), ink: hex([main.r / main.n, main.g / main.n, main.b / main.n]) };
   }
 
   function applyDrag(d: NonNullable<Drag>, dx: number, dy: number, p: Point): Annotation {

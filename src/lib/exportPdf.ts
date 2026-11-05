@@ -205,8 +205,10 @@ async function drawText(page: PDFPage, a: TextAnnotation, font: PDFFont) {
 
 export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotation, fonts: FontCache) {
   // Rotation propre (formes, images) : tout le dessin tourne autour du centre de l'élément.
-  if (a.angle && "rect" in a && a.rect) {
-    const [cx, cy] = rectCenter(a.rect);
+  // Texte : autour de son pivot (fixé au premier pivotement).
+  const pivot = !a.angle ? null : "rect" in a && a.rect ? rectCenter(a.rect) : a.kind === "text" ? (a.pivot ?? a.origin) : null;
+  if (a.angle && pivot) {
+    const [cx, cy] = pivot;
     const r = (-a.angle * Math.PI) / 180; // sens horaire à l'écran = sens inverse dans le repère PDF
     const cos = Math.cos(r);
     const sin = Math.sin(r);

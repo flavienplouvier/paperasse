@@ -538,5 +538,12 @@
   "Aligné à droite": "Allineato a destra",
   "Aligné à gauche": "Allineato a sinistra",
   "Centré": "Centrato",
-  "Justifié": "Giustificato"
+  "Justifié": "Giustificato",
+  "Largeur du cadre": "Larghezza della cornice",
+  "Pivoter de 90° vers la droite": "Ruota di 90° a destra",
+  "Pivoter de 90° vers la gauche": "Ruota di 90° a sinistra",
+  "Remettre droit": "Raddrizza",
+  "Retourner (180°)": "Capovolgi (180°)",
+  "Rotation : {n}°": "Rotazione: {n}°",
+  "Tirer pour élargir ou rétrécir le cadre": "Trascina per allargare o restringere la cornice"
 }

@@ -10,7 +10,7 @@ export function translateAnnotation<T extends Annotation>(a: T, dx: number, dy: 
     case "line":
       return { ...a, from: mv(a.from), to: mv(a.to), ...(a.control ? { control: mv(a.control) } : {}) };
     case "text":
-      return { ...a, origin: mv(a.origin) };
+      return { ...a, origin: mv(a.origin), ...(a.pivot ? { pivot: mv(a.pivot) } : {}) };
     default:
       return { ...a, rect: translateRect(a.rect, dx, dy) };
   }

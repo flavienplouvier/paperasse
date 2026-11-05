@@ -538,5 +538,12 @@
   "Aligné à droite": "Rechtsbündig",
   "Aligné à gauche": "Linksbündig",
   "Centré": "Zentriert",
-  "Justifié": "Blocksatz"
+  "Justifié": "Blocksatz",
+  "Largeur du cadre": "Rahmenbreite",
+  "Pivoter de 90° vers la droite": "Um 90° nach rechts drehen",
+  "Pivoter de 90° vers la gauche": "Um 90° nach links drehen",
+  "Remettre droit": "Gerade stellen",
+  "Retourner (180°)": "Umdrehen (180°)",
+  "Rotation : {n}°": "Drehung: {n}°",
+  "Tirer pour élargir ou rétrécir le cadre": "Ziehen, um den Rahmen zu verbreitern oder zu verschmälern"
 }

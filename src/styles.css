@@ -2577,3 +2577,29 @@ kbd {
     opacity: 0;
   }
 }
+/* Poignées du cadre d'un texte : pivoter (en haut) et largeur (à droite). */
+.text-handle {
+  position: absolute;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--focus);
+  border-color: var(--focus);
+  color: #fff;
+  touch-action: none;
+  z-index: 2;
+}
+.text-handle.rotate {
+  cursor: grab;
+}
+.text-handle.width {
+  cursor: ew-resize;
+}
+.text-handle:hover:not(:disabled) {
+  background: var(--focus);
+  filter: brightness(1.1);
+}

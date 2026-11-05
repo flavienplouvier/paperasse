@@ -538,5 +538,12 @@
   "Aligné à droite": "Align right",
   "Aligné à gauche": "Align left",
   "Centré": "Centered",
-  "Justifié": "Justified"
+  "Justifié": "Justified",
+  "Largeur du cadre": "Frame width",
+  "Pivoter de 90° vers la droite": "Rotate 90° right",
+  "Pivoter de 90° vers la gauche": "Rotate 90° left",
+  "Remettre droit": "Straighten",
+  "Retourner (180°)": "Flip (180°)",
+  "Rotation : {n}°": "Rotation: {n}°",
+  "Tirer pour élargir ou rétrécir le cadre": "Drag to widen or narrow the frame"
 }

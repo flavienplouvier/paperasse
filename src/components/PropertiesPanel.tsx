@@ -1,5 +1,7 @@
 import type { FileFont } from "../lib/fileFonts";
-import type { Annotation, FieldAnnotation, FieldType, Tool } from "../lib/types";
+import type { Annotation, FieldAnnotation, FieldType, TextAnnotation, Tool } from "../lib/types";
+import { frameCenter, withAngle } from "../lib/textFrame";
+import { LINE_HEIGHT } from "../lib/exportPdf";
 import { borrowedChars, missingChars } from "../lib/embeddedFonts";
 import { ensureCssFont, getFont, matchFont, styleVariant } from "../lib/fonts";
 import { StampPanel } from "./StampPanel";
@@ -61,6 +63,24 @@ export function applyStyle(
     }
     onUpdate(next as unknown as Annotation, commit);
   }
+}
+
+/**
+ * Pivote un texte (réglages, barre mobile). Le premier pivotement se fait
+ * autour du centre du cadre, estimé d'après la police ; ensuite le pivot est fixe.
+ */
+export function turnText(a: TextAnnotation, angle: number): TextAnnotation {
+  const family = a.embedded ? a.embedded.cssFamily : getFont(a.fontKey).cssFamily;
+  const ctx = typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
+  const measure = (s: string) => {
+    if (!ctx) return s.length * a.fontSize * 0.5;
+    ctx.font = `${a.fontSize}px ${family}`;
+    return ctx.measureText(s).width;
+  };
+  const lines = a.text.split("\n");
+  const width = a.box ? a.box.width : Math.max(0, ...lines.map(measure));
+  const count = a.box ? lines.reduce((n, l) => n + Math.max(1, Math.ceil(measure(l) / a.box!.width)), 0) : lines.length;
+  return withAngle(a, angle, frameCenter(a, width, count * (a.box?.lineHeight ?? a.fontSize * LINE_HEIGHT)));
 }
 
 /** Alignements du texte (boutons du panneau, bouton tournant de la barre mobile). */
@@ -282,6 +302,35 @@ export function PropertiesPanel({
               ))}
             </div>
           </div>
+          {selected?.kind === "text" && (
+            <div className="field">
+              {t("Rotation : {n}°", { n: selected.angle ?? 0 })}
+              <div className="format-row" role="group" aria-label={t("Pivoter")}>
+                <button title={t("Pivoter de 90° vers la gauche")} aria-label={t("Pivoter de 90° vers la gauche")} onClick={() => onUpdate(turnText(selected, (selected.angle ?? 0) - 90), true)}>
+                  <Icon name="rotateL" size={18} />
+                </button>
+                <button title={t("Pivoter de 90° vers la droite")} aria-label={t("Pivoter de 90° vers la droite")} onClick={() => onUpdate(turnText(selected, (selected.angle ?? 0) + 90), true)}>
+                  <Icon name="rotateR" size={18} />
+                </button>
+                <button title={t("Retourner (180°)")} onClick={() => onUpdate(turnText(selected, (selected.angle ?? 0) + 180), true)}>
+                  180°
+                </button>
+                <button title={t("Remettre droit")} disabled={!selected.angle} onClick={() => onUpdate(turnText(selected, 0), true)}>
+                  0°
+                </button>
+              </div>
+              <input
+                type="range"
+                min={-180}
+                max={180}
+                step={1}
+                value={selected.angle ?? 0}
+                aria-label={t("Pivoter")}
+                onChange={(e) => onUpdate(turnText(selected, +e.target.value), false)}
+                onPointerUp={() => set({}, true)}
+              />
+            </div>
+          )}
           <label className="field">
             {t("Taille : {n} pt", { n: Math.round(v.fontSize * 10) / 10 })}
             <input type="range" min={4} max={96} step={0.5} value={v.fontSize} onChange={(e) => set({ fontSize: +e.target.value }, false)} onPointerUp={() => set({}, true)} />
