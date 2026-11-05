@@ -63,9 +63,13 @@ rien n'est envoyé sur un serveur.
   espagnol, italien, portugais, néerlandais et chinois téléchargés une fois au
   premier usage. La reconnaissance se fait entièrement sur l'appareil ; les scans
   sont détectés à l'ouverture.
-- Langue de l'utilisateur détectée au démarrage (drapeau à droite du nom du
-  document, sur l'accueil et dans le menu du téléphone) : elle règle la langue
-  proposée pour la reconnaissance de texte. Le choix est retenu.
+- Interface en 8 langues : français, anglais, allemand, espagnol, italien,
+  portugais, néerlandais, chinois. La langue du navigateur est détectée au
+  démarrage (anglais si elle n'est pas prise en charge) et se change par le
+  drapeau (accueil, à droite du nom du document, bas du menu sur téléphone) ;
+  elle règle aussi la langue de reconnaissance de texte. Seul le français est
+  intégré : une autre langue (≈ 10 ko) est téléchargée au premier choix puis
+  gardée hors ligne.
 - Déplacement, redimensionnement, duplication, annulation/rétablissement.
 
 **Pages**
@@ -181,6 +185,16 @@ fonctionne sans connexion.
   la feuille (feuille blanche sur table blanche : ajustez les coins à la main).
   Le flash n'est pilotable que là où le navigateur l'autorise (Chrome sur Android) ;
   sur iPhone, le bouton « appareil photo du téléphone » ouvre la caméra native et son flash.
+
+## Traduire l'interface
+
+Les phrases sont écrites en français dans le code avec `t("…")` (variables
+`{nom}`, pluriels `tn("{n} page", "{n} pages", n)`, libellés de constantes
+`msg("…")`). `npm run i18n` met à jour la liste de référence
+`src/locales/fr.json` et indique les phrases manquantes de chaque langue ;
+chaque langue est un fichier `src/locales/<code>.json` (phrase française →
+traduction). Les tests échouent si une phrase n'est pas traduite ou si une
+variable a été perdue.
 
 ## Architecture
 
