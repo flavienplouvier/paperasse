@@ -1246,7 +1246,7 @@ export default function App() {
         <div className="doc-name" title={doc.name}>
           {doc.name}
         </div>
-        <LanguagePicker className="desktop-only" value={language} onChange={setLanguage} />
+        <LanguagePicker className="desktop-only" value={language} onChange={setLanguage} withLabel />
         <div className="top-actions">
           <button className="open-btn" title="Ouvrir un fichier PDF ou une image (Ctrl+O)" onClick={() => openInput.current?.click()}>
             <Icon name="open" />
