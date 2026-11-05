@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Icon } from "./Icon";
-import { isoDate, scanFileName } from "../lib/scan";
+import { buildFileName, formatDate, isoDate, loadNamePrefs, saveNamePrefs, type NamePrefs } from "../lib/fileName";
 
 interface Props {
+  /** Nom proposé (sans date ni extension). */
   base: string;
+  /** Date proposée (AAAA-MM-JJ), null pour ne pas en mettre par défaut. */
   date: string | null;
   /** Libellé du bouton : « Enregistrer », « Partager »… */
   action: string;
@@ -11,12 +13,20 @@ interface Props {
   onClose: () => void;
 }
 
-/** Nom du fichier d'un document numérisé, avec une date facultative (« Facture_2026-11-05.pdf »). */
+/** Choix du nom du fichier à l'enregistrement, avec une date facultative. */
 export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props) {
   const [name, setName] = useState(base);
   const [withDate, setWithDate] = useState(date !== null);
   const [day, setDay] = useState(date ?? isoDate());
-  const fileName = scanFileName(name, withDate && day ? day : null);
+  const [prefs, setPrefs] = useState<NamePrefs>(loadNamePrefs);
+  const chosenDate = withDate && day ? day : null;
+  const fileName = buildFileName({ base: name, date: chosenDate, ...prefs });
+
+  const change = (patch: Partial<NamePrefs>) => {
+    const next = { ...prefs, ...patch };
+    setPrefs(next);
+    saveNamePrefs(next);
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -27,7 +37,7 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
-          onConfirm(fileName, name.trim() || "Scan", withDate && day ? day : null);
+          onConfirm(fileName, name.trim(), chosenDate);
         }}
       >
         <header>
@@ -46,16 +56,25 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props
             Ajouter une date
           </label>
           <input type="date" value={day} disabled={!withDate} aria-label="Date" onChange={(e) => setDay(e.target.value)} />
-          {withDate && day !== isoDate() && (
-            <button type="button" className="link" onClick={() => setDay(isoDate())}>
-              Aujourd'hui
-            </button>
-          )}
         </div>
+        {withDate && (
+          <div className="modal-row name-switches">
+            <button type="button" className="switch-btn" title="Changer l'ordre de la date" onClick={() => change({ format: prefs.format === "iso" ? "fr" : "iso" })}>
+              <Icon name="swap" size={16} /> {formatDate(day || isoDate(), prefs.format)}
+            </button>
+            <button type="button" className="switch-btn" title="Placer la date au début ou à la fin du nom" onClick={() => change({ position: prefs.position === "end" ? "start" : "end" })}>
+              <Icon name="swap" size={16} /> {prefs.position === "end" ? "Date à la fin" : "Date au début"}
+            </button>
+          </div>
+        )}
+        <label className="check">
+          <input type="checkbox" checked={prefs.underscores} onChange={(e) => change({ underscores: e.target.checked })} />
+          Remplacer les espaces par des « _ »
+        </label>
         <p className="file-name-preview" aria-live="polite">
           <Icon name="pages" size={16} /> <span>{fileName}</span>
         </p>
-        <div className="modal-row">
+        <div className="modal-row modal-actions">
           <span className="spacer" />
           <button type="button" onClick={onClose}>
             Annuler

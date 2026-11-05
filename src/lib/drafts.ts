@@ -13,6 +13,8 @@ export interface Draft {
   rewritable: boolean;
   /** Document numérisé (nom demandé à l'enregistrement). */
   scan?: boolean;
+  fileBase?: string;
+  fileDate?: string | null;
   savedAt: number;
   /** Polices incorporées utilisées par l'aperçu (famille CSS → données). */
   faces: Record<string, Uint8Array>;

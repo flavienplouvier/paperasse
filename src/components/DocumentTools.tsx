@@ -276,7 +276,7 @@ export function DocumentTools({ bytes, initialTab, onApply, onClose }: Props) {
           )}
         </div>
 
-        <div className="modal-row">
+        <div className="modal-row modal-actions">
           <span className="hint">Modification annulable avec Ctrl+Z.</span>
           <span className="spacer" />
           <button onClick={onClose}>Annuler</button>

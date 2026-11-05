@@ -149,8 +149,11 @@ export interface DocState {
    */
   rewritable: boolean;
   password?: string;
-  /** Document créé par la numérisation : son nom est demandé à l'enregistrement. */
+  /** Document créé par la numérisation (date proposée dans le nom par défaut). */
   scan?: boolean;
+  /** Dernier nom choisi à l'enregistrement (sans date) et sa date. */
+  fileBase?: string;
+  fileDate?: string | null;
 }
 
 let counter = 0;

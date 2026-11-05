@@ -1284,12 +1284,9 @@ kbd {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
-  /* Ordre de la barre du haut : ouvrir, rechercher, ajuster, annuler, rétablir, page … enregistrer. */
+  /* Ordre de la barre du haut : ouvrir, ajuster, annuler, rétablir, page … enregistrer (recherche dans le menu ☰). */
   .top-actions .open-btn {
     order: 1;
-  }
-  .top-actions .m-search {
-    order: 2;
   }
   .top-actions .m-fit {
     order: 3;
@@ -1307,6 +1304,36 @@ kbd {
   .top-actions .save-btn {
     order: 9;
     margin-left: auto;
+  }
+  /* Boutons d'action centrés et empilés : action principale en haut, annuler dessous. */
+  .modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .modal-actions .spacer {
+    display: none;
+  }
+  .modal-actions .hint {
+    text-align: center;
+  }
+  .modal-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+  .banner.info {
+    justify-content: center;
+    text-align: center;
+  }
+  .banner.info .spacer {
+    display: none;
+  }
+  .banner-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .banner-actions button {
+    min-height: 40px;
   }
   /* Tiroir du menu (☰). */
   .mdrawer-wrap {
@@ -1853,4 +1880,22 @@ kbd {
   background: var(--surface-2);
   font-size: 14px;
   word-break: break-all;
+}
+
+.banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.name-switches {
+  gap: 8px;
+}
+.switch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 18px;
+  font-variant-numeric: tabular-nums;
 }

@@ -7,8 +7,6 @@ import {
   orderQuad,
   outputSize,
   rotate90,
-  scanFileName,
-  splitScanFileName,
   warp,
   type Pixels,
   type Point,
@@ -182,22 +180,5 @@ describe("nettoyage", () => {
 
   it("« original » ne touche à rien", () => {
     expect(enhance(page, "original")).toBe(page);
-  });
-});
-
-describe("nom du fichier scanné", () => {
-  it("ajoute la date au nom", () => {
-    expect(scanFileName("Facture EDF", "2026-11-05")).toBe("Facture EDF_2026-11-05.pdf");
-    expect(scanFileName("Facture EDF.pdf", null)).toBe("Facture EDF.pdf");
-  });
-
-  it("retire les caractères interdits et donne un nom par défaut", () => {
-    expect(scanFileName('a/b:c*?"<>|d', null)).toBe("a-b-c-d.pdf");
-    expect(scanFileName("   ", "2026-01-02")).toBe("Scan_2026-01-02.pdf");
-  });
-
-  it("retrouve le nom et la date", () => {
-    expect(splitScanFileName("Facture EDF_2026-11-05.pdf")).toEqual({ base: "Facture EDF", date: "2026-11-05" });
-    expect(splitScanFileName("Scan.pdf")).toEqual({ base: "Scan", date: null });
   });
 });

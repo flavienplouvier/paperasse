@@ -43,7 +43,7 @@ import { suggestFieldName } from "./lib/formFields";
 import type { ShapeId } from "./lib/shapes";
 import { Icon } from "./components/Icon";
 import { FileNameDialog } from "./components/FileNameDialog";
-import { isoDate, scanFileName, splitScanFileName } from "./lib/scan";
+import { buildFileName, isoDate, loadNamePrefs } from "./lib/fileName";
 
 /** Écran de numérisation chargé à la demande (caméra, détection, nettoyage). */
 const Scanner = lazy(() => import("./components/Scanner"));
@@ -382,7 +382,7 @@ export default function App() {
           setHits([]);
           setCurrentPage(0);
           setFitWidth(true);
-          setDoc({ name, bytes, pageIds: ops.freshPageIds(count), annotations: [], rewritable, password, ...(extra.scan ? { scan: true } : {}) });
+          setDoc({ name, bytes, pageIds: ops.freshPageIds(count), annotations: [], rewritable, password, ...(extra.scan ? { scan: true, fileBase: "Scan", fileDate: isoDate() } : {}) });
           if (!rewritable) {
             notify("PDF protégé ou atypique : l'annotation reste possible, l'export se fera page par page en image.");
           }
@@ -464,6 +464,8 @@ export default function App() {
           annotations: doc.annotations,
           rewritable: doc.rewritable,
           scan: doc.scan,
+          fileBase: doc.fileBase,
+          fileDate: doc.fileDate,
           savedAt: Date.now(),
           faces: facesFor(families),
           importedFonts: await importedFonts(),
@@ -491,7 +493,7 @@ export default function App() {
       setHits([]);
       setCurrentPage(0);
       setFitWidth(true);
-      setDoc({ name: d.name, bytes: d.bytes, pageIds: d.pageIds, annotations: d.annotations, rewritable: d.rewritable, ...(d.scan ? { scan: true } : {}) });
+      setDoc({ name: d.name, bytes: d.bytes, pageIds: d.pageIds, annotations: d.annotations, rewritable: d.rewritable, ...(d.scan ? { scan: true } : {}), ...(d.fileBase !== undefined ? { fileBase: d.fileBase, fileDate: d.fileDate ?? null } : {}) });
     } catch (e) {
       fail(e);
     } finally {
@@ -914,14 +916,14 @@ export default function App() {
       else download(b, name);
     });
 
-  // Un document numérisé n'a pas encore de vrai nom : on le demande d'abord.
-  const save = () => (doc?.scan ? setAskName("save") : saveAs(doc!.name));
-  const share = () => (doc?.scan ? setAskName("share") : shareAs(doc!.name));
+  // Le nom du fichier est choisi à chaque enregistrement ou partage.
+  const save = () => setAskName("save");
+  const share = () => setAskName("share");
 
-  const confirmName = (fileName: string) => {
+  const confirmName = (fileName: string, base: string, date: string | null) => {
     const kind = askName;
     setAskName(null);
-    setDoc((d) => (d ? { ...d, name: fileName } : d));
+    setDoc((d) => (d ? { ...d, name: fileName, fileBase: base, fileDate: date } : d));
     if (kind === "share") shareAs(fileName);
     else saveAs(fileName);
   };
@@ -930,7 +932,7 @@ export default function App() {
     setScanOpen(false);
     setBusy("Ouverture…");
     try {
-      await loadDocument(bytes, scanFileName("Scan", isoDate()), { scan: true });
+      await loadDocument(bytes, buildFileName({ base: "Scan", date: isoDate(), ...loadNamePrefs() }), { scan: true });
       notify(`Document numérisé : ${pages} page${pages > 1 ? "s" : ""}. Son nom vous sera demandé à l'enregistrement.`, false, 5000);
     } catch (e) {
       fail(e);
@@ -1244,9 +1246,6 @@ export default function App() {
             <Icon name="open" />
             <span className="desktop-only">Ouvrir un fichier</span>
           </button>
-          <button className="icon-btn m-search mobile-only" title="Rechercher" onClick={() => setPanel((p) => (p === "search" ? null : "search"))}>
-            <Icon name="search" />
-          </button>
           <button className="icon-btn m-fit mobile-only" title="Ajuster à la largeur" onClick={() => setFitWidth(true)}>
             <Icon name="fit" />
           </button>
@@ -1337,10 +1336,12 @@ export default function App() {
         <div className="banner info">
           <span>Ce document semble être un scan : son texte n'est ni cherchable ni modifiable.</span>
           <span className="spacer" />
-          <button className="primary" onClick={() => setOcrOpen(true)}>
-            Reconnaître le texte (OCR)
-          </button>
-          <button onClick={() => setScanned(false)}>Ignorer</button>
+          <span className="banner-actions">
+            <button className="primary" onClick={() => setOcrOpen(true)}>
+              Reconnaître le texte (OCR)
+            </button>
+            <button onClick={() => setScanned(false)}>Ignorer</button>
+          </span>
         </div>
       )}
 
@@ -1617,7 +1618,8 @@ export default function App() {
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
       {askName && doc && (
         <FileNameDialog
-          {...splitScanFileName(doc.name)}
+          base={doc.fileBase ?? doc.name.replace(/\.pdf$/i, "")}
+          date={doc.fileBase !== undefined ? (doc.fileDate ?? null) : doc.scan ? isoDate() : null}
           action={askName === "share" ? "Partager" : "Enregistrer"}
           onConfirm={confirmName}
           onClose={() => setAskName(null)}

@@ -103,7 +103,7 @@ export function OcrDialog({ pdf, currentPage, onDone, onClose, onError }: Props)
             Comptez quelques secondes par page.
           </p>
         </div>
-        <div className="modal-row">
+        <div className="modal-row modal-actions">
           <span className="spacer" />
           {running ? (
             <button onClick={() => abort.current?.abort()}>Arrêter après cette page</button>

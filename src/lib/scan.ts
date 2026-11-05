@@ -455,29 +455,3 @@ export function enhance(img: Pixels, filter: ScanFilter): Pixels {
   }
   return { data: out, width: W, height: H };
 }
-
-// ------------------------------------------------------------------ nom de fichier
-
-/** Date du jour au format AAAA-MM-JJ (heure locale). */
-export function isoDate(d = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
-/** « Facture EDF » + 2026-11-05 → « Facture EDF_2026-11-05.pdf » (caractères interdits retirés). */
-export function scanFileName(base: string, date?: string | null): string {
-  const clean = base
-    .replace(/\.pdf$/i, "")
-    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "-")
-    .trim()
-    .replace(/^\.+/, "");
-  const name = clean || "Scan";
-  return `${name}${date ? `_${date}` : ""}.pdf`;
-}
-
-/** Retrouve le nom et la date d'un nom produit par scanFileName. */
-export function splitScanFileName(name: string): { base: string; date: string | null } {
-  const stem = name.replace(/\.pdf$/i, "");
-  const m = /^(.*)_(\d{4}-\d{2}-\d{2})$/.exec(stem);
-  return m ? { base: m[1], date: m[2] } : { base: stem, date: null };
-}

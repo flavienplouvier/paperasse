@@ -82,8 +82,8 @@ rien n'est envoyé sur un serveur.
   « Gris », « Noir et blanc » ou « Original ».
 - Plusieurs pages, rotation, recadrage après coup ; flash (lampe) sur les
   téléphones qui le permettent, sinon appareil photo du téléphone ou import de photos.
-- Le PDF (pages au format A4) s'ouvre dans l'éditeur ; à l'enregistrement, son
-  nom est demandé avec une date facultative : `Facture EDF_2026-11-05.pdf`.
+- Le PDF (pages au format A4) s'ouvre dans l'éditeur, la date du jour déjà
+  proposée dans son nom.
 - Tout le traitement se fait sur l'appareil.
 
 **Partout**
@@ -92,6 +92,10 @@ rien n'est envoyé sur un serveur.
 - Sauvegarde automatique du travail en cours dans le navigateur, proposé à la
   reprise sur l'écran d'accueil (sauf PDF protégés par mot de passe).
 - Enregistrement, partage (Android) et impression.
+- Nom du fichier choisi à chaque enregistrement ou partage, avec une date
+  facultative : format `2026-11-05` ou `05-11-2026`, au début ou à la fin du nom,
+  espaces remplacés ou non par des « _ » (`Facture_EDF_2026-11-05.pdf`). Les
+  réglages sont retenus d'une fois sur l'autre.
 
 ## Démarrer
 

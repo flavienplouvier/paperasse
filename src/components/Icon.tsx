@@ -56,6 +56,7 @@ const PATHS: Record<string, string> = {
   flashOff: "M13 2l-3.5 5.2 M7.7 10L5 14h6l-1 8 4.2-6.3 M15.5 12.4L18 10h-6l1-3.4 M3 3l18 18",
   crop: "M6 2v16h16 M2 6h16v16",
   check: "M5 12.5l4.5 4.5L19 7",
+  swap: "M7 4L3 8l4 4 M3 8h14 M17 12l4 4-4 4 M21 16H7",
 };
 
 export function Icon({ name, size = 20 }: { name: keyof typeof PATHS | string; size?: number }) {
