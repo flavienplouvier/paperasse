@@ -45,6 +45,7 @@ import { Icon } from "./components/Icon";
 import { FileNameDialog } from "./components/FileNameDialog";
 import { LanguagePicker } from "./components/LanguagePicker";
 import { initialLanguage } from "./lib/language";
+import { setLocale, type Locale } from "./i18n";
 import { buildFileName, isoDate, loadNamePrefs } from "./lib/fileName";
 
 /** Écran de numérisation chargé à la demande (caméra, détection, nettoyage). */
@@ -191,6 +192,9 @@ export default function App() {
   const [scanOpen, setScanOpen] = useState(false);
   /** Langue de l'utilisateur (détectée au démarrage, modifiable par le drapeau) : langue d'OCR par défaut. */
   const [language, setLanguage] = useState(initialLanguage);
+  useEffect(() => {
+    setLocale(language.language.code as Locale).catch(() => undefined);
+  }, [language]);
   // Le scanner est préchargé en arrière-plan : le service worker le garde pour un usage hors ligne.
   useEffect(() => {
     const t = window.setTimeout(() => void import("./components/Scanner").catch(() => undefined), 5000);

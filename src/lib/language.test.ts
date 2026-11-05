@@ -13,9 +13,9 @@ describe("langue de l'utilisateur", () => {
     expect(detectLanguage(["en"]).flag).toBe("gb");
   });
 
-  it("revient au français pour une langue non prise en charge", () => {
-    expect(detectLanguage(["ja-JP"]).language.ocr).toBe("fra");
-    expect(detectLanguage([]).flag).toBe("fr");
+  it("passe à l'anglais pour une langue non prise en charge", () => {
+    expect(detectLanguage(["ja-JP"]).language.ocr).toBe("eng");
+    expect(detectLanguage([]).flag).toBe("gb");
   });
 
   it("propose la langue de l'utilisateur en premier pour l'OCR", () => {

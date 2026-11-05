@@ -57,7 +57,8 @@ export function detectLanguage(preferred: readonly string[]): UserLanguage {
     const language = LANGUAGES.find((l) => l.code === code.toLowerCase());
     if (language) return userLanguage(language, region?.toUpperCase());
   }
-  return userLanguage(LANGUAGES[0]);
+  // Langue non prise en charge : l'anglais est le plus largement compris.
+  return userLanguage(LANGUAGES[1]);
 }
 
 const KEY = "paperasse-langue";

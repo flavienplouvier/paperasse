@@ -3,17 +3,24 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { loadLibrary, loadLocalFontsIfGranted } from "./lib/fonts";
 import "./styles.css";
+import { setLocale, type Locale } from "./i18n";
+import { initialLanguage } from "./lib/language";
 
 // Catalogue de la bibliothèque de polices (les fichiers ne sont chargés qu'à l'usage),
 // et polices de l'ordinateur si l'accès a déjà été autorisé.
 loadLibrary(import.meta.env.BASE_URL);
 loadLocalFontsIfGranted();
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+// Langue de l'interface chargée avant le premier affichage (pas de clignotement en français).
+setLocale(initialLanguage().language.code as Locale)
+  .catch(() => undefined)
+  .finally(() =>
+    createRoot(document.getElementById("root")!).render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    ),
+  );
 
 // Application installable et utilisable hors ligne (Android, ordinateur).
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
