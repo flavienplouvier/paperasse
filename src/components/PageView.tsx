@@ -6,7 +6,7 @@ import { newId } from "../lib/types";
 import { addScaled, arrowHead, normalizeRect, normalizeRotation, rectContains, screenAxes } from "../lib/geometry";
 import { hasRect, simplifyPath, translateAnnotation } from "../lib/annotations";
 import { extractRuns, runAt, type TextRun } from "../lib/text";
-import { LINE_HEIGHT } from "../lib/exportPdf";
+import { LINE_HEIGHT, isTextCover } from "../lib/exportPdf";
 import { getFont } from "../lib/fonts";
 import { Icon } from "./Icon";
 import { t, useLocale } from "../i18n";
@@ -883,8 +883,9 @@ function PageViewImpl(props: Props) {
             const r = viewRect(run.rect);
             return <rect key={i} className={`run ${run === hoverRun ? "hover" : ""}`} x={r.x} y={r.y} width={r.w} height={r.h} />;
           })}
-        {annotations.filter((a) => a.kind === "whiteout").map(renderAnnotation)}
-        {annotations.filter((a) => a.kind !== "whiteout").map(renderAnnotation)}
+        {/* Caches de « Modifier le texte » dessous ; le reste dans l'ordre de création (un cache blanc masque ce qui est derrière lui). */}
+        {annotations.filter(isTextCover).map(renderAnnotation)}
+        {annotations.filter((a) => !isTextCover(a)).map(renderAnnotation)}
         {selBox && tool === "select" && !editing && (
           <rect className="selection" x={selBox.x - 4} y={selBox.y - 4} width={selBox.width + 8} height={selBox.height + 8} />
         )}

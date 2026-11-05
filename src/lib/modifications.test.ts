@@ -120,10 +120,11 @@ describe("ajout de texte", () => {
 });
 
 describe("modifier le texte (cache blanc + texte de remplacement)", () => {
-  it("dessine le cache blanc avant le texte, quel que soit l'ordre de création", async () => {
+  it("dessine le cache de « Modifier le texte » sous le texte, quel que soit l'ordre", async () => {
+    // Cache d'une ligne modifiée (removeText) ; ici la ligne d'origine n'existe pas, le cache est donc dessiné.
     const annotations: Annotation[] = [
       text("a", "Nouveau titre", [50, 780], { fontSize: 24 }),
-      { id: "w", pageId: "a", color: "#ffffff", opacity: 1, kind: "whiteout", rect: [45, 772, 200, 806], width: 0, fill: true },
+      { id: "w", pageId: "a", color: "#ffffff", opacity: 1, kind: "whiteout", rect: [45, 772, 200, 806], width: 0, fill: true, removeText: { origin: [400, 100], angle: 0, width: 10, fontSize: 10 } },
     ];
     const out = await exportPdf(await samplePdf(1), ["a"], annotations);
     const fns = await operators(out);
@@ -135,6 +136,16 @@ describe("modifier le texte (cache blanc + texte de remplacement)", () => {
     expect(fns.lastIndexOf("constructPath")).toBe(cache);
     expect(lastText).toBeGreaterThan(cache);
     expect((await readPages(out))[0].text).toContain("Nouveau titre");
+  });
+
+  it("un cache blanc posé à la main masque ce qui a été ajouté avant lui", async () => {
+    const annotations: Annotation[] = [
+      text("a", "Texte ajouté", [50, 500], { fontSize: 14 }),
+      { id: "w", pageId: "a", color: "#ffffff", opacity: 1, kind: "whiteout", rect: [45, 490, 200, 520], width: 0, fill: true },
+    ];
+    const fns = await operators(await exportPdf(await samplePdf(1), ["a"], annotations));
+    // Le cache est dessiné après le texte ajouté : il le recouvre.
+    expect(fns.lastIndexOf("constructPath")).toBeGreaterThan(fns.lastIndexOf("showText"));
   });
 });
 

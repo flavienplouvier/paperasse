@@ -253,8 +253,9 @@ export async function exportPdf(
     // Le cache n'est gardé que là où ce retrait n'a pas suffi.
     const removed = removeOriginalText(doc, pages[i], list);
     const drawn = list.filter((a) => !removed.has(a));
-    // Les caches blancs d'abord pour que le texte de remplacement passe au-dessus.
-    const ordered = [...drawn.filter((a) => a.kind === "whiteout"), ...drawn.filter((a) => a.kind !== "whiteout")];
+    // Ordre de création (un cache blanc masque ce qui a été posé avant lui), sauf les caches
+    // de « Modifier le texte », qui ne masquent que la ligne d'origine : tout en dessous.
+    const ordered = [...drawn.filter(isTextCover), ...drawn.filter((a) => !isTextCover(a))];
     for (const a of ordered) await drawAnnotation(doc, pages[i], a, fonts);
   }
   if (options.flattenForms) {
@@ -265,4 +266,9 @@ export async function exportPdf(
     }
   }
   return doc.save();
+}
+
+/** Cache posé par « Modifier le texte » (il ne sert qu'à masquer la ligne d'origine du PDF). */
+export function isTextCover(a: Annotation): boolean {
+  return a.kind === "whiteout" && !!a.removeText;
 }
