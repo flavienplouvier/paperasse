@@ -1421,7 +1421,6 @@ export default function App() {
                 <strong>{doc.name}</strong>
                 {pdf && <small>{pdf.numPages} page{pdf.numPages > 1 ? "s" : ""}</small>}
               </span>
-              <LanguagePicker className="drawer-lang" value={language} onChange={setLanguage} />
             </div>
             {[
               { icon: "open", label: "Ouvrir un fichier", run: () => openInput.current?.click() },
@@ -1455,6 +1454,8 @@ export default function App() {
                 </button>
               </div>
             ))}
+            <hr />
+            <LanguagePicker className="drawer-lang" value={language} onChange={setLanguage} withLabel />
           </aside>
         </div>
       )}
