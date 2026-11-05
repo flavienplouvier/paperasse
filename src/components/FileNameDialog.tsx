@@ -18,7 +18,12 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props
   const [name, setName] = useState(base);
   const [withDate, setWithDate] = useState(date !== null);
   const [day, setDay] = useState(date ?? isoDate());
-  const [prefs, setPrefs] = useState<NamePrefs>(loadNamePrefs);
+  const [prefs, setPrefs] = useState<NamePrefs>(() => {
+    // Nom déjà daté : on garde son séparateur pour que le nom reste identique tant qu'on n'y touche pas.
+    const prefs = loadNamePrefs();
+    const f = date === null ? findDate(base) : null;
+    return f && f.underscores !== null ? { ...prefs, underscores: f.underscores } : prefs;
+  });
   /** Nom d'origine et nom sans sa date, quand la date du nom a été retirée pour la remplacer. */
   const [replaced, setReplaced] = useState<{ original: string; rest: string } | null>(null);
   /** Date déjà écrite dans le nom (« Facture_2025-03-01 ») : elle peut être remplacée. */
