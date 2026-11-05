@@ -10,6 +10,7 @@ import {
   localFontsSupported,
   subscribeFonts,
 } from "../lib/fonts";
+import { t, useLocale } from "../i18n";
 
 export function useFonts() {
   return useSyncExternalStore(subscribeFonts, getFonts, getFonts);
@@ -94,6 +95,7 @@ export function FontPicker({
   /** Appelé quand les polices de l'ordinateur viennent d'être chargées. */
   onLocalFonts?: () => void;
 }) {
+  const locale = useLocale();
   const fonts = useFonts();
   const [filter, setFilter] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -110,44 +112,48 @@ export function FontPicker({
       .map((ff) => ({ ...getFont(ff.key), label: ff.substitute ? `${ff.name} (≈ ${ff.substitute})` : ff.name }))
       .filter((x) => !f || x.label.toLowerCase().includes(f));
     return [
-      { label: "Polices du fichier", items: fromFile },
-      { label: "Polices importées", items: list.filter((x) => x.source === "file") },
-      { label: "Polices de l'ordinateur", items: list.filter((x) => x.source === "local").slice(0, 800) },
-      { label: "Équivalents Office / Windows (mêmes largeurs)", items: lib("metric") },
-      { label: "Polices standard PDF", items: list.filter((x) => x.source === "standard") },
-      { label: "Sans empattement", items: lib("sans") },
-      { label: "Avec empattement", items: lib("serif") },
-      { label: "Chasse fixe", items: lib("mono") },
-      { label: "Manuscrites / signature", items: lib("script") },
-      { label: "Décoratives", items: lib("display") },
+      { label: t("Polices du fichier"), items: fromFile },
+      { label: t("Polices importées"), items: list.filter((x) => x.source === "file") },
+      { label: t("Polices de l'ordinateur"), items: list.filter((x) => x.source === "local").slice(0, 800) },
+      { label: t("Équivalents Office / Windows (mêmes largeurs)"), items: lib("metric") },
+      { label: t("Polices standard PDF"), items: list.filter((x) => x.source === "standard") },
+      { label: t("Sans empattement"), items: lib("sans") },
+      { label: t("Avec empattement"), items: lib("serif") },
+      { label: t("Chasse fixe"), items: lib("mono") },
+      { label: t("Manuscrites / signature"), items: lib("script") },
+      { label: t("Décoratives"), items: lib("display") },
       // Catalogue libre complet : affiché pendant une recherche (≈ 2 000 familles).
-      { label: "Catalogue libre Google Fonts", items: f.length >= 2 ? lib("google").slice(0, 400) : [] },
+      { label: t("Catalogue libre Google Fonts"), items: f.length >= 2 ? lib("google").slice(0, 400) : [] },
     ].filter((g) => g.items.length);
-  }, [fonts, filter, fileFonts]);
+  }, [fonts, filter, fileFonts, locale]);
   const families = useMemo(() => new Set(fonts.map((f) => f.family ?? f.label)).size, [fonts]);
   const current = getFont(value);
 
   const useLocalFonts = async () => {
-    setStatus("Autorisez l'accès aux polices dans la fenêtre du navigateur…");
+    setStatus(t("Autorisez l'accès aux polices dans la fenêtre du navigateur…"));
     try {
       const added = await loadLocalFonts();
       const total = getFonts().filter((f) => f.source === "local").length;
       setStatus(
         total
-          ? `✓ ${total} polices de l'ordinateur disponibles${added ? "" : " (déjà chargées)"} — en tête de la liste.`
+          ? added
+            ? t("✓ {total} polices de l'ordinateur disponibles — en tête de la liste.", { total })
+            : t("✓ {total} polices de l'ordinateur disponibles (déjà chargées) — en tête de la liste.", { total })
           : null,
       );
-      if (!total) onError("Aucune police trouvée : l'accès a peut-être été refusé dans le navigateur.");
+      if (!total) onError(t("Aucune police trouvée : l'accès a peut-être été refusé dans le navigateur."));
       onLocalFonts?.();
     } catch (e) {
       setStatus(null);
       const denied = e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError");
       onError(
         denied
-          ? "Accès aux polices refusé. Autorisez-le via l'icône à gauche de l'adresse (Paramètres du site → Polices), puis réessayez."
+          ? t(
+              "Accès aux polices refusé. Autorisez-le via l'icône à gauche de l'adresse (Paramètres du site → Polices), puis réessayez.",
+            )
           : e instanceof Error
             ? e.message
-            : "Impossible de lire les polices de l'ordinateur.",
+            : t("Impossible de lire les polices de l'ordinateur."),
       );
     }
   };
@@ -156,7 +162,7 @@ export function FontPicker({
     try {
       await ensureCssFont(key);
     } catch {
-      onError(`Impossible de charger la police ${getFont(key).label} pour l'aperçu.`);
+      onError(t("Impossible de charger la police {font} pour l'aperçu.", { font: getFont(key).label }));
     }
     onChange(key);
   };
@@ -167,14 +173,14 @@ export function FontPicker({
     <div className="font-picker">
       <input
         type="search"
-        placeholder={`Rechercher parmi ${families} familles de polices…`}
+        placeholder={t("Rechercher parmi {n} familles de polices…", { n: families })}
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
-      <div className="font-current" style={previewStyle(current)} title="Police actuelle">
+      <div className="font-current" style={previewStyle(current)} title={t("Police actuelle")}>
         {current.label}
       </div>
-      <div className="font-list" role="listbox" aria-label="Polices" ref={listRef}>
+      <div className="font-list" role="listbox" aria-label={t("Polices")} ref={listRef}>
         {groups.map((g) => (
           <div key={g.label} role="group" aria-label={g.label}>
             <div className="font-group">{g.label}</div>
@@ -183,19 +189,20 @@ export function FontPicker({
             ))}
           </div>
         ))}
-        {!groups.length && <p className="hint pad">Aucune police ne correspond à « {filter} ».</p>}
+        {!groups.length && <p className="hint pad">{t("Aucune police ne correspond à « {filter} ».", { filter })}</p>}
       </div>
       <div className="font-actions">
         {localFontsSupported() ? (
-          <button onClick={useLocalFonts}>{hasLocal ? "Recharger mes polices installées" : "Utiliser mes polices installées"}</button>
+          <button onClick={useLocalFonts}>{hasLocal ? t("Recharger mes polices installées") : t("Utiliser mes polices installées")}</button>
         ) : (
           <span className="hint">
-            Polices de l'appareil : non accessibles dans ce navigateur (uniquement Chrome / Edge sur ordinateur). Importez un
-            fichier de police à la place.
+            {t(
+              "Polices de l'appareil : non accessibles dans ce navigateur (uniquement Chrome / Edge sur ordinateur). Importez un fichier de police à la place.",
+            )}
           </span>
         )}
-        <button onClick={() => fileRef.current?.click()} title="Formats acceptés : TTF, OTF, TTC, WOFF, WOFF2">
-          Importer une police…
+        <button onClick={() => fileRef.current?.click()} title={t("Formats acceptés : TTF, OTF, TTC, WOFF, WOFF2")}>
+          {t("Importer une police…")}
         </button>
         <input
           ref={fileRef}
@@ -210,7 +217,7 @@ export function FontPicker({
               const keys = await addFontFiles(Array.from(files));
               if (keys[0]) onChange(keys[0]);
             } catch {
-              onError("Ce fichier de police n'a pas pu être lu (formats acceptés : TTF, OTF, TTC, WOFF, WOFF2).");
+              onError(t("Ce fichier de police n'a pas pu être lu (formats acceptés : TTF, OTF, TTC, WOFF, WOFF2)."));
             }
             e.target.value = "";
           }}

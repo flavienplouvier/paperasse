@@ -15,6 +15,7 @@ import { shapeDef } from "./shapes";
 import type { Annotation, Point, ShapeAnnotation, TextAnnotation } from "./types";
 import { addScaled, arrowHead, hexToRgb01, normalizeRotation, screenAxes, shapeBox } from "./geometry";
 import { fontBytes, getFont } from "./fonts";
+import { t } from "../i18n";
 
 export const LINE_HEIGHT = 1.25;
 
@@ -65,7 +66,10 @@ async function drawText(page: PDFPage, a: TextAnnotation, font: PDFFont) {
       font.encodeText(line);
     } catch {
       throw new Error(
-        `La police « ${getFont(a.fontKey).label} » ne contient pas certains caractères de « ${line} ». Choisissez une police installée ou importée qui les couvre.`,
+        t(
+          "La police « {font} » ne contient pas certains caractères de « {line} ». Choisissez une police installée ou importée qui les couvre.",
+          { font: getFont(a.fontKey).label, line },
+        ),
       );
     }
     const [x, y] = addScaled(a.origin, down, a.fontSize * LINE_HEIGHT * i);

@@ -8,35 +8,50 @@ import { SHAPES, shapeDef, type ShapeId } from "../lib/shapes";
 import type { ToolStyle } from "./PageView";
 import { FontPicker, useFonts } from "./FontPicker";
 import { Icon } from "./Icon";
+import { msg, t, tn, useLocale } from "../i18n";
+
+/** Met en gras la valeur {font} d'une phrase traduite (laissée intacte par t). */
+function withStrong(text: string, value: string) {
+  const [before, after = ""] = text.split("{font}");
+  return (
+    <>
+      {before}
+      <strong>{value}</strong>
+      {after}
+    </>
+  );
+}
 
 /** Choix d'un tampon prédéfini ou personnalisé, avec date facultative. */
 function StampPicker({ onStamp }: { onStamp: (dataUrl: string) => void }) {
   const [custom, setCustom] = useState("");
   const [color, setColor] = useState("#c62828");
   const [withDate, setWithDate] = useState(true);
+  useLocale();
   return (
     <div className="stamp-picker">
       <div className="stamp-grid">
         {STAMPS.map((s) => (
-          <button key={s.label} className="stamp-btn" style={{ color: s.color, borderColor: s.color }} onClick={() => onStamp(renderStamp(s.label, s.color, withDate))}>
-            {s.label}
+          <button key={s.label} className="stamp-btn" style={{ color: s.color, borderColor: s.color }} onClick={() => onStamp(renderStamp(t(s.label), s.color, withDate))}>
+            {t(s.label)}
           </button>
         ))}
       </div>
       <label className="field inline">
-        <input type="checkbox" checked={withDate} onChange={(e) => setWithDate(e.target.checked)} /> Ajouter la date du jour
+        <input type="checkbox" checked={withDate} onChange={(e) => setWithDate(e.target.checked)} />{" "}
+        {t("Ajouter la date du jour")}
       </label>
       <div className="field">
-        Tampon personnalisé
+        {t("Tampon personnalisé")}
         <div className="search-row" style={{ padding: 0 }}>
-          <input value={custom} placeholder="Ex. : Bon pour accord" onChange={(e) => setCustom(e.target.value)} />
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} aria-label="Couleur du tampon" />
+          <input value={custom} placeholder={t("Ex. : Bon pour accord")} onChange={(e) => setCustom(e.target.value)} />
+          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} aria-label={t("Couleur du tampon")} />
           <button className="primary" disabled={!custom.trim()} onClick={() => onStamp(renderStamp(custom, color, withDate))}>
             OK
           </button>
         </div>
       </div>
-      <p className="hint">Choisissez un tampon, puis touchez la page à l'endroit où le poser.</p>
+      <p className="hint">{t("Choisissez un tampon, puis touchez la page à l'endroit où le poser.")}</p>
     </div>
   );
 }
@@ -102,11 +117,11 @@ interface Props {
 }
 
 const DRAW_CHOICES: { id: string; label: string; icon: string; tool: Tool; doubleArrow?: boolean }[] = [
-  { id: "ink", label: "Stylo", icon: "pen", tool: "ink" },
-  { id: "highlight", label: "Surligneur", icon: "highlight", tool: "highlight" },
-  { id: "line", label: "Trait", icon: "line", tool: "line" },
-  { id: "arrow", label: "Flèche", icon: "arrow", tool: "arrow", doubleArrow: false },
-  { id: "double", label: "Double flèche", icon: "doubleArrow", tool: "arrow", doubleArrow: true },
+  { id: "ink", label: msg("Stylo"), icon: "pen", tool: "ink" },
+  { id: "highlight", label: msg("Surligneur"), icon: "highlight", tool: "highlight" },
+  { id: "line", label: msg("Trait"), icon: "line", tool: "line" },
+  { id: "arrow", label: msg("Flèche"), icon: "arrow", tool: "arrow", doubleArrow: false },
+  { id: "double", label: msg("Double flèche"), icon: "doubleArrow", tool: "arrow", doubleArrow: true },
 ];
 
 /** Aperçu d'une forme pour la grille de choix. */
@@ -138,6 +153,7 @@ export function PropertiesPanel({
   fileFonts,
 }: Props) {
   useFonts(); // re-rendu quand la bibliothèque de polices est chargée (boutons G / I)
+  useLocale();
   // Modifie l'annotation sélectionnée, et retient le réglage pour les suivantes.
   const set = (patch: Partial<ToolStyle> & { text?: string }, commit = true) => applyStyle(patch, selected, onStyle, onUpdate, commit);
 
@@ -174,11 +190,11 @@ export function PropertiesPanel({
 
   return (
     <div className="props-panel">
-      <h3>{selected ? "Élément sélectionné" : "Réglages de l'outil"}</h3>
+      <h3>{selected ? t("Élément sélectionné") : t("Réglages de l'outil")}</h3>
 
       {selected?.kind === "text" && (
         <label className="field">
-          Texte
+          {t("Texte")}
           <textarea
             rows={3}
             value={selected.text}
@@ -194,16 +210,32 @@ export function PropertiesPanel({
         const name = selected.embedded.baseFont.replace(/^[A-Z]{6}\+/, "");
         return missing.length === 0 ? (
           <p className="font-status ok">
-            Police d'origine du PDF : <strong>{name}</strong>
-            {selected.embedded.notEmbedded ? " (police standard, rendu identique)." : " (incorporée, rendu identique)."}
-            {borrowed.length > 0 && <> « {borrowed.join(" ")} » retrouvé{borrowed.length > 1 ? "s" : ""} ailleurs dans le PDF.</>}
+            {withStrong(
+              selected.embedded.notEmbedded
+                ? t("Police d'origine du PDF : {font} (police standard, rendu identique).")
+                : t("Police d'origine du PDF : {font} (incorporée, rendu identique)."),
+              name,
+            )}
+            {borrowed.length > 0 && (
+              <>
+                {" "}
+                {tn("« {chars} » retrouvé ailleurs dans le PDF.", "« {chars} » retrouvés ailleurs dans le PDF.", borrowed.length, {
+                  chars: borrowed.join(" "),
+                })}
+              </>
+            )}
           </p>
         ) : (
           <p className="font-status warn">
-            « {missing.join(" ")} » n'existe pas dans la police <strong>{name}</strong> incorporée au PDF : seul
-            {missing.length > 1 ? "s ces caractères utilisent" : " ce caractère utilise"} la police de remplacement
-            ci-dessous, le reste garde la police d'origine. Pour le vrai glyphe, installez la police {name} sur
-            l'ordinateur ou importez-la (TTF/OTF) puis choisissez-la ci-dessous.
+            {withStrong(
+              tn(
+                "« {chars} » n'existe pas dans la police {font} incorporée au PDF : seul ce caractère utilise la police de remplacement ci-dessous, le reste garde la police d'origine. Pour le vrai glyphe, installez la police {name} sur l'ordinateur ou importez-la (TTF/OTF) puis choisissez-la ci-dessous.",
+                "« {chars} » n'existe pas dans la police {font} incorporée au PDF : seuls ces caractères utilisent la police de remplacement ci-dessous, le reste garde la police d'origine. Pour le vrai glyphe, installez la police {name} sur l'ordinateur ou importez-la (TTF/OTF) puis choisissez-la ci-dessous.",
+                missing.length,
+                { chars: missing.join(" "), name },
+              ),
+              name,
+            )}
           </p>
         );
       })()}
@@ -211,7 +243,7 @@ export function PropertiesPanel({
       {showText && (
         <>
           <div className="field">
-            {selected?.kind === "text" && selected.embedded ? "Police de remplacement" : "Police"}
+            {selected?.kind === "text" && selected.embedded ? t("Police de remplacement") : t("Police")}
             <FontPicker
               value={v.fontKey}
               onChange={(fontKey) => set({ fontKey })}
@@ -220,29 +252,29 @@ export function PropertiesPanel({
               fileFonts={fileFonts}
             />
           </div>
-          <div className="format-row" role="group" aria-label="Mise en forme">
+          <div className="format-row" role="group" aria-label={t("Mise en forme")}>
             <button
               className={currentFont.bold ? "active" : ""}
               disabled={!boldKey}
-              title={boldKey ? "Gras" : "Pas de variante grasse pour cette police"}
+              title={boldKey ? t("Gras") : t("Pas de variante grasse pour cette police")}
               onClick={() => boldKey && set({ fontKey: boldKey })}
             >
-              <strong>G</strong>
+              <strong>{t("G")}</strong>
             </button>
             <button
               className={currentFont.italic ? "active" : ""}
               disabled={!italicKey}
-              title={italicKey ? "Italique" : "Pas de variante italique pour cette police"}
+              title={italicKey ? t("Italique") : t("Pas de variante italique pour cette police")}
               onClick={() => italicKey && set({ fontKey: italicKey })}
             >
-              <em>I</em>
+              <em>{t("I")}</em>
             </button>
-            <button className={v.underline ? "active" : ""} title="Souligné" onClick={() => set({ underline: !v.underline })}>
-              <span style={{ textDecoration: "underline" }}>S</span>
+            <button className={v.underline ? "active" : ""} title={t("Souligné")} onClick={() => set({ underline: !v.underline })}>
+              <span style={{ textDecoration: "underline" }}>{t("S")}</span>
             </button>
           </div>
           <label className="field">
-            Taille : {Math.round(v.fontSize * 10) / 10} pt
+            {t("Taille : {n} pt", { n: Math.round(v.fontSize * 10) / 10 })}
             <input type="range" min={4} max={96} step={0.5} value={v.fontSize} onChange={(e) => set({ fontSize: +e.target.value }, false)} onPointerUp={() => set({}, true)} />
           </label>
         </>
@@ -250,16 +282,16 @@ export function PropertiesPanel({
 
       {showColor && (
         <div className="field">
-          Couleur
+          {t("Couleur")}
           <div className="swatches">
             {COLORS.map((c) => (
               <button key={c} className={`swatch ${c === v.color ? "active" : ""}`} style={{ background: c }} onClick={() => set({ color: c })} aria-label={c} />
             ))}
-            <input type="color" value={v.color} onChange={(e) => set({ color: e.target.value })} aria-label="Couleur personnalisée" />
+            <input type="color" value={v.color} onChange={(e) => set({ color: e.target.value })} aria-label={t("Couleur personnalisée")} />
             <button
               className="swatch-tool"
-              title="Pipette : copier une couleur de la page"
-              aria-label="Pipette"
+              title={t("Pipette : copier une couleur de la page")}
+              aria-label={t("Pipette")}
               onClick={async () => {
                 const c = await onPickColor();
                 if (c) set({ color: c });
@@ -270,7 +302,7 @@ export function PropertiesPanel({
           </div>
           {pickedColors.length > 0 && (
             <>
-              <span className="hint">Pipette</span>
+              <span className="hint">{t("Pipette")}</span>
               <div className="swatches">
                 {pickedColors.map((c) => (
                   <button key={c} className={`swatch ${c === v.color ? "active" : ""}`} style={{ background: c }} onClick={() => set({ color: c })} aria-label={c} title={c} />
@@ -283,14 +315,15 @@ export function PropertiesPanel({
 
       {showWidth && (
         <label className="field">
-          Épaisseur : {v.width} pt
+          {t("Épaisseur : {n} pt", { n: v.width })}
           <input type="range" min={0.5} max={20} step={0.5} value={v.width} onChange={(e) => set({ width: +e.target.value }, false)} onPointerUp={() => set({}, true)} />
         </label>
       )}
 
       {showFill && (
         <label className="field inline">
-          <input type="checkbox" checked={v.fill} onChange={(e) => set({ fill: e.target.checked })} /> Forme pleine
+          <input type="checkbox" checked={v.fill} onChange={(e) => set({ fill: e.target.checked })} />{" "}
+          {t("Forme pleine")}
         </label>
       )}
 
@@ -298,8 +331,8 @@ export function PropertiesPanel({
 
       {["ink", "highlight", "line", "arrow"].includes(tool) && !selected && (
         <div className="field">
-          Outil de dessin
-          <div className="choice-grid draw" role="radiogroup" aria-label="Outil de dessin">
+          {t("Outil de dessin")}
+          <div className="choice-grid draw" role="radiogroup" aria-label={t("Outil de dessin")}>
             {DRAW_CHOICES.map((c) => {
               const active = c.tool === tool && (c.doubleArrow === undefined || c.doubleArrow === style.doubleArrow);
               return (
@@ -308,14 +341,14 @@ export function PropertiesPanel({
                   role="radio"
                   aria-checked={active}
                   className={active ? "active" : ""}
-                  title={c.label}
+                  title={t(c.label)}
                   onClick={() => {
                     if (c.doubleArrow !== undefined) onStyle({ doubleArrow: c.doubleArrow });
                     onTool(c.tool);
                   }}
                 >
                   <Icon name={c.icon} />
-                  <span>{c.label}</span>
+                  <span>{t(c.label)}</span>
                 </button>
               );
             })}
@@ -325,16 +358,16 @@ export function PropertiesPanel({
 
       {["shape", "rect", "ellipse"].includes(tool) && !selected && (
         <div className="field">
-          Forme
-          <div className="choice-grid shapes" role="radiogroup" aria-label="Forme">
+          {t("Forme")}
+          <div className="choice-grid shapes" role="radiogroup" aria-label={t("Forme")}>
             {SHAPES.filter((s) => !s.linear).map((s) => (
               <button
                 key={s.id}
                 role="radio"
                 aria-checked={tool === "shape" && style.shape === s.id}
                 className={tool === "shape" && style.shape === s.id ? "active" : ""}
-                title={s.label}
-                aria-label={s.label}
+                title={t(s.label)}
+                aria-label={t(s.label)}
                 onClick={() => {
                   onStyle({ shape: s.id });
                   onTool("shape");
@@ -344,36 +377,36 @@ export function PropertiesPanel({
               </button>
             ))}
           </div>
-          <p className="hint">Tracez la forme sur la page, ou touchez pour une taille standard.</p>
+          <p className="hint">{t("Tracez la forme sur la page, ou touchez pour une taille standard.")}</p>
         </div>
       )}
 
       {kind === "field" && (
         <>
           <label className="field">
-            Type de champ
+            {t("Type de champ")}
             <select
               value={field?.fieldType ?? style.fieldType}
               onChange={(e) => {
                 const fieldType = e.target.value as FieldType;
                 onStyle({ fieldType });
-                updateField({ fieldType, options: fieldType === "dropdown" ? (field?.options ?? ["Choix 1", "Choix 2"]) : field?.options });
+                updateField({ fieldType, options: fieldType === "dropdown" ? (field?.options ?? [t("Choix 1"), t("Choix 2")]) : field?.options });
               }}
             >
-              <option value="text">Zone de texte</option>
-              <option value="checkbox">Case à cocher</option>
-              <option value="dropdown">Liste déroulante</option>
+              <option value="text">{t("Zone de texte")}</option>
+              <option value="checkbox">{t("Case à cocher")}</option>
+              <option value="dropdown">{t("Liste déroulante")}</option>
             </select>
           </label>
           {field && (
             <>
               <label className="field">
-                Nom du champ
+                {t("Nom du champ")}
                 <input value={field.name} onChange={(e) => updateField({ name: e.target.value }, false)} onBlur={() => updateField({}, true)} />
               </label>
               {field.fieldType === "dropdown" && (
                 <label className="field">
-                  Choix proposés (un par ligne)
+                  {t("Choix proposés (un par ligne)")}
                   <textarea
                     rows={4}
                     value={(field.options ?? []).join("\n")}
@@ -384,18 +417,18 @@ export function PropertiesPanel({
               )}
               {field.fieldType === "text" && (
                 <label className="field inline">
-                  <input type="checkbox" checked={!!field.multiline} onChange={(e) => updateField({ multiline: e.target.checked })} /> Plusieurs
-                  lignes
+                  <input type="checkbox" checked={!!field.multiline} onChange={(e) => updateField({ multiline: e.target.checked })} />{" "}
+                  {t("Plusieurs lignes")}
                 </label>
               )}
               {field.fieldType !== "checkbox" && (
                 <label className="field">
-                  Taille du texte saisi
+                  {t("Taille du texte saisi")}
                   <select value={field.fontSize} onChange={(e) => updateField({ fontSize: +e.target.value })}>
-                    <option value={0}>Automatique</option>
+                    <option value={0}>{t("Automatique")}</option>
                     {[8, 9, 10, 11, 12, 14, 16, 18, 24].map((s) => (
                       <option key={s} value={s}>
-                        {s} pt
+                        {t("{n} pt", { n: s })}
                       </option>
                     ))}
                   </select>
@@ -405,41 +438,45 @@ export function PropertiesPanel({
           )}
           <p className="hint">
             {field
-              ? "Le champ devient un vrai champ de formulaire PDF à l'enregistrement : il se remplit ensuite dans Paperasse (onglet Formulaire), Acrobat ou un navigateur."
-              : "Tracez le champ sur la page (ou touchez pour une taille standard). Choisissez d'abord son type."}
+              ? t(
+                  "Le champ devient un vrai champ de formulaire PDF à l'enregistrement : il se remplit ensuite dans Paperasse (onglet Formulaire), Acrobat ou un navigateur.",
+                )
+              : t("Tracez le champ sur la page (ou touchez pour une taille standard). Choisissez d'abord son type.")}
           </p>
         </>
       )}
 
       {tool === "eraser" && (
         <p className="hint">
-          Touchez un élément ajouté (trait, forme, texte, tampon, image…) ou passez dessus pour le supprimer. Le contenu
-          d'origine du PDF n'est pas touché : pour le masquer, utilisez le cache blanc. Ctrl+Z pour annuler.
+          {t(
+            "Touchez un élément ajouté (trait, forme, texte, tampon, image…) ou passez dessus pour le supprimer. Le contenu d'origine du PDF n'est pas touché : pour le masquer, utilisez le cache blanc. Ctrl+Z pour annuler.",
+          )}
         </p>
       )}
 
       {!["select", "editText", "whiteout", "stamp", "field", "eraser"].includes(kind) && (
         <label className="field">
-          Opacité : {Math.round(v.opacity * 100)} %
+          {t("Opacité : {n} %", { n: Math.round(v.opacity * 100) })}
           <input type="range" min={0.1} max={1} step={0.05} value={v.opacity} onChange={(e) => set({ opacity: +e.target.value }, false)} onPointerUp={() => set({}, true)} />
         </label>
       )}
 
       {tool === "editText" && !selected && (
         <p className="hint">
-          Touchez un texte du PDF : il est masqué et remplacé par un texte modifiable, dans la police d'origine si elle est
-          disponible sur cet appareil.
+          {t(
+            "Touchez un texte du PDF : il est masqué et remplacé par un texte modifiable, dans la police d'origine si elle est disponible sur cet appareil.",
+          )}
         </p>
       )}
-      {tool === "select" && !selected && <p className="hint">Touchez un élément ajouté pour le déplacer, le redimensionner ou le modifier.</p>}
+      {tool === "select" && !selected && <p className="hint">{t("Touchez un élément ajouté pour le déplacer, le redimensionner ou le modifier.")}</p>}
 
       {selected && (
         <div className="panel-actions">
           <button onClick={onDuplicate}>
-            <Icon name="copy" /> Dupliquer
+            <Icon name="copy" /> {t("Dupliquer")}
           </button>
           <button className="danger" onClick={onDelete}>
-            <Icon name="trash" /> Supprimer
+            <Icon name="trash" /> {t("Supprimer")}
           </button>
         </div>
       )}

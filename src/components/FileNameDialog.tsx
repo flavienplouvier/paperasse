@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "./Icon";
+import { t, useLocale } from "../i18n";
 import { buildFileName, findDate, formatDate, isoDate, loadNamePrefs, saveNamePrefs, type NamePrefs } from "../lib/fileName";
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 
 /** Choix du nom du fichier à l'enregistrement, avec une date facultative. */
 export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props) {
+  useLocale();
   const [name, setName] = useState(base);
   const [withDate, setWithDate] = useState(date !== null);
   const [day, setDay] = useState(date ?? isoDate());
@@ -63,7 +65,7 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props
       <form
         className="modal file-name"
         role="dialog"
-        aria-label="Nom du fichier"
+        aria-label={t("Nom du fichier")}
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
@@ -71,35 +73,35 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props
         }}
       >
         <header>
-          <h2>Nom du fichier</h2>
-          <button type="button" className="icon-btn" title="Fermer" onClick={onClose}>
+          <h2>{t("Nom du fichier")}</h2>
+          <button type="button" className="icon-btn" title={t("Fermer")} onClick={onClose}>
             <Icon name="close" size={18} />
           </button>
         </header>
         <label className="field">
-          <span>Nom</span>
-          <input autoFocus value={name} placeholder="Ex. Facture électricité" onFocus={(e) => e.target.select()} onChange={(e) => setName(e.target.value)} />
+          <span>{t("Nom")}</span>
+          <input autoFocus value={name} placeholder={t("Ex. Facture électricité")} onFocus={(e) => e.target.select()} onChange={(e) => setName(e.target.value)} />
         </label>
         <div className="modal-row">
           <label className="check">
             <input type="checkbox" checked={withDate} onChange={(e) => toggleDate(e.target.checked)} />
-            {found || replaced ? "Remplacer la date" : "Ajouter une date"}
+            {found || replaced ? t("Remplacer la date") : t("Ajouter une date")}
           </label>
-          <input type="date" value={day} disabled={!withDate} aria-label="Date" onChange={(e) => setDay(e.target.value)} />
+          <input type="date" value={day} disabled={!withDate} aria-label={t("Date")} onChange={(e) => setDay(e.target.value)} />
         </div>
         {withDate && (
           <div className="modal-row name-switches">
-            <button type="button" className="switch-btn" title="Changer l'ordre de la date" onClick={() => change({ format: prefs.format === "iso" ? "fr" : "iso" })}>
+            <button type="button" className="switch-btn" title={t("Changer l'ordre de la date")} onClick={() => change({ format: prefs.format === "iso" ? "fr" : "iso" })}>
               <Icon name="swap" size={16} /> {formatDate(day || isoDate(), prefs.format)}
             </button>
-            <button type="button" className="switch-btn" title="Placer la date au début ou à la fin du nom" onClick={() => change({ position: prefs.position === "end" ? "start" : "end" })}>
-              <Icon name="swap" size={16} /> {prefs.position === "end" ? "Date à la fin" : "Date au début"}
+            <button type="button" className="switch-btn" title={t("Placer la date au début ou à la fin du nom")} onClick={() => change({ position: prefs.position === "end" ? "start" : "end" })}>
+              <Icon name="swap" size={16} /> {prefs.position === "end" ? t("Date à la fin") : t("Date au début")}
             </button>
           </div>
         )}
         <label className="check">
           <input type="checkbox" checked={prefs.underscores} onChange={(e) => change({ underscores: e.target.checked })} />
-          Remplacer les espaces par « _ »
+          {t("Remplacer les espaces par « _ »")}
         </label>
         <p className="file-name-preview" aria-live="polite">
           <Icon name="pages" size={16} />{" "}
@@ -111,7 +113,7 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose }: Props
         <div className="modal-row modal-actions">
           <span className="spacer" />
           <button type="button" onClick={onClose}>
-            Annuler
+            {t("Annuler")}
           </button>
           <button type="submit" className="primary">
             {action}

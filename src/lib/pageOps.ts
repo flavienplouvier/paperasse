@@ -1,6 +1,7 @@
 import { PDFDocument, degrees } from "pdf-lib";
 import { newId } from "./types";
 import { normalizeRotation } from "./geometry";
+import { t } from "../i18n";
 
 export interface PagesResult {
   bytes: Uint8Array;
@@ -41,7 +42,7 @@ function copyMetadata(src: PDFDocument, out: PDFDocument) {
 
 export async function deletePages(bytes: Uint8Array, pageIds: string[], remove: Set<string>) {
   const order = pageIds.map((id, index) => ({ id, index })).filter((p) => !remove.has(p.id));
-  if (order.length === 0) throw new Error("Un PDF doit contenir au moins une page.");
+  if (order.length === 0) throw new Error(t("Un PDF doit contenir au moins une page."));
   return rebuild(bytes, order);
 }
 

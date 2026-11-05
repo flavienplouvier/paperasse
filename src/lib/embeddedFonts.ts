@@ -28,6 +28,7 @@ import {
 } from "pdf-lib";
 import type { TextAnnotation } from "./types";
 import { addScaled, screenAxes } from "./geometry";
+import { t } from "../i18n";
 
 /**
  * Réutilisation de la police incorporée dans le PDF (comme Acrobat) pour
@@ -312,7 +313,7 @@ export async function drawEmbeddedText(
   let fb: { font: PDFFont; key: PDFName } | null = null;
   const fallbackFont = async () => {
     if (!fb) {
-      if (!fallback) throw new Error("Caractère absent de la police d'origine et aucune police de remplacement.");
+      if (!fallback) throw new Error(t("Caractère absent de la police d'origine et aucune police de remplacement."));
       const f = await fallback();
       fb = { font: f, key: page.node.newFontDictionary(`PaF${++resourceCounter}`, f.ref) };
     }
@@ -371,7 +372,9 @@ export async function drawEmbeddedText(
           try {
             encoded = f.font.encodeText(seg.text);
           } catch {
-            throw new Error(`La police de remplacement ne contient pas certains caractères de « ${seg.text} ». Choisissez une police qui les couvre.`);
+            throw new Error(
+              t("La police de remplacement ne contient pas certains caractères de « {text} ». Choisissez une police qui les couvre.", { text: seg.text }),
+            );
           }
           ops.push(setFontAndSize(f.key, a.fontSize), showText(encoded));
         } else {

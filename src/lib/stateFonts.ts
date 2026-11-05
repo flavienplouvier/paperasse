@@ -1,4 +1,5 @@
 import { registerFontEntry } from "./fonts";
+import { t } from "../i18n";
 
 /**
  * Police Marianne (marque de l'État) pour retoucher les documents de l'État
@@ -38,7 +39,9 @@ export function stateFontKey(variant: string): string {
   const [, weight, italic] = /^Marianne-(\w+?)(_Italic)?$/.exec(variant) ?? [];
   registerFontEntry({
     key,
-    label: `Marianne ${weight}${italic ? " Italique" : ""} (police de l'État)`,
+    get label() {
+      return t("{font} (police de l'État)", { font: `Marianne ${weight}${italic ? " " + t("Italique") : ""}` });
+    },
     source: "library",
     category: "etat",
     cssFamily: `"fl-etat-${variant}"`,
@@ -48,7 +51,7 @@ export function stateFontKey(variant: string): string {
     load: async () => {
       // WOFF2 : les fichiers WOFF de ce serveur (contours CFF) ne sont pas lus correctement par fontkit.
       const res = await fetch(`${STATE_FONT_SERVER}${variant}.woff2`);
-      if (!res.ok) throw new Error("Police Marianne indisponible (connexion internet nécessaire au premier usage).");
+      if (!res.ok) throw new Error(t("Police {font} indisponible (connexion internet nécessaire au premier usage).", { font: "Marianne" }));
       return res.arrayBuffer();
     },
   });

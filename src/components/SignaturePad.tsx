@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { t, useLocale } from "../i18n";
 
 /** Rogne un canvas sur ses pixels non transparents et le renvoie en PNG. */
 function trimToPng(c: HTMLCanvasElement): string | null {
@@ -52,7 +53,7 @@ export async function importSignature(file: File, removeBackground: boolean): Pr
       ctx.putImageData(image, 0, 0);
     }
     const png = trimToPng(c);
-    if (!png) throw new Error("L'image semble vide une fois le fond retiré. Décochez « Retirer le fond blanc ».");
+    if (!png) throw new Error(t("L'image semble vide une fois le fond retiré. Décochez « Retirer le fond blanc »."));
     return png;
   } finally {
     URL.revokeObjectURL(url);
@@ -69,6 +70,7 @@ export function SignaturePad({
   onCancel: () => void;
   onError: (msg: string) => void;
 }) {
+  useLocale();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [color, setColor] = useState("#1a2b6d");
@@ -124,10 +126,10 @@ export function SignaturePad({
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Signature">
+      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={t("Signature")}>
         <header>
-          <h2>Votre signature</h2>
-          <button className="icon-btn" onClick={onCancel} title="Fermer">
+          <h2>{t("Votre signature")}</h2>
+          <button className="icon-btn" onClick={onCancel} title={t("Fermer")}>
             <Icon name="close" />
           </button>
         </header>
@@ -149,22 +151,22 @@ export function SignaturePad({
               className={`swatch ${c === color ? "active" : ""}`}
               style={{ background: c }}
               onClick={() => setColor(c)}
-              aria-label={`Couleur ${c}`}
+              aria-label={t("Couleur {color}", { color: c })}
             />
           ))}
           <span className="spacer" />
-          <button onClick={clear}>Effacer</button>
+          <button onClick={clear}>{t("Effacer")}</button>
           <button className="primary" disabled={empty} onClick={finish}>
-            Placer la signature
+            {t("Placer la signature")}
           </button>
         </div>
         <div className="signature-import">
           <button onClick={() => fileRef.current?.click()}>
-            <Icon name="upload" /> Importer une image de signature
+            <Icon name="upload" /> {t("Importer une image de signature")}
           </button>
           <label className="field inline">
             <input type="checkbox" checked={removeBackground} onChange={(e) => setRemoveBackground(e.target.checked)} />
-            Retirer le fond blanc
+            {t("Retirer le fond blanc")}
           </label>
           <input
             ref={fileRef}
@@ -178,14 +180,15 @@ export function SignaturePad({
               try {
                 onDone(await importSignature(f, removeBackground));
               } catch (err) {
-                onError(err instanceof Error ? err.message : "Image illisible.");
+                onError(err instanceof Error ? err.message : t("Image illisible."));
               }
             }}
           />
         </div>
         <p className="hint">
-          Signez dans le cadre ou importez une photo / un scan de votre signature, puis touchez l'endroit de la page où
-          la placer.
+          {t(
+            "Signez dans le cadre ou importez une photo / un scan de votre signature, puis touchez l'endroit de la page où la placer.",
+          )}
         </p>
       </div>
     </div>

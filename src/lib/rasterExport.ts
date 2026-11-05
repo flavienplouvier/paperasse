@@ -4,6 +4,7 @@ import type { PDFDocumentProxy } from "./pdfjs";
 import type { Annotation } from "./types";
 import { translateAnnotation } from "./annotations";
 import { FontCache, drawAnnotation } from "./exportPdf";
+import { t } from "../i18n";
 
 /**
  * Export pour les PDF chiffrés (ouverts avec leur mot de passe) dont les
@@ -32,7 +33,7 @@ export async function rasterExport(
     canvas.height = Math.ceil(viewport.height);
     await page.render({ canvas, viewport }).promise;
     const blob = await new Promise<Blob>((res, rej) =>
-      canvas.toBlob((b) => (b ? res(b) : rej(new Error("Rendu impossible"))), "image/jpeg", 0.9),
+      canvas.toBlob((b) => (b ? res(b) : rej(new Error(t("Rendu impossible")))), "image/jpeg", 0.9),
     );
     const img = await out.embedJpg(new Uint8Array(await blob.arrayBuffer()));
     const w = x1 - x0;

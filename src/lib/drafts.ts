@@ -1,4 +1,5 @@
 import type { Annotation } from "./types";
+import { currentLocale, t } from "../i18n";
 
 /**
  * Sauvegarde automatique du travail en cours dans le navigateur (IndexedDB),
@@ -68,9 +69,10 @@ export function draftInfo(d: Draft): DraftInfo {
   return { name: d.name, savedAt: d.savedAt, pages: d.pageIds.length, edits: d.annotations.length };
 }
 
-export function formatSavedAt(t: number): string {
-  const date = new Date(t);
+export function formatSavedAt(at: number): string {
+  const date = new Date(at);
   const today = new Date().toDateString() === date.toDateString();
-  const time = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  return today ? `aujourd'hui à ${time}` : `le ${date.toLocaleDateString("fr-FR")} à ${time}`;
+  const locale = currentLocale();
+  const time = date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  return today ? t("aujourd'hui à {time}", { time }) : t("le {date} à {time}", { date: date.toLocaleDateString(locale), time });
 }

@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "../lib/pdfjs";
 import { Icon } from "./Icon";
+import { t, tn, useLocale } from "../i18n";
 
 function Thumb({ pdf, index, onClick }: { pdf: PDFDocumentProxy; index: number; onClick: () => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -25,9 +26,9 @@ function Thumb({ pdf, index, onClick }: { pdf: PDFDocumentProxy; index: number; 
       const viewport = page.getViewport({ scale: 220 / base.width });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      const t = page.render({ canvas, viewport });
-      task = t;
-      t.promise.catch(() => undefined);
+      const render = page.render({ canvas, viewport });
+      task = render;
+      render.promise.catch(() => undefined);
     });
     return () => {
       alive = false;
@@ -57,43 +58,46 @@ interface Props {
 }
 
 function ThumbnailsImpl(p: Props) {
+  useLocale();
   const count = p.selected.size;
   const disabled = !p.editable || count === 0;
   return (
     <div className="thumbs-panel">
       <div className="panel-actions">
-        <button title="Tourner à gauche" disabled={disabled} onClick={() => p.onRotate(-90)}>
+        <button title={t("Tourner à gauche")} disabled={disabled} onClick={() => p.onRotate(-90)}>
           <Icon name="rotateL" />
         </button>
-        <button title="Tourner à droite" disabled={disabled} onClick={() => p.onRotate(90)}>
+        <button title={t("Tourner à droite")} disabled={disabled} onClick={() => p.onRotate(90)}>
           <Icon name="rotateR" />
         </button>
-        <button title="Monter" disabled={disabled || count !== 1} onClick={() => p.onMove(-1)}>
+        <button title={t("Monter")} disabled={disabled || count !== 1} onClick={() => p.onMove(-1)}>
           <Icon name="up" />
         </button>
-        <button title="Descendre" disabled={disabled || count !== 1} onClick={() => p.onMove(1)}>
+        <button title={t("Descendre")} disabled={disabled || count !== 1} onClick={() => p.onMove(1)}>
           <Icon name="down" />
         </button>
-        <button title="Dupliquer" disabled={disabled || count !== 1} onClick={p.onDuplicate}>
+        <button title={t("Dupliquer")} disabled={disabled || count !== 1} onClick={p.onDuplicate}>
           <Icon name="copy" />
         </button>
-        <button title="Insérer une page blanche après" disabled={!p.editable} onClick={p.onInsertBlank}>
+        <button title={t("Insérer une page blanche après")} disabled={!p.editable} onClick={p.onInsertBlank}>
           <Icon name="plus" />
         </button>
-        <button title="Supprimer" disabled={disabled} onClick={p.onDelete}>
+        <button title={t("Supprimer")} disabled={disabled} onClick={p.onDelete}>
           <Icon name="trash" />
         </button>
-        <button title="Extraire la sélection dans un nouveau PDF" disabled={count === 0} onClick={p.onExtract}>
+        <button title={t("Extraire la sélection dans un nouveau PDF")} disabled={count === 0} onClick={p.onExtract}>
           <Icon name="extract" />
         </button>
-        <button title="Ajouter des PDF à la fin (fusion)" disabled={!p.editable} onClick={p.onMerge}>
+        <button title={t("Ajouter des PDF à la fin (fusion)")} disabled={!p.editable} onClick={p.onMerge}>
           <Icon name="merge" />
         </button>
       </div>
       <div className="panel-sub">
-        {count > 0 ? `${count} page(s) sélectionnée(s)` : "Touchez la case d'une page pour la sélectionner"}
+        {count > 0
+          ? tn("{n} page sélectionnée", "{n} pages sélectionnées", count)
+          : t("Touchez la case d'une page pour la sélectionner")}
         <button className="link" onClick={p.onSelectAll}>
-          {count === p.pageIds.length ? "Aucune" : "Toutes"}
+          {count === p.pageIds.length ? t("Aucune") : t("Toutes")}
         </button>
       </div>
       <ol className="thumbs">

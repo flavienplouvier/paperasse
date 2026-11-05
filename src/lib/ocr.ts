@@ -2,6 +2,7 @@ import { createWorker, OEM, type Worker } from "tesseract.js";
 import type { PDFDocumentProxy } from "./pdfjs";
 import type { OcrWord } from "./ocrLayer";
 import type { Point } from "./types";
+import { t } from "../i18n";
 
 /** Code Tesseract (« fra », « deu »…) ou mélange de langues fournies (« fra+eng »). */
 export type OcrLanguage = string;
@@ -62,7 +63,7 @@ export async function recognizePages(
       page: current + 1,
       total: indices.length,
       fraction: status === "recognizing text" ? progress : 0,
-      status: status === "recognizing text" ? "Reconnaissance du texte" : "Chargement du moteur de reconnaissance",
+      status: status === "recognizing text" ? t("Reconnaissance du texte") : t("Chargement du moteur de reconnaissance"),
     }),
   );
   const result = new Map<number, OcrWord[]>();
@@ -111,7 +112,7 @@ export async function recognizePages(
       }
       result.set(index, words);
       canvas.width = canvas.height = 0;
-      onProgress({ page: current + 1, total: indices.length, fraction: 1, status: "Reconnaissance du texte" });
+      onProgress({ page: current + 1, total: indices.length, fraction: 1, status: t("Reconnaissance du texte") });
     }
   } finally {
     await worker.terminate();

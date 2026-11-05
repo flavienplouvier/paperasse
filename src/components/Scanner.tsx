@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { t, tn, useLocale } from "../i18n";
 import { scansToPdf } from "../lib/pageOps";
 import {
   SCAN_FILTERS,
@@ -78,7 +79,7 @@ function toJpeg(p: Pixels, quality = 0.85): Promise<Blob> {
   canvas.width = p.width;
   canvas.height = p.height;
   canvas.getContext("2d")!.putImageData(new ImageData(p.data as Uint8ClampedArray<ArrayBuffer>, p.width, p.height), 0, 0);
-  return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("Encodage de l'image impossible."))), "image/jpeg", quality));
+  return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error(t("Encodage de l'image impossible.")))), "image/jpeg", quality));
 }
 
 /** Détection sur une version réduite, coins ramenés aux dimensions de la source. */
@@ -104,6 +105,7 @@ interface Props {
 }
 
 export default function Scanner({ onDone, onCancel }: Props) {
+  useLocale();
   const [stage, setStage] = useState<Stage>({ kind: "camera" });
   const [pages, setPages] = useState<ScanPage[]>([]);
   const pagesRef = useRef(pages);
@@ -208,14 +210,14 @@ export default function Scanner({ onDone, onCancel }: Props) {
   const update = (page: ScanPage) => setPages((list) => list.map((p) => (p.id === page.id ? page : p)));
 
   const process = async (page: ScanPage) => {
-    setBusy("Amélioration du document…");
+    setBusy(t("Amélioration du document…"));
     await pause();
     try {
       const done = await render(page);
       update(done);
       return done;
     } catch (e) {
-      setError((e as Error).message || "Traitement impossible.");
+      setError((e as Error).message || t("Traitement impossible."));
       return page;
     } finally {
       setBusy(null);
@@ -228,13 +230,13 @@ export default function Scanner({ onDone, onCancel }: Props) {
     if (!v || !v.videoWidth || busy) return;
     setShutter(true);
     setTimeout(() => setShutter(false), 180);
-    setBusy("Capture…");
+    setBusy(t("Capture…"));
     try {
       const canvas = document.createElement("canvas");
       canvas.width = v.videoWidth;
       canvas.height = v.videoHeight;
       canvas.getContext("2d")!.drawImage(v, 0, 0);
-      const photo = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("Capture impossible."))), "image/jpeg", 0.92));
+      const photo = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error(t("Capture impossible.")))), "image/jpeg", 0.92));
       const quad = detectIn(canvas, canvas.width, canvas.height) ?? defaultQuad(canvas.width, canvas.height);
       const page: ScanPage = {
         id: newId(),
@@ -258,7 +260,7 @@ export default function Scanner({ onDone, onCancel }: Props) {
   const importPhotos = async (files: FileList | null) => {
     const list = [...(files ?? [])].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|heic)$/i.test(f.name));
     if (!list.length) return;
-    setBusy("Lecture des photos…");
+    setBusy(t("Lecture des photos…"));
     await pause();
     try {
       const added: ScanPage[] = [];
@@ -268,7 +270,7 @@ export default function Scanner({ onDone, onCancel }: Props) {
       else {
         const rendered: ScanPage[] = [];
         for (const [i, p] of added.entries()) {
-          setBusy(`Amélioration ${i + 1}/${added.length}…`);
+          setBusy(t("Amélioration {n}/{total}…", { n: i + 1, total: added.length }));
           await pause();
           rendered.push(await render(p));
         }
@@ -276,7 +278,7 @@ export default function Scanner({ onDone, onCancel }: Props) {
         setStage({ kind: "review", id: rendered[rendered.length - 1].id });
       }
     } catch {
-      setError("Cette photo n'a pas pu être lue (format non pris en charge par le navigateur).");
+      setError(t("Cette photo n'a pas pu être lue (format non pris en charge par le navigateur)."));
     } finally {
       setBusy(null);
     }
@@ -297,12 +299,12 @@ export default function Scanner({ onDone, onCancel }: Props) {
   };
 
   const close = () => {
-    if (pagesRef.current.length && !window.confirm(`Abandonner ${pagesRef.current.length > 1 ? `les ${pagesRef.current.length} pages numérisées` : "la page numérisée"} ?`)) return;
+    if (pagesRef.current.length && !window.confirm(tn("Abandonner la page numérisée ?", "Abandonner les {n} pages numérisées ?", pagesRef.current.length))) return;
     onCancel();
   };
 
   const finish = async () => {
-    setBusy("Création du PDF…");
+    setBusy(t("Création du PDF…"));
     await pause();
     try {
       const ready: ScanPage[] = [];
@@ -310,7 +312,7 @@ export default function Scanner({ onDone, onCancel }: Props) {
       const bytes = await scansToPdf(await Promise.all(ready.map(async (p) => new Uint8Array(await p.result!.arrayBuffer()))));
       onDone(bytes, ready.length);
     } catch (e) {
-      setError((e as Error).message || "Création du PDF impossible.");
+      setError((e as Error).message || t("Création du PDF impossible."));
       setBusy(null);
     }
   };
@@ -353,12 +355,12 @@ export default function Scanner({ onDone, onCancel }: Props) {
     body = (
       <>
         <header className="scan-top">
-          <button className="scan-icon" title="Fermer" onClick={pages.length ? () => setStage({ kind: "review", id: pages[pages.length - 1].id }) : close}>
+          <button className="scan-icon" title={t("Fermer")} onClick={pages.length ? () => setStage({ kind: "review", id: pages[pages.length - 1].id }) : close}>
             <Icon name={pages.length ? "back" : "close"} />
           </button>
-          <span className="scan-title">{pages.length ? `Page ${pages.length + 1}` : "Scanner un document"}</span>
+          <span className="scan-title">{pages.length ? t("Page {n}", { n: pages.length + 1 }) : t("Scanner un document")}</span>
           {torchAvailable ? (
-            <button className={`scan-icon ${flash ? "on" : ""}`} title={flash ? "Éteindre le flash" : "Allumer le flash"} aria-pressed={flash} onClick={toggleFlash}>
+            <button className={`scan-icon ${flash ? "on" : ""}`} title={flash ? t("Éteindre le flash") : t("Allumer le flash")} aria-pressed={flash} onClick={toggleFlash}>
               <Icon name={flash ? "flash" : "flashOff"} />
             </button>
           ) : (
@@ -374,35 +376,35 @@ export default function Scanner({ onDone, onCancel }: Props) {
                   <polygon points={live.map((p) => `${p.x},${p.y}`).join(" ")} />
                 </svg>
               )}
-              <p className="scan-tip">{live ? "Document détecté" : "Cadrez le document sur un fond contrasté"}</p>
+              <p className="scan-tip">{live ? t("Document détecté") : t("Cadrez le document sur un fond contrasté")}</p>
             </>
           ) : camera === "starting" ? (
-            <p className="scan-tip static">Ouverture de la caméra…</p>
+            <p className="scan-tip static">{t("Ouverture de la caméra…")}</p>
           ) : (
             <div className="scan-nocam">
               <Icon name="camera" size={40} />
-              <p>La caméra n'est pas accessible depuis la page. Utilisez l'appareil photo du téléphone ou choisissez une photo.</p>
+              <p>{t("La caméra n'est pas accessible depuis la page. Utilisez l'appareil photo du téléphone ou choisissez une photo.")}</p>
               <button className="primary" onClick={() => nativeInput.current?.click()}>
-                <Icon name="camera" /> Prendre une photo
+                <Icon name="camera" /> {t("Prendre une photo")}
               </button>
             </div>
           )}
           {shutter && <div className="scan-shutter" />}
         </div>
         <footer className="scan-bottom">
-          <button className="scan-icon" title="Importer des photos" onClick={() => galleryInput.current?.click()}>
+          <button className="scan-icon" title={t("Importer des photos")} onClick={() => galleryInput.current?.click()}>
             <Icon name="image" />
           </button>
-          <button className="scan-capture" title="Prendre la photo" disabled={camera !== "on" || !!busy} onClick={capture}>
+          <button className="scan-capture" title={t("Prendre la photo")} disabled={camera !== "on" || !!busy} onClick={capture}>
             <span />
           </button>
           {pages.length ? (
-            <button className="scan-stack" title="Voir les pages" onClick={() => setStage({ kind: "review", id: pages[pages.length - 1].id })}>
+            <button className="scan-stack" title={t("Voir les pages")} onClick={() => setStage({ kind: "review", id: pages[pages.length - 1].id })}>
               {pages[pages.length - 1].resultUrl ? <img src={pages[pages.length - 1].resultUrl} alt="" /> : null}
               <b>{pages.length}</b>
             </button>
           ) : (
-            <button className="scan-icon" title="Appareil photo du téléphone (avec son flash)" onClick={() => nativeInput.current?.click()}>
+            <button className="scan-icon" title={t("Appareil photo du téléphone (avec son flash)")} onClick={() => nativeInput.current?.click()}>
               <Icon name="camera" />
             </button>
           )}
@@ -426,50 +428,48 @@ export default function Scanner({ onDone, onCancel }: Props) {
     body = (
       <>
         <header className="scan-top">
-          <button className="scan-icon" title="Annuler" onClick={close}>
+          <button className="scan-icon" title={t("Annuler")} onClick={close}>
             <Icon name="close" />
           </button>
-          <span className="scan-title">
-            Page {pages.indexOf(current) + 1} / {pages.length}
-          </span>
+          <span className="scan-title">{t("Page {n} / {total}", { n: pages.indexOf(current) + 1, total: pages.length })}</span>
           <button className="scan-done" disabled={!!busy} onClick={finish}>
-            <Icon name="check" /> Terminer
+            <Icon name="check" /> {t("Terminer")}
           </button>
         </header>
-        <div className="scan-stage review">{current.resultUrl ? <img className="scan-result" src={current.resultUrl} alt={`Page ${pages.indexOf(current) + 1}`} /> : null}</div>
-        <div className="scan-filters" role="radiogroup" aria-label="Rendu">
+        <div className="scan-stage review">{current.resultUrl ? <img className="scan-result" src={current.resultUrl} alt={t("Page {n}", { n: pages.indexOf(current) + 1 })} /> : null}</div>
+        <div className="scan-filters" role="radiogroup" aria-label={t("Rendu")}>
           {SCAN_FILTERS.map((f) => (
             <button key={f.id} role="radio" aria-checked={current.filter === f.id} className={current.filter === f.id ? "active" : ""} disabled={!!busy} onClick={() => setFilter(f.id)}>
-              {f.label}
+              {t(f.label)}
             </button>
           ))}
         </div>
         <div className="scan-strip">
           {pages.map((p, i) => (
-            <button key={p.id} className={p.id === current.id ? "active" : ""} title={`Page ${i + 1}`} onClick={() => setStage({ kind: "review", id: p.id })}>
+            <button key={p.id} className={p.id === current.id ? "active" : ""} title={t("Page {n}", { n: i + 1 })} onClick={() => setStage({ kind: "review", id: p.id })}>
               {p.resultUrl ? <img src={p.resultUrl} alt="" /> : <span>{i + 1}</span>}
             </button>
           ))}
-          <button className="scan-add" title="Ajouter une page" onClick={() => setStage({ kind: "camera" })}>
+          <button className="scan-add" title={t("Ajouter une page")} onClick={() => setStage({ kind: "camera" })}>
             <Icon name="plus" />
           </button>
         </div>
         <footer className="scan-tools">
           <button onClick={() => setStage({ kind: "crop", id: current.id, isNew: false })}>
             <Icon name="crop" />
-            <span>Recadrer</span>
+            <span>{t("Recadrer")}</span>
           </button>
           <button disabled={!!busy} onClick={() => process({ ...current, rotation: (current.rotation + 1) % 4 })}>
             <Icon name="rotateR" />
-            <span>Pivoter</span>
+            <span>{t("Pivoter")}</span>
           </button>
           <button onClick={() => setStage({ kind: "camera" })}>
             <Icon name="camera" />
-            <span>Ajouter</span>
+            <span>{t("Ajouter")}</span>
           </button>
           <button onClick={() => removePage(current.id)}>
             <Icon name="trash" />
-            <span>Supprimer</span>
+            <span>{t("Supprimer")}</span>
           </button>
         </footer>
       </>
@@ -477,7 +477,7 @@ export default function Scanner({ onDone, onCancel }: Props) {
   }
 
   return (
-    <div className="scanner" role="dialog" aria-label="Numérisation">
+    <div className="scanner" role="dialog" aria-label={t("Numérisation")}>
       {pickers}
       {body}
       {busy && (
@@ -498,6 +498,7 @@ export default function Scanner({ onDone, onCancel }: Props) {
 // ------------------------------------------------------------------ recadrage
 
 function CropStage({ page, onCancel, onConfirm, busy }: { page: ScanPage; onCancel: () => void; onConfirm: (q: Quad) => void; busy: boolean }) {
+  useLocale();
   const [quad, setQuad] = useState<Quad>(page.quad);
   const boxRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
@@ -546,12 +547,12 @@ function CropStage({ page, onCancel, onConfirm, busy }: { page: ScanPage; onCanc
   return (
     <>
       <header className="scan-top">
-        <button className="scan-icon" title="Annuler" onClick={onCancel}>
+        <button className="scan-icon" title={t("Annuler")} onClick={onCancel}>
           <Icon name="back" />
         </button>
-        <span className="scan-title">Ajuster les bords</span>
+        <span className="scan-title">{t("Ajuster les bords")}</span>
         <button className="scan-done" disabled={busy} onClick={() => onConfirm(quad)}>
-          <Icon name="check" /> Valider
+          <Icon name="check" /> {t("Valider")}
         </button>
       </header>
       <div className="scan-stage crop">
@@ -568,7 +569,7 @@ function CropStage({ page, onCancel, onConfirm, busy }: { page: ScanPage; onCanc
               style={{ left: p.x * scale, top: p.y * scale }}
               onPointerDown={down(i)}
               role="slider"
-              aria-label={["Coin haut gauche", "Coin haut droit", "Coin bas droit", "Coin bas gauche"][i]}
+              aria-label={[t("Coin haut gauche"), t("Coin haut droit"), t("Coin bas droit"), t("Coin bas gauche")][i]}
             />
           ))}
           {active && (
@@ -588,7 +589,7 @@ function CropStage({ page, onCancel, onConfirm, busy }: { page: ScanPage; onCanc
       <footer className="scan-tools">
         <button onClick={() => setQuad(isFull ? page.quad : full)}>
           <Icon name={isFull ? "scan" : "fit"} />
-          <span>{isFull ? "Détection" : "Page entière"}</span>
+          <span>{isFull ? t("Détection") : t("Page entière")}</span>
         </button>
       </footer>
     </>

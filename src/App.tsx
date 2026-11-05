@@ -45,7 +45,7 @@ import { Icon } from "./components/Icon";
 import { FileNameDialog } from "./components/FileNameDialog";
 import { LanguagePicker } from "./components/LanguagePicker";
 import { initialLanguage } from "./lib/language";
-import { setLocale, type Locale } from "./i18n";
+import { msg, setLocale, t, tn, useLocale, type Locale } from "./i18n";
 import { buildFileName, isoDate, loadNamePrefs } from "./lib/fileName";
 
 /** Écran de numérisation chargé à la demande (caméra, détection, nettoyage). */
@@ -61,15 +61,15 @@ export const SHAPE_TOOLS: Tool[] = ["shape", "rect", "ellipse"];
 
 /** Boutons de la barre d'outils ; `tools` = outils couverts par un bouton groupé. */
 const BUTTONS: { id: string; label: string; icon: string; key?: string; tools: Tool[] }[] = [
-  { id: "select", label: "Sélection", icon: "select", key: "V", tools: ["select"] },
-  { id: "editText", label: "Modifier le texte", icon: "editText", key: "E", tools: ["editText"] },
-  { id: "text", label: "Ajouter du texte", icon: "text", key: "T", tools: ["text"] },
-  { id: "draw", label: "Dessin", icon: "ink", key: "D", tools: DRAW_TOOLS },
-  { id: "shapes", label: "Formes", icon: "shapes", key: "R", tools: SHAPE_TOOLS },
-  { id: "eraser", label: "Gomme", icon: "eraser", key: "G", tools: ["eraser"] },
-  { id: "whiteout", label: "Cache blanc", icon: "whiteout", key: "W", tools: ["whiteout"] },
-  { id: "stamp", label: "Tampon", icon: "stamp", key: "P", tools: ["stamp"] },
-  { id: "field", label: "Champ de formulaire", icon: "form", key: "F", tools: ["field"] },
+  { id: "select", label: msg("Sélection"), icon: "select", key: "V", tools: ["select"] },
+  { id: "editText", label: msg("Modifier le texte"), icon: "editText", key: "E", tools: ["editText"] },
+  { id: "text", label: msg("Ajouter du texte"), icon: "text", key: "T", tools: ["text"] },
+  { id: "draw", label: msg("Dessin"), icon: "ink", key: "D", tools: DRAW_TOOLS },
+  { id: "shapes", label: msg("Formes"), icon: "shapes", key: "R", tools: SHAPE_TOOLS },
+  { id: "eraser", label: msg("Gomme"), icon: "eraser", key: "G", tools: ["eraser"] },
+  { id: "whiteout", label: msg("Cache blanc"), icon: "whiteout", key: "W", tools: ["whiteout"] },
+  { id: "stamp", label: msg("Tampon"), icon: "stamp", key: "P", tools: ["stamp"] },
+  { id: "field", label: msg("Champ de formulaire"), icon: "form", key: "F", tools: ["field"] },
 ];
 
 /** Raccourcis clavier : outil et éventuel réglage associé. */
@@ -147,6 +147,7 @@ async function canRewrite(bytes: Uint8Array): Promise<boolean> {
 }
 
 export default function App() {
+  useLocale();
   const [doc, setDoc] = useState<DocState | null>(null);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const past = useRef<Snapshot[]>([]);
@@ -274,7 +275,7 @@ export default function App() {
     // Ailleurs (Firefox, Safari, Android) : le prochain appui sur la page donne sa couleur.
     pickResolve.current?.(null);
     setPicking(true);
-    notify("Pipette : touchez la page pour copier sa couleur (Échap pour annuler).", false, 6000);
+    notify(t("Pipette : touchez la page pour copier sa couleur (Échap pour annuler)."), false, 6000);
     return new Promise((resolve) => {
       pickResolve.current = resolve;
     });
@@ -363,7 +364,7 @@ export default function App() {
         const F = pdfjs.PermissionFlag;
         setLocked(
           perms && !perms.has(F.MODIFY_CONTENTS) && !perms.has(F.MODIFY_ANNOTATIONS)
-            ? "L'auteur de ce PDF n'autorise pas sa modification : lecture, recherche et copie restent disponibles selon ses permissions."
+            ? t("L'auteur de ce PDF n'autorise pas sa modification : lecture, recherche et copie restent disponibles selon ses permissions.")
             : null,
         );
       })
@@ -392,12 +393,12 @@ export default function App() {
           setFitWidth(true);
           setDoc({ name, bytes, pageIds: ops.freshPageIds(count), annotations: [], rewritable, password, ...(extra.scan ? { scan: true, fileBase: "Scan", fileDate: isoDate() } : {}) });
           if (!rewritable) {
-            notify("PDF protégé ou atypique : l'annotation reste possible, l'export se fera page par page en image.");
+            notify(t("PDF protégé ou atypique : l'annotation reste possible, l'export se fera page par page en image."));
           }
           return;
         } catch (e) {
           if (e instanceof PasswordRequired) {
-            const input = window.prompt(`${e.message}\nMot de passe du document :`);
+            const input = window.prompt(`${e.message}\n${t("Mot de passe du document :")}`);
             if (input === null) return;
             password = input;
             continue;
@@ -412,7 +413,7 @@ export default function App() {
   const openFiles = useCallback(
     async (files: File[]) => {
       if (!files.length) return;
-      setBusy("Ouverture…");
+      setBusy(t("Ouverture…"));
       try {
         const pdfs = files.filter((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name));
         const images = files.filter((f) => f.type.startsWith("image/"));
@@ -434,7 +435,7 @@ export default function App() {
           );
           await loadDocument(await ops.imagesToPdf(list), `${images[0].name.replace(/\.[^.]+$/, "")}.pdf`);
         } else {
-          notify("Formats acceptés : PDF, PNG, JPEG, WebP.", true);
+          notify(t("Formats acceptés : PDF, PNG, JPEG, WebP."), true);
         }
       } catch (e) {
         fail(e);
@@ -486,7 +487,7 @@ export default function App() {
   }, [doc]);
 
   const resumeDraft = async () => {
-    setBusy("Reprise du travail en cours…");
+    setBusy(t("Reprise du travail en cours…"));
     try {
       const d = await loadDraft();
       if (!d) return setDraft(null);
@@ -523,7 +524,7 @@ export default function App() {
   const openSample = async () => {
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}samples/exemple.pdf`);
-      if (!res.ok) throw new Error("Exemple introuvable.");
+      if (!res.ok) throw new Error(t("Exemple introuvable."));
       await loadDocument(new Uint8Array(await res.arrayBuffer()), "exemple.pdf");
     } catch (e) {
       fail(e);
@@ -835,7 +836,7 @@ export default function App() {
         (chosen.source === "standard" && /^(helvetica|times|courier)/.test(parseFontName(original).base));
       // Les équivalents métriques (Carlito pour Calibri…) gardent la mise en page : pas d'alerte.
       if (original && !embedded && !sameFamily && chosen.category !== "metric") {
-        notify(`Police d'origine « ${original} » remplacée par l'équivalent « ${chosen.label} ».`);
+        notify(t("Police d'origine « {original} » remplacée par l'équivalent « {font} ».", { original, font: chosen.label }));
       }
     },
     [doc, setPendingEdit, notify],
@@ -871,14 +872,14 @@ export default function App() {
     setPending({ dataUrl, w, h, kind });
     setTool(kind === "stamp" ? "stamp" : "image");
     setSelectedId(null);
-    notify(kind === "stamp" ? "Touchez la page pour poser le tampon (plusieurs fois si besoin)." : "Touchez la page à l'endroit où placer l'image.");
+    notify(kind === "stamp" ? t("Touchez la page pour poser le tampon (plusieurs fois si besoin).") : t("Touchez la page à l'endroit où placer l'image."));
   };
 
   // ------------------------------------------------------------- pages
 
   const pageOp = async (label: string, run: (d: DocState) => Promise<ops.PagesResult>, fixAnnotations?: (d: DocState, r: ops.PagesResult) => Annotation[]) => {
     if (!doc) return;
-    if (!doc.rewritable) return notify("Les pages de ce PDF protégé ne peuvent pas être réorganisées.", true);
+    if (!doc.rewritable) return notify(t("Les pages de ce PDF protégé ne peuvent pas être réorganisées."), true);
     setBusy(label);
     try {
       const r = await run(doc);
@@ -898,9 +899,9 @@ export default function App() {
   // ------------------------------------------------------------- export
 
   const buildPdf = async (): Promise<Uint8Array> => {
-    if (!doc || !pdf) throw new Error("Aucun document ouvert.");
+    if (!doc || !pdf) throw new Error(t("Aucun document ouvert."));
     if (doc.rewritable) return exportPdf(doc.bytes, doc.pageIds, doc.annotations);
-    return rasterExport(pdf, doc.pageIds, doc.annotations, (n, t) => setBusy(`Préparation ${n}/${t}…`));
+    return rasterExport(pdf, doc.pageIds, doc.annotations, (n, total) => setBusy(t("Préparation {n}/{total}…", { n, total })));
   };
 
   const withExport = async (label: string, action: (bytes: Uint8Array) => Promise<void> | void) => {
@@ -915,10 +916,10 @@ export default function App() {
     }
   };
 
-  const saveAs = (name: string) => withExport("Enregistrement…", (b) => download(b, name.replace(/\.pdf$/i, "") + ".pdf"));
+  const saveAs = (name: string) => withExport(t("Enregistrement…"), (b) => download(b, name.replace(/\.pdf$/i, "") + ".pdf"));
 
   const shareAs = (name: string) =>
-    withExport("Préparation du partage…", async (b) => {
+    withExport(t("Préparation du partage…"), async (b) => {
       const file = new File([b as BlobPart], name, { type: "application/pdf" });
       if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: name });
       else download(b, name);
@@ -938,10 +939,18 @@ export default function App() {
 
   const finishScan = async (bytes: Uint8Array, pages: number) => {
     setScanOpen(false);
-    setBusy("Ouverture…");
+    setBusy(t("Ouverture…"));
     try {
       await loadDocument(bytes, buildFileName({ base: "Scan", date: isoDate(), ...loadNamePrefs() }), { scan: true });
-      notify(`Document numérisé : ${pages} page${pages > 1 ? "s" : ""}. Son nom vous sera demandé à l'enregistrement.`, false, 5000);
+      notify(
+        tn(
+          "Document numérisé : {n} page. Son nom vous sera demandé à l'enregistrement.",
+          "Document numérisé : {n} pages. Son nom vous sera demandé à l'enregistrement.",
+          pages,
+        ),
+        false,
+        5000,
+      );
     } catch (e) {
       fail(e);
     } finally {
@@ -950,7 +959,7 @@ export default function App() {
   };
 
   const print = () =>
-    withExport("Préparation de l'impression…", (b) => {
+    withExport(t("Préparation de l'impression…"), (b) => {
       const url = URL.createObjectURL(new Blob([b as BlobPart], { type: "application/pdf" }));
       if (isMobile()) {
         window.open(url, "_blank");
@@ -970,14 +979,14 @@ export default function App() {
     });
 
   const extract = () =>
-    withExport("Extraction…", async (b) => {
+    withExport(t("Extraction…"), async (b) => {
       const indices = doc!.pageIds.map((id, i) => (selectedPages.has(id) ? i : -1)).filter((i) => i >= 0);
       download(await ops.extractPages(b, indices), doc!.name.replace(/\.pdf$/i, "") + "-extrait.pdf");
     });
 
   /** Exporte la page courante (annotations comprises) en image PNG. */
   const exportPageImage = () =>
-    withExport("Export de la page en image…", async (b) => {
+    withExport(t("Export de la page en image…"), async (b) => {
       const rendered = await openPdf(b);
       try {
         const page = await rendered.getPage(currentPage + 1);
@@ -987,7 +996,7 @@ export default function App() {
         canvas.width = Math.ceil(viewport.width);
         canvas.height = Math.ceil(viewport.height);
         await page.render({ canvas, viewport }).promise;
-        const blob = await new Promise<Blob>((res, rej) => canvas.toBlob((x) => (x ? res(x) : rej(new Error("Rendu impossible"))), "image/png"));
+        const blob = await new Promise<Blob>((res, rej) => canvas.toBlob((x) => (x ? res(x) : rej(new Error(t("Rendu impossible")))), "image/png"));
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -1021,7 +1030,7 @@ export default function App() {
   ) => {
     if (!doc) return;
     if (!doc.rewritable) {
-      notify("Ce PDF protégé ne peut pas être modifié de cette façon.", true);
+      notify(t("Ce PDF protégé ne peut pas être modifié de cette façon."), true);
       return;
     }
     setBusy(label);
@@ -1029,7 +1038,7 @@ export default function App() {
       const result = await transform(doc.bytes);
       const bytes = result instanceof Uint8Array ? result : result.bytes;
       if (bytes !== doc.bytes) commit({ bytes });
-      notify(result instanceof Uint8Array ? "Document mis à jour (Ctrl+Z pour annuler)." : result.message, false, 6000);
+      notify(result instanceof Uint8Array ? t("Document mis à jour (Ctrl+Z pour annuler).") : result.message, false, 6000);
     } catch (e) {
       fail(e);
       throw e;
@@ -1040,10 +1049,10 @@ export default function App() {
 
   const applyForm = async (values: FormValues, fontKey: string | undefined) => {
     if (!doc) return;
-    setBusy("Remplissage du formulaire…");
+    setBusy(t("Remplissage du formulaire…"));
     try {
       commit({ bytes: await fillForm(doc.bytes, values, fontKey) });
-      notify("Formulaire mis à jour.");
+      notify(t("Formulaire mis à jour."));
     } finally {
       setBusy(null);
     }
@@ -1164,7 +1173,7 @@ export default function App() {
           e.target.value = "";
           if (!files.length) return;
           const others = await Promise.all(files.map(async (f) => new Uint8Array(await f.arrayBuffer())));
-          pageOp("Fusion…", (d) => ops.appendDocuments(d.bytes, d.pageIds, others));
+          pageOp(t("Fusion…"), (d) => ops.appendDocuments(d.bytes, d.pageIds, others));
         }}
       />
       <input
@@ -1182,7 +1191,7 @@ export default function App() {
   );
 
   const scanner = scanOpen && (
-    <Suspense fallback={<div className="busy">Ouverture du scanner…</div>}>
+    <Suspense fallback={<div className="busy">{t("Ouverture du scanner…")}</div>}>
       <Scanner onDone={finishScan} onCancel={() => setScanOpen(false)} />
     </Suspense>
   );
@@ -1197,34 +1206,36 @@ export default function App() {
             <Icon name="pages" size={40} />
           </div>
           <h1>Paperasse</h1>
-          <p>Lisez, annotez, modifiez, signez et réorganisez vos PDF. Tout reste sur votre appareil : rien n'est envoyé sur internet.</p>
+          <p>{t("Lisez, annotez, modifiez, signez et réorganisez vos PDF. Tout reste sur votre appareil : rien n'est envoyé sur internet.")}</p>
           <button className="primary big" onClick={() => openInput.current?.click()}>
-            <Icon name="open" /> Ouvrir un fichier
+            <Icon name="open" /> {t("Ouvrir un fichier")}
           </button>
           <button className="big scan-btn" onClick={() => setScanOpen(true)}>
-            <Icon name="camera" /> Scanner un document
+            <Icon name="camera" /> {t("Scanner un document")}
           </button>
           <div className="welcome-actions">
-            <button onClick={newBlank}>Nouveau PDF vierge</button>
-            <button onClick={() => openInput.current?.click()}>Images → PDF</button>
+            <button onClick={newBlank}>{t("Nouveau PDF vierge")}</button>
+            <button onClick={() => openInput.current?.click()}>{t("Images → PDF")}</button>
           </div>
           <button className="link" onClick={openSample}>
-            Essayer avec un exemple
+            {t("Essayer avec un exemple")}
           </button>
-          <p className="hint">ou glissez-déposez vos fichiers ici</p>
+          <p className="hint">{t("ou glissez-déposez vos fichiers ici")}</p>
           {draft && (
             <div className="resume-card">
               <div>
-                <strong>Reprendre « {draft.name} »</strong>
+                <strong>{t("Reprendre « {name} »", { name: draft.name })}</strong>
                 <span>
-                  {draft.pages} page(s){draft.edits ? `, ${draft.edits} modification(s)` : ""} — enregistré {formatSavedAt(draft.savedAt)}
+                  {tn("{n} page", "{n} pages", draft.pages)}
+                  {draft.edits ? tn(", {n} modification", ", {n} modifications", draft.edits) : ""} —{" "}
+                  {t("enregistré {date}", { date: formatSavedAt(draft.savedAt) })}
                 </span>
               </div>
               <div className="resume-actions">
                 <button className="primary" onClick={resumeDraft}>
-                  Reprendre
+                  {t("Reprendre")}
                 </button>
-                <button onClick={discardDraft}>Oublier</button>
+                <button onClick={discardDraft}>{t("Oublier")}</button>
               </div>
             </div>
           )}
@@ -1242,7 +1253,7 @@ export default function App() {
       <header className="topbar">
         <button
           className="icon-btn"
-          title="Menu"
+          title={t("Menu")}
           onClick={() => (isMobile() ? setMobileMenu(true) : setPanel((p) => (p ? null : "pages")))}
         >
           <Icon name="menu" />
@@ -1252,43 +1263,43 @@ export default function App() {
         </div>
         <LanguagePicker className="desktop-only" value={language} onChange={setLanguage} withLabel />
         <div className="top-actions">
-          <button className="open-btn" title="Ouvrir un fichier PDF ou une image (Ctrl+O)" onClick={() => openInput.current?.click()}>
+          <button className="open-btn" title={t("Ouvrir un fichier PDF ou une image (Ctrl+O)")} onClick={() => openInput.current?.click()}>
             <Icon name="open" />
-            <span className="desktop-only">Ouvrir un fichier</span>
+            <span className="desktop-only">{t("Ouvrir un fichier")}</span>
           </button>
-          <button className="icon-btn m-fit mobile-only" title="Ajuster à la largeur" onClick={() => setFitWidth(true)}>
+          <button className="icon-btn m-fit mobile-only" title={t("Ajuster à la largeur")} onClick={() => setFitWidth(true)}>
             <Icon name="fit" />
           </button>
-          <button className="icon-btn" title="Annuler (Ctrl+Z)" disabled={!past.current.length} onClick={undo}>
+          <button className="icon-btn" title={t("Annuler (Ctrl+Z)")} disabled={!past.current.length} onClick={undo}>
             <Icon name="undo" />
           </button>
-          <button className="icon-btn" title="Rétablir (Ctrl+Y)" disabled={!future.current.length} onClick={redo}>
+          <button className="icon-btn" title={t("Rétablir (Ctrl+Y)")} disabled={!future.current.length} onClick={redo}>
             <Icon name="redo" />
           </button>
           <span className="sep desktop-only" />
-          <button className="icon-btn desktop-only" title="Zoom arrière" onClick={() => zoom(1 / 1.2)}>
+          <button className="icon-btn desktop-only" title={t("Zoom arrière")} onClick={() => zoom(1 / 1.2)}>
             <Icon name="zoomOut" />
           </button>
-          <button className="zoom-label desktop-only" title="Ajuster à la largeur" onClick={() => setFitWidth(true)}>
+          <button className="zoom-label desktop-only" title={t("Ajuster à la largeur")} onClick={() => setFitWidth(true)}>
             {Math.round(scale * 100)} %
           </button>
-          <button className="icon-btn desktop-only" title="Zoom avant" onClick={() => zoom(1.2)}>
+          <button className="icon-btn desktop-only" title={t("Zoom avant")} onClick={() => zoom(1.2)}>
             <Icon name="zoomIn" />
           </button>
           <span className="sep desktop-only" />
-          <button className="icon-btn desktop-only" title="Rechercher (Ctrl+F)" onClick={() => setPanel((p) => (p === "search" ? null : "search"))}>
+          <button className="icon-btn desktop-only" title={t("Rechercher (Ctrl+F)")} onClick={() => setPanel((p) => (p === "search" ? null : "search"))}>
             <Icon name="search" />
           </button>
           {pdf && (
-            <button className="page-chip mobile-only" title="Pages" onClick={() => setPanel("pages")}>
+            <button className="page-chip mobile-only" title={t("Pages")} onClick={() => setPanel("pages")}>
               {currentPage + 1} / {pdf.numPages}
             </button>
           )}
-          <button className="icon-btn desktop-only" title="Imprimer" onClick={print}>
+          <button className="icon-btn desktop-only" title={t("Imprimer")} onClick={print}>
             <Icon name="print" />
           </button>
           <div className="menu-wrap desktop-only">
-            <button className="icon-btn" title="Plus d'outils" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
+            <button className="icon-btn" title={t("Plus d'outils")} aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
               <Icon name="more" />
             </button>
             {menuOpen && (
@@ -1296,47 +1307,47 @@ export default function App() {
                 <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
                 <div className="menu" role="menu" onClick={() => setMenuOpen(false)}>
                   <button role="menuitem" disabled={!editable || !doc.rewritable} onClick={() => setOcrOpen(true)}>
-                    <Icon name="search" /> Reconnaissance de texte (OCR)
+                    <Icon name="search" /> {t("Reconnaissance de texte (OCR)")}
                   </button>
                   <hr />
                   <button role="menuitem" disabled={!editable} onClick={() => setDocTools("numbers")}>
-                    <Icon name="pages" /> Numéroter les pages
+                    <Icon name="pages" /> {t("Numéroter les pages")}
                   </button>
                   <button role="menuitem" disabled={!editable} onClick={() => setDocTools("headers")}>
-                    <Icon name="text" /> En-tête et pied de page
+                    <Icon name="text" /> {t("En-tête et pied de page")}
                   </button>
                   <button role="menuitem" disabled={!editable} onClick={() => setDocTools("watermark")}>
-                    <Icon name="stamp" /> Filigrane
+                    <Icon name="stamp" /> {t("Filigrane")}
                   </button>
                   <button role="menuitem" disabled={!editable} onClick={() => setDocTools("properties")}>
-                    <Icon name="info" /> Propriétés du document
+                    <Icon name="info" /> {t("Propriétés du document")}
                   </button>
                   <button role="menuitem" disabled={!editable || !doc.rewritable} onClick={() => setDocTools("compress")}>
-                    <Icon name="compress" /> Compresser le PDF
+                    <Icon name="compress" /> {t("Compresser le PDF")}
                   </button>
                   <hr />
                   <button role="menuitem" onClick={exportPageImage}>
-                    <Icon name="image" /> Exporter la page en image (PNG)
+                    <Icon name="image" /> {t("Exporter la page en image (PNG)")}
                   </button>
                   <button role="menuitem" onClick={share}>
-                    <Icon name="share" /> Partager
+                    <Icon name="share" /> {t("Partager")}
                   </button>
                   <button role="menuitem" onClick={print}>
-                    <Icon name="print" /> Imprimer
+                    <Icon name="print" /> {t("Imprimer")}
                   </button>
                   <hr />
                   <button role="menuitem" onClick={() => setShowShortcuts(true)}>
-                    <Icon name="keyboard" /> Raccourcis clavier
+                    <Icon name="keyboard" /> {t("Raccourcis clavier")}
                   </button>
                 </div>
               </>
             )}
           </div>
-          <button className="icon-btn desktop-only" title="Partager" onClick={share}>
+          <button className="icon-btn desktop-only" title={t("Partager")} onClick={share}>
             <Icon name="share" />
           </button>
-          <button className="primary save-btn" title="Enregistrer (Ctrl+S)" onClick={save}>
-            <Icon name="save" /> <span className="desktop-only">Enregistrer</span>
+          <button className="primary save-btn" title={t("Enregistrer (Ctrl+S)")} onClick={save}>
+            <Icon name="save" /> <span className="desktop-only">{t("Enregistrer")}</span>
           </button>
         </div>
       </header>
@@ -1344,18 +1355,18 @@ export default function App() {
       {locked && <div className="banner">{locked}</div>}
       {scanned && !locked && (
         <div className="banner info">
-          <span>Ce document semble être un scan : son texte n'est ni cherchable ni modifiable.</span>
+          <span>{t("Ce document semble être un scan : son texte n'est ni cherchable ni modifiable.")}</span>
           <span className="spacer" />
           <span className="banner-actions">
             <button className="primary" onClick={() => setOcrOpen(true)}>
-              Reconnaître le texte (OCR)
+              {t("Reconnaître le texte (OCR)")}
             </button>
-            <button onClick={() => setScanned(false)}>Ignorer</button>
+            <button onClick={() => setScanned(false)}>{t("Ignorer")}</button>
           </span>
         </div>
       )}
 
-      <nav className="toolbar" aria-label="Outils">
+      <nav className="toolbar" aria-label={t("Outils")}>
         {BUTTONS.map((b) => {
           // Un bouton groupé reprend le dernier outil utilisé dans son groupe.
           const target: Tool = b.id === "draw" ? lastDraw : b.id === "shapes" ? "shape" : b.tools[0];
@@ -1363,7 +1374,7 @@ export default function App() {
             <button
               key={b.id}
               className={`tool ${b.tools.includes(tool) ? "active" : ""}`}
-              title={`${b.label}${b.key ? ` (${b.key})` : ""}${b.tools.length > 1 ? " — choix à droite" : ""}`}
+              title={`${t(b.label)}${b.key ? ` (${b.key})` : ""}${b.tools.length > 1 ? ` — ${t("choix à droite")}` : ""}`}
               disabled={!editable && b.id !== "select"}
               onClick={() => {
                 setTool(target);
@@ -1373,22 +1384,22 @@ export default function App() {
               }}
             >
               <Icon name={b.icon} />
-              <span>{b.label}</span>
+              <span>{t(b.label)}</span>
             </button>
           );
         })}
-        <button className={`tool ${tool === "image" && pending?.kind === "signature" ? "active" : ""}`} disabled={!editable} onClick={() => setSigning(true)} title="Signer">
+        <button className={`tool ${tool === "image" && pending?.kind === "signature" ? "active" : ""}`} disabled={!editable} onClick={() => setSigning(true)} title={t("Signer")}>
           <Icon name="sign" />
-          <span>Signer</span>
+          <span>{t("Signer")}</span>
         </button>
-        <button className={`tool ${tool === "image" && pending?.kind === "image" ? "active" : ""}`} disabled={!editable} onClick={() => imageInput.current?.click()} title="Image">
+        <button className={`tool ${tool === "image" && pending?.kind === "image" ? "active" : ""}`} disabled={!editable} onClick={() => imageInput.current?.click()} title={t("Image")}>
           <Icon name="image" />
-          <span>Image</span>
+          <span>{t("Image")}</span>
         </button>
         <span className="toolbar-sep" />
-        <button className={`tool ${propsOpen ? "active" : ""}`} onClick={() => setPropsOpen((o) => !o)} title="Réglages">
+        <button className={`tool ${propsOpen ? "active" : ""}`} onClick={() => setPropsOpen((o) => !o)} title={t("Réglages")}>
           <Icon name="props" />
-          <span>Réglages</span>
+          <span>{t("Réglages")}</span>
         </button>
       </nav>
 
@@ -1418,30 +1429,30 @@ export default function App() {
 
       {mobileMenu && (
         <div className="mdrawer-wrap mobile-only" onClick={() => setMobileMenu(false)}>
-          <aside className="mdrawer" aria-label="Menu" onClick={(e) => e.stopPropagation()}>
+          <aside className="mdrawer" aria-label={t("Menu")} onClick={(e) => e.stopPropagation()}>
             <div className="mdrawer-head">
               <span className="mdrawer-logo">P</span>
               <span className="mdrawer-name">
                 <strong>{doc.name}</strong>
-                {pdf && <small>{pdf.numPages} page{pdf.numPages > 1 ? "s" : ""}</small>}
+                {pdf && <small>{tn("{n} page", "{n} pages", pdf.numPages)}</small>}
               </span>
             </div>
             {[
-              { icon: "open", label: "Ouvrir un fichier", run: () => openInput.current?.click() },
-              { icon: "camera", label: "Scanner un document", run: () => setScanOpen(true) },
-              { icon: "pages", label: "Pages et miniatures", run: () => setPanel("pages") },
-              { icon: "search", label: "Rechercher", run: () => setPanel("search") },
-              { icon: "form", label: "Formulaire", run: () => setPanel("forms") },
-              { icon: "merge", label: "Ajouter un PDF ou une image", run: () => mergeInput.current?.click(), off: !editable, sep: true },
-              { icon: "pages", label: "Numéroter les pages", run: () => setDocTools("numbers"), off: !editable },
-              { icon: "text", label: "En-tête et pied de page", run: () => setDocTools("headers"), off: !editable },
-              { icon: "stamp", label: "Filigrane", run: () => setDocTools("watermark"), off: !editable },
-              { icon: "compress", label: "Compresser le PDF", run: () => setDocTools("compress"), off: !editable || !doc.rewritable },
-              { icon: "search", label: "Reconnaissance de texte (OCR)", run: () => setOcrOpen(true), off: !editable || !doc.rewritable },
-              { icon: "share", label: "Partager", run: share, sep: true },
-              { icon: "image", label: "Exporter la page en image", run: exportPageImage },
-              { icon: "print", label: "Imprimer", run: print },
-              { icon: "info", label: "Propriétés du document", run: () => setDocTools("properties"), off: !editable },
+              { icon: "open", label: t("Ouvrir un fichier"), run: () => openInput.current?.click() },
+              { icon: "camera", label: t("Scanner un document"), run: () => setScanOpen(true) },
+              { icon: "pages", label: t("Pages et miniatures"), run: () => setPanel("pages") },
+              { icon: "search", label: t("Rechercher"), run: () => setPanel("search") },
+              { icon: "form", label: t("Formulaire"), run: () => setPanel("forms") },
+              { icon: "merge", label: t("Ajouter un PDF ou une image"), run: () => mergeInput.current?.click(), off: !editable, sep: true },
+              { icon: "pages", label: t("Numéroter les pages"), run: () => setDocTools("numbers"), off: !editable },
+              { icon: "text", label: t("En-tête et pied de page"), run: () => setDocTools("headers"), off: !editable },
+              { icon: "stamp", label: t("Filigrane"), run: () => setDocTools("watermark"), off: !editable },
+              { icon: "compress", label: t("Compresser le PDF"), run: () => setDocTools("compress"), off: !editable || !doc.rewritable },
+              { icon: "search", label: t("Reconnaissance de texte (OCR)"), run: () => setOcrOpen(true), off: !editable || !doc.rewritable },
+              { icon: "share", label: t("Partager"), run: share, sep: true },
+              { icon: "image", label: t("Exporter la page en image"), run: exportPageImage },
+              { icon: "print", label: t("Imprimer"), run: print },
+              { icon: "info", label: t("Propriétés du document"), run: () => setDocTools("properties"), off: !editable },
             ].map((m) => (
               <div key={m.label}>
                 {m.sep && <hr />}
@@ -1468,15 +1479,15 @@ export default function App() {
       <aside className={`side-panel ${panel ? "open" : ""}`}>
         <div className="tabs" role="tablist">
           <button className={panel === "pages" ? "active" : ""} onClick={() => setPanel("pages")}>
-            <Icon name="pages" size={16} /> Pages
+            <Icon name="pages" size={16} /> {t("Pages")}
           </button>
           <button className={panel === "search" ? "active" : ""} onClick={() => setPanel("search")}>
-            <Icon name="search" size={16} /> Recherche
+            <Icon name="search" size={16} /> {t("Recherche")}
           </button>
           <button className={panel === "forms" ? "active" : ""} onClick={() => setPanel("forms")}>
-            <Icon name="form" size={16} /> Formulaire
+            <Icon name="form" size={16} /> {t("Formulaire")}
           </button>
-          <button className="icon-btn close" onClick={() => setPanel(null)} title="Fermer">
+          <button className="icon-btn close" onClick={() => setPanel(null)} title={t("Fermer")}>
             <Icon name="close" size={18} />
           </button>
         </div>
@@ -1497,16 +1508,16 @@ export default function App() {
             }
             onSelectAll={() => setSelectedPages((s) => (s.size === doc.pageIds.length ? new Set() : new Set(doc.pageIds)))}
             onGoto={gotoPage}
-            onRotate={(delta) => pageOp("Rotation…", (d) => ops.rotatePages(d.bytes, d.pageIds, targetPages(), delta))}
+            onRotate={(delta) => pageOp(t("Rotation…"), (d) => ops.rotatePages(d.bytes, d.pageIds, targetPages(), delta))}
             onDelete={() => {
-              if (window.confirm(`Supprimer ${selectedPages.size} page(s) ?`)) {
-                pageOp("Suppression…", (d) => ops.deletePages(d.bytes, d.pageIds, selectedPages));
+              if (window.confirm(tn("Supprimer {n} page ?", "Supprimer {n} pages ?", selectedPages.size))) {
+                pageOp(t("Suppression…"), (d) => ops.deletePages(d.bytes, d.pageIds, selectedPages));
               }
             }}
             onDuplicate={() => {
               const id = [...selectedPages][0];
               pageOp(
-                "Duplication…",
+                t("Duplication…"),
                 (d) => ops.duplicatePage(d.bytes, d.pageIds, d.pageIds.indexOf(id)),
                 (d, r) => {
                   const newPageId = r.pageIds[d.pageIds.indexOf(id) + 1];
@@ -1520,9 +1531,9 @@ export default function App() {
               const from = doc.pageIds.indexOf(id);
               const to = from + dir;
               if (to < 0 || to >= doc.pageIds.length) return;
-              pageOp("Déplacement…", (d) => ops.movePage(d.bytes, d.pageIds, from, to));
+              pageOp(t("Déplacement…"), (d) => ops.movePage(d.bytes, d.pageIds, from, to));
             }}
-            onInsertBlank={() => pageOp("Insertion…", (d) => ops.insertBlankPage(d.bytes, d.pageIds, currentPage))}
+            onInsertBlank={() => pageOp(t("Insertion…"), (d) => ops.insertBlankPage(d.bytes, d.pageIds, currentPage))}
             onExtract={extract}
             onMerge={() => mergeInput.current?.click()}
           />
@@ -1588,20 +1599,20 @@ export default function App() {
           </div>
         )}
         <div className="zoom-fab mobile-only">
-          <button onClick={() => zoom(1 / 1.25)} aria-label="Zoom arrière">
+          <button onClick={() => zoom(1 / 1.25)} aria-label={t("Zoom arrière")}>
             <Icon name="zoomOut" />
           </button>
-          <button onClick={() => setFitWidth(true)} aria-label="Ajuster">
+          <button onClick={() => setFitWidth(true)} aria-label={t("Ajuster")}>
             <Icon name="fit" />
           </button>
-          <button onClick={() => zoom(1.25)} aria-label="Zoom avant">
+          <button onClick={() => zoom(1.25)} aria-label={t("Zoom avant")}>
             <Icon name="zoomIn" />
           </button>
         </div>
       </main>
 
       <aside className={`props ${propsOpen ? "open" : ""}`}>
-        <button className="icon-btn close mobile-only" onClick={() => setPropsOpen(false)} title="Fermer">
+        <button className="icon-btn close mobile-only" onClick={() => setPropsOpen(false)} title={t("Fermer")}>
           <Icon name="close" size={18} />
         </button>
         <PropertiesPanel
@@ -1632,7 +1643,7 @@ export default function App() {
         <FileNameDialog
           base={doc.fileBase ?? doc.name.replace(/\.pdf$/i, "")}
           date={doc.fileBase !== undefined ? (doc.fileDate ?? null) : doc.scan ? isoDate() : null}
-          action={askName === "share" ? "Partager" : "Enregistrer"}
+          action={askName === "share" ? t("Partager") : t("Enregistrer")}
           onConfirm={confirmName}
           onClose={() => setAskName(null)}
         />
@@ -1646,10 +1657,17 @@ export default function App() {
           onClose={() => setOcrOpen(false)}
           onError={(m) => notify(m, true)}
           onDone={async (pages) => {
-            await applyToDocument("Ajout du texte reconnu…", (b) => addInvisibleText(b, pages));
+            await applyToDocument(t("Ajout du texte reconnu…"), (b) => addInvisibleText(b, pages));
             setScanned(false);
             const words = [...pages.values()].reduce((n, w) => n + w.length, 0);
-            notify(`Texte reconnu : ${words} mots sur ${pages.size} page(s). Le document est maintenant cherchable (Ctrl+Z pour annuler).`);
+            notify(
+              tn(
+                "Texte reconnu : {words} mots sur {n} page. Le document est maintenant cherchable (Ctrl+Z pour annuler).",
+                "Texte reconnu : {words} mots sur {n} pages. Le document est maintenant cherchable (Ctrl+Z pour annuler).",
+                pages.size,
+                { words },
+              ),
+            );
           }}
         />
       )}

@@ -1,5 +1,6 @@
 import { getFonts, normalizeFontName, parseFontName, registerFontEntry, type FontEntry } from "./fonts";
 import { restoreStateFont, stateFontFor } from "./stateFonts";
+import { t } from "../i18n";
 
 /**
  * Police complète d'un document, chargée à la demande depuis une source
@@ -54,7 +55,10 @@ function register(f: DocFont): string {
   const weightLabel: Record<number, string> = { 100: "Thin", 200: "ExtraLight", 300: "Light", 400: "", 500: "Medium", 600: "SemiBold", 700: "Bold", 800: "ExtraBold", 900: "Black" };
   registerFontEntry({
     key,
-    label: `${f.family} ${weightLabel[f.weight] ?? f.weight}${f.italic ? " Italique" : ""} (police du document)`.replace(/\s+/g, " "),
+    get label() {
+      const font = `${f.family} ${weightLabel[f.weight] ?? f.weight}${f.italic ? " " + t("Italique") : ""}`;
+      return t("{font} (police du document)", { font }).replace(/\s+/g, " ");
+    },
     source: "library",
     category: "etat", // groupe « Police du document » du sélecteur
     cssFamily: `"fl-doc-${f.family.replace(/[^a-zA-Z0-9]/g, "")}-${f.weight}-${f.italic ? "i" : "n"}"`,
@@ -63,7 +67,7 @@ function register(f: DocFont): string {
     italic: f.italic,
     load: async () => {
       const res = await fetch(f.url);
-      if (!res.ok) throw new Error(`Police ${f.family} indisponible (connexion internet nécessaire au premier usage).`);
+      if (!res.ok) throw new Error(t("Police {font} indisponible (connexion internet nécessaire au premier usage).", { font: f.family }));
       return res.arrayBuffer();
     },
   });

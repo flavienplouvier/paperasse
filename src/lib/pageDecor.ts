@@ -1,6 +1,7 @@
 import { PDFDocument, type PDFFont, type PDFPage, StandardFonts, degrees, rgb } from "pdf-lib";
 import type { Point } from "./types";
 import { addScaled, hexToRgb01, normalizeRotation, screenAxes } from "./geometry";
+import { currentLocale, t } from "../i18n";
 
 /**
  * Ajouts appliqués à toutes (ou certaines) pages du document : numérotation,
@@ -59,7 +60,7 @@ function ensureEncodable(font: PDFFont, text: string) {
   try {
     font.encodeText(text);
   } catch {
-    throw new Error(`Caractère non pris en charge dans « ${text} » (police standard, alphabet latin uniquement).`);
+    throw new Error(t("Caractère non pris en charge dans « {text} » (police standard, alphabet latin uniquement).", { text }));
   }
 }
 
@@ -75,7 +76,7 @@ function drawLine(p: Placement, font: PDFFont, text: string, size: number, dx: n
 
 /** Remplace {page}, {total}, {date} et {titre}. */
 export function fillTemplate(template: string, page: number, total: number, title = ""): string {
-  const date = new Date().toLocaleDateString("fr-FR");
+  const date = new Date().toLocaleDateString(currentLocale());
   return template
     .replaceAll("{page}", String(page))
     .replaceAll("{total}", String(total))

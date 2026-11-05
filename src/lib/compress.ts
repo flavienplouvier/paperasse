@@ -11,6 +11,7 @@ import {
   decodePDFRawStream,
 } from "pdf-lib";
 import { IDENTITY, mul, parseOps, type Matrix } from "./pdfContent";
+import { currentLocale, msg, t } from "../i18n";
 
 /**
  * Compression d'un PDF, entièrement sur l'appareil.
@@ -26,16 +27,16 @@ import { IDENTITY, mul, parseOps, type Matrix } from "./pdfContent";
 export type CompressionLevel = "lossless" | "balanced" | "strong";
 
 export const COMPRESSION_LEVELS: Record<CompressionLevel, { label: string; detail: string; dpi?: number; quality?: number }> = {
-  lossless: { label: "Sans perte", detail: "Aucune modification visible. Gain souvent modeste." },
+  lossless: { label: msg("Sans perte"), detail: msg("Aucune modification visible. Gain souvent modeste.") },
   balanced: {
-    label: "Recommandée",
-    detail: "Images ramenées à 150 ppp : parfait à l'écran et à l'impression courante.",
+    label: msg("Recommandée"),
+    detail: msg("Images ramenées à 150 ppp : parfait à l'écran et à l'impression courante."),
     dpi: 150,
     quality: 0.75,
   },
   strong: {
-    label: "Forte",
-    detail: "Images à 96 ppp et JPEG plus compressé : idéal pour l'envoi par e-mail ou un portail limité en taille.",
+    label: msg("Forte"),
+    detail: msg("Images à 96 ppp et JPEG plus compressé : idéal pour l'envoi par e-mail ou un portail limité en taille."),
     dpi: 96,
     quality: 0.6,
   },
@@ -367,6 +368,7 @@ export async function compressPdf(
 
 /** « 1,4 Mo », « 820 Ko ». */
 export function formatSize(n: number): string {
-  if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
-  return `${Math.max(1, Math.round(n / 1024)).toLocaleString("fr-FR")} Ko`;
+  const locale = currentLocale();
+  if (n >= 1024 * 1024) return t("{size} Mo", { size: (n / 1024 / 1024).toLocaleString(locale, { maximumFractionDigits: 1 }) });
+  return t("{size} Ko", { size: Math.max(1, Math.round(n / 1024)).toLocaleString(locale) });
 }

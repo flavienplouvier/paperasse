@@ -9,6 +9,7 @@ import { extractRuns, runAt, type TextRun } from "../lib/text";
 import { LINE_HEIGHT } from "../lib/exportPdf";
 import { getFont } from "../lib/fonts";
 import { Icon } from "./Icon";
+import { t, useLocale } from "../i18n";
 import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
 
@@ -96,6 +97,7 @@ const BASELINE = (LINE_HEIGHT - 1) / 2 + 0.8;
 
 function PageViewImpl(props: Props) {
   const { pdf, index, pageId, tool, style, annotations, selectedId, maxWidth } = props;
+  useLocale();
   const [page, setPage] = useState<PDFPageProxy | null>(null);
   const [visible, setVisible] = useState(false);
   const [runs, setRuns] = useState<TextRun[] | null>(null);
@@ -274,7 +276,7 @@ function PageViewImpl(props: Props) {
           color: style.color,
           opacity: style.opacity,
           origin: addScaled(p, down, style.fontSize),
-          text: "Texte",
+          text: t("Texte"),
           fontKey: style.fontKey,
           fontSize: style.fontSize,
           rotation,
@@ -392,7 +394,7 @@ function PageViewImpl(props: Props) {
           fieldType: style.fieldType,
           name: "",
           fontSize: 0,
-          options: style.fieldType === "dropdown" ? ["Choix 1", "Choix 2"] : undefined,
+          options: style.fieldType === "dropdown" ? [t("Choix 1"), t("Choix 2")] : undefined,
         });
         setDraft(null);
         return;
@@ -477,16 +479,16 @@ function PageViewImpl(props: Props) {
       }
       case "line": {
         const f = toView(a.from);
-        const t = toView(a.to);
+        const to = toView(a.to);
         return (
           <g key={a.id} data-annot={a.id} {...common}>
-            <line x1={f[0]} y1={f[1]} x2={t[0]} y2={t[1]} stroke="transparent" strokeWidth={14} />
-            <line x1={f[0]} y1={f[1]} x2={t[0]} y2={t[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
+            <line x1={f[0]} y1={f[1]} x2={to[0]} y2={to[1]} stroke="transparent" strokeWidth={14} />
+            <line x1={f[0]} y1={f[1]} x2={to[0]} y2={to[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
             {a.arrow &&
               arrowHead(a.from, a.to, a.width).map((p, i) => {
                 const h = toView(p);
                 return (
-                  <line key={i} x1={t[0]} y1={t[1]} x2={h[0]} y2={h[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
+                  <line key={i} x1={to[0]} y1={to[1]} x2={h[0]} y2={h[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
                 );
               })}
             {a.arrowStart &&
@@ -613,7 +615,7 @@ function PageViewImpl(props: Props) {
       }
       case "field": {
         const r = viewRect(a.rect);
-        const label = a.fieldType === "checkbox" ? "☐" : a.fieldType === "dropdown" ? `${a.name || "liste"} ▾` : a.name || "texte";
+        const label = a.fieldType === "checkbox" ? "☐" : a.fieldType === "dropdown" ? `${a.name || t("liste")} ▾` : a.name || t("texte");
         const size = Math.max(8, Math.min(r.h * 0.6, 13));
         return (
           <g key={a.id} data-annot={a.id} {...common}>
@@ -658,12 +660,12 @@ function PageViewImpl(props: Props) {
   useEffect(() => {
     if (!editing) return;
     const timer = window.setTimeout(() => {
-      const t = editorRef.current;
-      if (!t || document.activeElement === t) return;
-      t.focus({ preventScroll: true });
+      const el = editorRef.current;
+      if (!el || document.activeElement === el) return;
+      el.focus({ preventScroll: true });
       // Texte tout juste ajouté : tout sélectionner pour que la frappe remplace « Texte ».
-      if (t.value === "Texte") t.select();
-      else t.setSelectionRange(t.value.length, t.value.length);
+      if (el.value === t("Texte")) el.select();
+      else el.setSelectionRange(el.value.length, el.value.length);
     }, 30);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -698,8 +700,8 @@ function PageViewImpl(props: Props) {
       >
         <button
           className="move-grip"
-          title="Déplacer le texte"
-          aria-label="Déplacer le texte"
+          title={t("Déplacer le texte")}
+          aria-label={t("Déplacer le texte")}
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();

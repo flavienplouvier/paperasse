@@ -1,3 +1,5 @@
+import { msg } from "../i18n";
+
 /**
  * Numérisation de documents à l'appareil photo : détection des bords de la
  * feuille, redressement de la perspective et nettoyage (ombres, fond blanc).
@@ -21,10 +23,10 @@ export type Quad = [Point, Point, Point, Point];
 export type ScanFilter = "auto" | "gray" | "bw" | "original";
 
 export const SCAN_FILTERS: { id: ScanFilter; label: string }[] = [
-  { id: "auto", label: "Éclairci" },
-  { id: "gray", label: "Gris" },
-  { id: "bw", label: "Noir et blanc" },
-  { id: "original", label: "Original" },
+  { id: "auto", label: msg("Éclairci") },
+  { id: "gray", label: msg("Gris") },
+  { id: "bw", label: msg("Noir et blanc") },
+  { id: "original", label: msg("Original") },
 ];
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);

@@ -1,4 +1,5 @@
 import { StandardFonts } from "pdf-lib";
+import { msg, t } from "../i18n";
 
 /**
  * Registre des polices utilisables pour écrire dans un PDF :
@@ -33,28 +34,38 @@ const SANS = "Helvetica, Arial, 'Liberation Sans', sans-serif";
 const SERIF = "'Times New Roman', Times, 'Liberation Serif', serif";
 const MONO = "'Courier New', Courier, 'Liberation Mono', monospace";
 
-const STANDARD: [StandardFonts, string, string][] = [
-  [StandardFonts.Helvetica, "Helvetica", SANS],
-  [StandardFonts.HelveticaBold, "Helvetica Gras", SANS],
-  [StandardFonts.HelveticaOblique, "Helvetica Italique", SANS],
-  [StandardFonts.HelveticaBoldOblique, "Helvetica Gras Italique", SANS],
-  [StandardFonts.TimesRoman, "Times", SERIF],
-  [StandardFonts.TimesRomanBold, "Times Gras", SERIF],
-  [StandardFonts.TimesRomanItalic, "Times Italique", SERIF],
-  [StandardFonts.TimesRomanBoldItalic, "Times Gras Italique", SERIF],
-  [StandardFonts.Courier, "Courier", MONO],
-  [StandardFonts.CourierBold, "Courier Gras", MONO],
-  [StandardFonts.CourierOblique, "Courier Italique", MONO],
-  [StandardFonts.CourierBoldOblique, "Courier Gras Italique", MONO],
+/** Styles affichés après le nom de famille (traduits à l'affichage). */
+const BOLD_LABEL = msg("Gras");
+const ITALIC_LABEL = msg("Italique");
+const BOLD_ITALIC_LABEL = msg("Gras Italique");
+
+const STANDARD: [StandardFonts, string, string, string][] = [
+  [StandardFonts.Helvetica, "Helvetica", "", SANS],
+  [StandardFonts.HelveticaBold, "Helvetica", BOLD_LABEL, SANS],
+  [StandardFonts.HelveticaOblique, "Helvetica", ITALIC_LABEL, SANS],
+  [StandardFonts.HelveticaBoldOblique, "Helvetica", BOLD_ITALIC_LABEL, SANS],
+  [StandardFonts.TimesRoman, "Times", "", SERIF],
+  [StandardFonts.TimesRomanBold, "Times", BOLD_LABEL, SERIF],
+  [StandardFonts.TimesRomanItalic, "Times", ITALIC_LABEL, SERIF],
+  [StandardFonts.TimesRomanBoldItalic, "Times", BOLD_ITALIC_LABEL, SERIF],
+  [StandardFonts.Courier, "Courier", "", MONO],
+  [StandardFonts.CourierBold, "Courier", BOLD_LABEL, MONO],
+  [StandardFonts.CourierOblique, "Courier", ITALIC_LABEL, MONO],
+  [StandardFonts.CourierBoldOblique, "Courier", BOLD_ITALIC_LABEL, MONO],
 ];
+
+/** Nom de famille suivi du style traduit (« Helvetica Gras »). */
+const styled = (family: string, style: string) => (style ? `${family} ${t(style)}` : family);
 
 export const DEFAULT_FONT_KEY = `std:${StandardFonts.Helvetica}`;
 
 const registry = new Map<string, FontEntry>();
-for (const [std, label, css] of STANDARD) {
+for (const [std, family, style, css] of STANDARD) {
   registry.set(`std:${std}`, {
     key: `std:${std}`,
-    label,
+    get label() {
+      return styled(family, style);
+    },
     source: "standard",
     cssFamily: css,
     standard: std,
@@ -110,7 +121,9 @@ export function localFontsSupported(): boolean {
 export async function loadLocalFonts(): Promise<number> {
   if (!localFontsSupported()) {
     throw new Error(
-      "Ce navigateur ne donne pas accès aux polices installées (disponible sur Chrome et Edge pour ordinateur). Importez un fichier TTF/OTF à la place.",
+      t(
+        "Ce navigateur ne donne pas accès aux polices installées (disponible sur Chrome et Edge pour ordinateur). Importez un fichier TTF/OTF à la place.",
+      ),
     );
   }
   const query = (window as unknown as { queryLocalFonts: () => Promise<LocalFontData[]> }).queryLocalFonts;
@@ -162,7 +175,9 @@ export function registerFontBytes(name: string, buffer: ArrayBuffer, postscriptN
   const key = `file:${name}:${buffer.byteLength}`;
   registry.set(key, {
     key,
-    label: `${name} (importée)`,
+    get label() {
+      return t("{name} (importée)", { name });
+    },
     source: "file",
     cssFamily: `"fl-${cssSafe(key)}"`,
     postscriptName,
@@ -204,9 +219,9 @@ type LibraryStyle = "regular" | "bold" | "italic" | "boldItalic";
 
 const STYLE_LABEL: Record<LibraryStyle, string> = {
   regular: "",
-  bold: " Gras",
-  italic: " Italique",
-  boldItalic: " Gras italique",
+  bold: BOLD_LABEL,
+  italic: ITALIC_LABEL,
+  boldItalic: msg("Gras italique"),
 };
 
 /** Ajoute les familles du catalogue au registre (sans télécharger les fichiers). */
@@ -216,7 +231,9 @@ export function registerLibrary(catalog: LibraryFamily[], baseUrl: string): void
       const key = `lib:${fam.slug}:${style}`;
       registry.set(key, {
         key,
-        label: `${fam.family}${STYLE_LABEL[style]}`,
+        get label() {
+          return styled(fam.family, STYLE_LABEL[style]);
+        },
         source: "library",
         cssFamily: `"fl-lib-${fam.slug}-${style}"`,
         family: fam.family,
@@ -227,7 +244,7 @@ export function registerLibrary(catalog: LibraryFamily[], baseUrl: string): void
         italic: style === "italic" || style === "boldItalic",
         load: async () => {
           const res = await fetch(`${baseUrl}fonts/${fam.slug}/${file}`);
-          if (!res.ok) throw new Error(`Police ${fam.family} indisponible (hors ligne ?).`);
+          if (!res.ok) throw new Error(t("Police {font} indisponible (hors ligne ?).", { font: fam.family }));
           return res.arrayBuffer();
         },
       });
@@ -264,7 +281,9 @@ export function registerGoogleCatalog(sha: string, rows: GoogleRow[]): void {
       const url = `https://raw.githubusercontent.com/google/fonts/${sha}/${license}/${id}/${file}`;
       registry.set(key, {
         key,
-        label: `${family}${STYLE_LABEL[style]}`,
+        get label() {
+          return styled(family, STYLE_LABEL[style]);
+        },
         source: "library",
         cssFamily: `"fl-gf-${id}-${style}"`,
         family,
@@ -275,7 +294,7 @@ export function registerGoogleCatalog(sha: string, rows: GoogleRow[]): void {
         italic: style === "italic" || style === "boldItalic",
         load: async () => {
           const res = await fetch(url);
-          if (!res.ok) throw new Error(`Police ${family} indisponible (connexion internet nécessaire au premier usage).`);
+          if (!res.ok) throw new Error(t("Police {font} indisponible (connexion internet nécessaire au premier usage).", { font: family }));
           return res.arrayBuffer();
         },
       });
@@ -299,7 +318,7 @@ const cssLoaded = new Set<string>();
 
 export function fontBytes(key: string): Promise<ArrayBuffer> {
   const entry = getFont(key);
-  if (!entry.load) return Promise.reject(new Error("Police standard : pas de fichier à intégrer."));
+  if (!entry.load) return Promise.reject(new Error(t("Police standard : pas de fichier à intégrer.")));
   let p = bytesCache.get(key);
   if (!p) {
     p = entry.load();

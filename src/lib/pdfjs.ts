@@ -1,6 +1,7 @@
 import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+import { t } from "../i18n";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -8,7 +9,7 @@ const base = new URL(`${import.meta.env.BASE_URL}pdfjs/`, window.location.href).
 
 export class PasswordRequired extends Error {
   constructor(public incorrect: boolean) {
-    super(incorrect ? "Mot de passe incorrect." : "Ce PDF est protégé par un mot de passe.");
+    super(incorrect ? t("Mot de passe incorrect.") : t("Ce PDF est protégé par un mot de passe."));
   }
 }
 

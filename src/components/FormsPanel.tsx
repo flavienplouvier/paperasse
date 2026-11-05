@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { readFormFields, type FormField, type FormValues } from "../lib/forms";
 import { DEFAULT_FONT_KEY } from "../lib/fonts";
 import { FontPicker } from "./FontPicker";
+import { t, useLocale } from "../i18n";
 
 interface Props {
   bytes: Uint8Array;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function FormsPanel({ bytes, editable, onApply, onError }: Props) {
+  useLocale();
   const [fields, setFields] = useState<FormField[] | null>(null);
   const [values, setValues] = useState<FormValues>({});
   const [fontKey, setFontKey] = useState(DEFAULT_FONT_KEY);
@@ -31,12 +33,12 @@ export function FormsPanel({ bytes, editable, onApply, onError }: Props) {
     };
   }, [bytes, editable]);
 
-  if (!editable) return <p className="hint pad">Les formulaires de ce PDF protégé ne peuvent pas être modifiés.</p>;
-  if (!fields) return <p className="hint pad">Lecture du formulaire…</p>;
+  if (!editable) return <p className="hint pad">{t("Les formulaires de ce PDF protégé ne peuvent pas être modifiés.")}</p>;
+  if (!fields) return <p className="hint pad">{t("Lecture du formulaire…")}</p>;
   if (!fields.length)
     return (
       <p className="hint pad">
-        Ce PDF ne contient pas de champs de formulaire. Utilisez l'outil Texte pour écrire n'importe où sur la page.
+        {t("Ce PDF ne contient pas de champs de formulaire. Utilisez l'outil Texte pour écrire n'importe où sur la page.")}
       </p>
     );
 
@@ -73,11 +75,12 @@ export function FormsPanel({ bytes, editable, onApply, onError }: Props) {
         </label>
       ))}
       <label className="field inline">
-        <input type="checkbox" checked={customFont} onChange={(e) => setCustomFont(e.target.checked)} /> Choisir la police des champs
+        <input type="checkbox" checked={customFont} onChange={(e) => setCustomFont(e.target.checked)} />{" "}
+        {t("Choisir la police des champs")}
       </label>
       {customFont && <FontPicker value={fontKey} onChange={setFontKey} onError={onError} />}
       <button className="primary" type="submit">
-        Appliquer au document
+        {t("Appliquer au document")}
       </button>
     </form>
   );

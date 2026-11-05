@@ -1,3 +1,5 @@
+import { msg } from "../i18n";
+
 /**
  * Langue de l'utilisateur, détectée au démarrage depuis le navigateur. Elle
  * règle la langue proposée par défaut pour la reconnaissance de texte (OCR).
@@ -10,7 +12,7 @@ export interface Language {
   ocr: string;
   /** Code de langue du navigateur (fr, en…). */
   code: string;
-  /** Nom en français (OCR). */
+  /** Nom en français (OCR), à traduire à l'affichage avec t(). */
   label: string;
   /** Nom dans la langue elle-même, pour que chacun reconnaisse la sienne. */
   native: string;
@@ -19,14 +21,14 @@ export interface Language {
 }
 
 export const LANGUAGES: Language[] = [
-  { ocr: "fra", code: "fr", native: "Français", label: "Français", bundled: true },
-  { ocr: "eng", code: "en", native: "English", label: "Anglais", bundled: true },
-  { ocr: "deu", code: "de", native: "Deutsch", label: "Allemand", bundled: false },
-  { ocr: "spa", code: "es", native: "Español", label: "Espagnol", bundled: false },
-  { ocr: "ita", code: "it", native: "Italiano", label: "Italien", bundled: false },
-  { ocr: "por", code: "pt", native: "Português", label: "Portugais", bundled: false },
-  { ocr: "nld", code: "nl", native: "Nederlands", label: "Néerlandais", bundled: false },
-  { ocr: "chi_sim", code: "zh", native: "中文", label: "Chinois", bundled: false },
+  { ocr: "fra", code: "fr", native: "Français", label: msg("Français"), bundled: true },
+  { ocr: "eng", code: "en", native: "English", label: msg("Anglais"), bundled: true },
+  { ocr: "deu", code: "de", native: "Deutsch", label: msg("Allemand"), bundled: false },
+  { ocr: "spa", code: "es", native: "Español", label: msg("Espagnol"), bundled: false },
+  { ocr: "ita", code: "it", native: "Italiano", label: msg("Italien"), bundled: false },
+  { ocr: "por", code: "pt", native: "Português", label: msg("Portugais"), bundled: false },
+  { ocr: "nld", code: "nl", native: "Nederlands", label: msg("Néerlandais"), bundled: false },
+  { ocr: "chi_sim", code: "zh", native: "中文", label: msg("Chinois"), bundled: false },
 ];
 
 export interface UserLanguage {
@@ -94,6 +96,6 @@ export function chooseLanguage(ocr: string): UserLanguage {
 export function ocrChoices(first: Language): { value: string; label: string }[] {
   const list = [first, ...LANGUAGES.filter((l) => l !== first)].map((l) => ({ value: l.ocr, label: l.label }));
   // Mélange français-anglais, fréquent dans les documents administratifs et techniques.
-  list.splice(first.ocr === "fra" || first.ocr === "eng" ? 1 : list.length, 0, { value: "fra+eng", label: "Français et anglais" });
+  list.splice(first.ocr === "fra" || first.ocr === "eng" ? 1 : list.length, 0, { value: "fra+eng", label: msg("Français et anglais") });
   return list;
 }

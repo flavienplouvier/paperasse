@@ -1,33 +1,35 @@
+import { msg, t, useLocale } from "../i18n";
 import { Icon } from "./Icon";
 
 const SHORTCUTS: [string, string][] = [
-  ["Ctrl + O", "Ouvrir un fichier"],
-  ["Ctrl + S", "Enregistrer"],
-  ["Ctrl + Z / Ctrl + Y", "Annuler / rétablir"],
-  ["Ctrl + F", "Rechercher"],
-  ["Ctrl + molette, Ctrl + / -", "Zoom"],
-  ["V", "Sélection"],
-  ["E", "Modifier le texte"],
-  ["T", "Ajouter du texte"],
-  ["D", "Dessin : stylo"],
-  ["H", "Dessin : surligneur"],
-  ["L / A", "Dessin : trait / flèche"],
-  ["R / O", "Formes : rectangle / ellipse"],
-  ["G", "Gomme (supprime les éléments ajoutés)"],
-  ["W", "Cache blanc (masque le contenu du PDF)"],
-  ["P", "Tampon"],
-  ["F", "Champ de formulaire"],
-  ["Suppr", "Supprimer l'élément sélectionné"],
-  ["Échap", "Revenir à la sélection"],
+  ["Ctrl + O", msg("Ouvrir un fichier")],
+  ["Ctrl + S", msg("Enregistrer")],
+  ["Ctrl + Z / Ctrl + Y", msg("Annuler / rétablir")],
+  ["Ctrl + F", msg("Rechercher")],
+  [msg("Ctrl + molette, Ctrl + / -"), msg("Zoom")],
+  ["V", msg("Sélection")],
+  ["E", msg("Modifier le texte")],
+  ["T", msg("Ajouter du texte")],
+  ["D", msg("Dessin : stylo")],
+  ["H", msg("Dessin : surligneur")],
+  ["L / A", msg("Dessin : trait / flèche")],
+  ["R / O", msg("Formes : rectangle / ellipse")],
+  ["G", msg("Gomme (supprime les éléments ajoutés)")],
+  ["W", msg("Cache blanc (masque le contenu du PDF)")],
+  ["P", msg("Tampon")],
+  ["F", msg("Champ de formulaire")],
+  [msg("Suppr"), msg("Supprimer l'élément sélectionné")],
+  [msg("Échap"), msg("Revenir à la sélection")],
 ];
 
 export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
+  useLocale();
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Raccourcis clavier">
+      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={t("Raccourcis clavier")}>
         <header>
-          <h2>Raccourcis clavier</h2>
-          <button className="icon-btn" onClick={onClose} title="Fermer">
+          <h2>{t("Raccourcis clavier")}</h2>
+          <button className="icon-btn" onClick={onClose} title={t("Fermer")}>
             <Icon name="close" />
           </button>
         </header>
@@ -36,14 +38,14 @@ export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
             {SHORTCUTS.map(([keys, label]) => (
               <tr key={keys}>
                 <td>
-                  <kbd>{keys}</kbd>
+                  <kbd>{t(keys)}</kbd>
                 </td>
-                <td>{label}</td>
+                <td>{t(label)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="hint">Sur téléphone : pincez à deux doigts pour zoomer.</p>
+        <p className="hint">{t("Sur téléphone : pincez à deux doigts pour zoomer.")}</p>
       </div>
     </div>
   );

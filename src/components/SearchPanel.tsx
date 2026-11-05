@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "../lib/pdfjs";
 import { extractRuns, searchRuns, type SearchHit } from "../lib/text";
+import { t, tn, useLocale } from "../i18n";
 
 interface Props {
   pdf: PDFDocumentProxy;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function SearchPanel({ pdf, onResults, onGoto, active }: Props) {
+  useLocale();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [busy, setBusy] = useState(false);
@@ -57,26 +59,30 @@ export function SearchPanel({ pdf, onResults, onGoto, active }: Props) {
         <input
           ref={inputRef}
           type="search"
-          placeholder="Rechercher dans le document…"
+          placeholder={t("Rechercher dans le document…")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && step(e.shiftKey ? -1 : 1)}
         />
-        <button onClick={() => step(-1)} disabled={!hits.length} title="Précédent">
+        <button onClick={() => step(-1)} disabled={!hits.length} title={t("Précédent")}>
           ↑
         </button>
-        <button onClick={() => step(1)} disabled={!hits.length} title="Suivant">
+        <button onClick={() => step(1)} disabled={!hits.length} title={t("Suivant")}>
           ↓
         </button>
       </div>
       <div className="panel-sub">
-        {busy ? "Recherche…" : query.trim().length >= 2 ? `${hits.length} résultat(s)` : "Au moins 2 caractères"}
+        {busy
+          ? t("Recherche…")
+          : query.trim().length >= 2
+            ? tn("{n} résultat", "{n} résultats", hits.length)
+            : t("Au moins 2 caractères")}
       </div>
       <ol className="results">
         {hits.slice(0, 500).map((h, i) => (
           <li key={i} className={i === active ? "active" : ""}>
             <button onClick={() => onGoto(h, i)}>
-              <span className="result-page">p. {h.pageIndex + 1}</span> {h.context}
+              <span className="result-page">{t("p. {n}", { n: h.pageIndex + 1 })}</span> {h.context}
             </button>
           </li>
         ))}

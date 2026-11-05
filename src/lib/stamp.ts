@@ -1,19 +1,21 @@
+import { currentLocale, msg, t } from "../i18n";
+
 /** Tampons prêts à l'emploi : libellé et couleur. */
 export const STAMPS: { label: string; color: string }[] = [
-  { label: "Approuvé", color: "#1f8a4c" },
-  { label: "Payé", color: "#1f8a4c" },
-  { label: "Reçu", color: "#1d5fbf" },
-  { label: "Vu", color: "#1d5fbf" },
-  { label: "Brouillon", color: "#6b7280" },
-  { label: "Copie", color: "#6b7280" },
-  { label: "Confidentiel", color: "#c62828" },
-  { label: "Urgent", color: "#c62828" },
-  { label: "Refusé", color: "#c62828" },
-  { label: "Annulé", color: "#c62828" },
+  { label: msg("Approuvé"), color: "#1f8a4c" },
+  { label: msg("Payé"), color: "#1f8a4c" },
+  { label: msg("Reçu"), color: "#1d5fbf" },
+  { label: msg("Vu"), color: "#1d5fbf" },
+  { label: msg("Brouillon"), color: "#6b7280" },
+  { label: msg("Copie"), color: "#6b7280" },
+  { label: msg("Confidentiel"), color: "#c62828" },
+  { label: msg("Urgent"), color: "#c62828" },
+  { label: msg("Refusé"), color: "#c62828" },
+  { label: msg("Annulé"), color: "#c62828" },
 ];
 
 export function todayLabel(date = new Date()): string {
-  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return date.toLocaleDateString(currentLocale(), { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 /**
@@ -26,7 +28,7 @@ export function renderStamp(label: string, color: string, withDate: boolean): st
   const small = 14 * scale;
   const pad = 14 * scale;
   const border = 3 * scale;
-  const text = label.trim().toLocaleUpperCase("fr-FR") || "TAMPON";
+  const text = label.trim().toLocaleUpperCase(currentLocale()) || t("TAMPON");
   const date = withDate ? todayLabel() : "";
 
   const measure = document.createElement("canvas").getContext("2d")!;
