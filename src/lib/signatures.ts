@@ -1,5 +1,5 @@
 import { addScaled, normalizeRotation, screenAxes } from "./geometry";
-import type { Point, Rect } from "./types";
+import type { Annotation, Point, Rect } from "./types";
 
 /**
  * Signatures, paraphes, mentions, identités et tampons enregistrés sur
@@ -152,3 +152,73 @@ export function layoutParts(parts: PlacePart[], at: Point, rotation: number): Pl
   }
   return out;
 }
+
+// ------------------------------------------------------------------ paraphes sur toutes les pages
+
+/** Rectangle à l'écran (points, origine en haut à gauche) : [x0, y0, x1, y1]. */
+export type Box = [number, number, number, number];
+
+const overlaps = (a: Box, b: Box, gap: number) => a[0] < b[2] + gap && b[0] < a[2] + gap && a[1] < b[3] + gap && b[1] < a[3] + gap;
+const inside = (b: Box, w: number, h: number) => b[0] >= 0 && b[1] >= 0 && b[2] <= w && b[3] <= h;
+
+/**
+ * Place un cadre sans recouvrir les éléments déjà posés : il est décalé de
+ * côté (vers `prefer`, puis dans l'autre sens), sinon vers le haut, en restant
+ * dans la page. Sans place libre, la position demandée est gardée.
+ */
+export function freeSpot(box: Box, obstacles: Box[], page: { width: number; height: number }, prefer: "left" | "right", gap = GAP): Box {
+  const free = (b: Box) => inside(b, page.width, page.height) && !obstacles.some((o) => overlaps(b, o, gap));
+  if (free(box)) return box;
+  const w = box[2] - box[0];
+  const h = box[3] - box[1];
+  const slide = (dir: "left" | "right" | "up"): Box | null => {
+    let b = box;
+    for (let n = 0; n < 50; n++) {
+      const hit = obstacles.filter((o) => overlaps(b, o, gap));
+      if (!hit.length) return inside(b, page.width, page.height) ? b : null;
+      if (dir === "left") {
+        const x1 = Math.min(...hit.map((o) => o[0])) - gap;
+        b = [x1 - w, b[1], x1, b[3]];
+      } else if (dir === "right") {
+        const x0 = Math.max(...hit.map((o) => o[2])) + gap;
+        b = [x0, b[1], x0 + w, b[3]];
+      } else {
+        const y1 = Math.min(...hit.map((o) => o[1])) - gap;
+        b = [b[0], y1 - h, b[2], y1];
+      }
+      if (!inside(b, page.width, page.height)) return null;
+    }
+    return null;
+  };
+  return slide(prefer) ?? slide(prefer === "left" ? "right" : "left") ?? slide("up") ?? box;
+}
+
+/** Position du centre d'un cadre, en fraction de la page (identique sur toutes les pages). */
+export interface PagePosition {
+  fx: number;
+  fy: number;
+}
+
+/** Coin bas gauche ou bas droit, à 28 pt des bords. */
+export function cornerPosition(side: "left" | "right", w: number, h: number, page: { width: number; height: number }, margin = 28): PagePosition {
+  const cx = side === "right" ? page.width - margin - w / 2 : margin + w / 2;
+  return { fx: cx / page.width, fy: (page.height - margin - h / 2) / page.height };
+}
+
+/** Cadre à l'écran pour une position, ramené dans la page. */
+export function boxAt(pos: PagePosition, w: number, h: number, page: { width: number; height: number }): Box {
+  const cx = Math.min(page.width - w / 2, Math.max(w / 2, pos.fx * page.width));
+  const cy = Math.min(page.height - h / 2, Math.max(h / 2, pos.fy * page.height));
+  return [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
+}
+
+/** Cadres à l'écran (points, viewport à l'échelle 1) des éléments déjà posés sur une page. */
+export function obstaclesOn(annotations: Annotation[], pageId: string, vp: { convertToViewportPoint: (x: number, y: number) => number[] }): Box[] {
+  return annotations.flatMap((a) => {
+    if (a.pageId !== pageId || !("rect" in a) || !a.rect) return [];
+    const [x0, y0] = vp.convertToViewportPoint(a.rect[0], a.rect[1]);
+    const [x1, y1] = vp.convertToViewportPoint(a.rect[2], a.rect[3]);
+    return [[Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1)] as Box];
+  });
+}
+

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exportSignItems, layoutParts, parseSignItems, sortForStack, type PlacePart, type SignItem } from "./signatures";
+import { boxAt, cornerPosition, exportSignItems, freeSpot, layoutParts, parseSignItems, sortForStack, type Box, type PlacePart, type SignItem } from "./signatures";
 
 const items: SignItem[] = [
   { id: "a", kind: "identity", createdAt: 1, text: "Léa Martin", city: "Lyon", withDate: true },
@@ -67,5 +67,34 @@ describe("pose sur la page", () => {
     if (signature.type !== "image") throw new Error("image");
     // Page tournée : la largeur affichée devient la hauteur en coordonnées PDF.
     expect(signature.rect[3] - signature.rect[1]).toBeCloseTo(160);
+  });
+});
+
+describe("paraphes sur toutes les pages", () => {
+  const page = { width: 595, height: 842 };
+
+  it("garde la place demandée quand elle est libre", () => {
+    expect(freeSpot([500, 780, 560, 810], [], page, "left")).toEqual([500, 780, 560, 810]);
+  });
+
+  it("se pose à côté d'une paraphe déjà présente", () => {
+    const existing: Box = [500, 780, 560, 810];
+    const b = freeSpot([500, 780, 560, 810], [existing], page, "left");
+    expect(b[2]).toBeLessThanOrEqual(existing[0] - 6);
+    expect(b[1]).toBe(780);
+  });
+
+  it("change de sens si la page s'arrête, puis monte", () => {
+    // Collée au bord gauche : impossible d'aller à gauche, elle passe à droite de l'obstacle.
+    expect(freeSpot([10, 780, 70, 810], [[0, 770, 80, 820]], page, "left")[0]).toBeGreaterThanOrEqual(86);
+    // Toute la largeur est prise : elle monte au-dessus.
+    const up = freeSpot([300, 780, 360, 810], [[0, 770, 595, 820]], page, "left");
+    expect(up[3]).toBeLessThanOrEqual(764);
+  });
+
+  it("calcule les coins et ramène le cadre dans la page", () => {
+    const pos = cornerPosition("right", 60, 30, page);
+    expect(boxAt(pos, 60, 30, page)).toEqual([507, 784, 567, 814]);
+    expect(boxAt({ fx: 1.2, fy: -1 }, 60, 30, page)).toEqual([535, 0, 595, 30]);
   });
 });

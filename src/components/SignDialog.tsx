@@ -5,6 +5,7 @@ import { currentLocale, msg, t, tn, useLocale } from "../i18n";
 import { DEFAULT_FONT_KEY, ensureCssFont, getFont } from "../lib/fonts";
 import type { FileFont } from "../lib/fileFonts";
 import type { PDFDocumentProxy } from "../lib/pdfjs";
+import type { Annotation } from "../lib/types";
 import { FontSelect } from "./FontSelect";
 import { renderStamp } from "../lib/stamp";
 import { newId } from "../lib/types";
@@ -18,6 +19,14 @@ import {
   parseSignItems,
   saveSignItem,
   sortForStack,
+  boxAt,
+  cornerPosition,
+  freeSpot,
+  obstaclesOn,
+  partHeight,
+  partWidth,
+  type Box,
+  type PagePosition,
   type PlacePart,
   type SignItem,
   type SignKind,
@@ -91,17 +100,20 @@ interface Props {
   /** Document ouvert et page affichée : aperçu de la paraphe sur toutes les pages. */
   pdf: PDFDocumentProxy | null;
   currentPage: number;
+  /** Éléments déjà posés (évités par les paraphes, montrés dans l'aperçu). */
+  annotations: Annotation[];
+  pageIds: string[];
   /** Polices du document ouvert : la première sert de police par défaut à l'identité. */
   fileFonts: FileFont[];
   onPlace: (parts: PlacePart[]) => void;
   /** Paraphe(s) posée(s) en bas de chaque page, à gauche ou à droite. */
-  onInitialsEverywhere: (part: PlacePart, side: "left" | "right") => void;
+  onInitialsEverywhere: (part: PlacePart, pos: PagePosition | null) => void;
   onClose: () => void;
   onError: (msg: string) => void;
   onInfo: (msg: string) => void;
 }
 
-export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEverywhere, onClose, onError, onInfo }: Props) {
+export function SignDialog({ pdf, currentPage, annotations, pageIds, fileFonts, onPlace, onInitialsEverywhere, onClose, onError, onInfo }: Props) {
   const docFont = fileFonts[0]?.key ?? DEFAULT_FONT_KEY;
   useLocale();
   const [items, setItems] = useState<SignItem[]>([]);
@@ -125,8 +137,16 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
   /** Paraphe sur toutes les pages, et sa taille en % (retenues). */
   const [allPages, setAllPages] = useState(() => readPref("paperasse-paraphe-partout") === "1");
   const [initialsScale, setInitialsScale] = useState(() => Number(readPref("paperasse-paraphe-taille")) || 100);
-  const [initialsSide, setInitialsSide] = useState<"left" | "right">(() => (readPref("paperasse-paraphe-cote") === "left" ? "left" : "right"));
-  useEffect(() => writePref("paperasse-paraphe-cote", initialsSide), [initialsSide]);
+  /** Place des paraphes sur la page (choisie dans l'aperçu, la même sur toutes les pages) ; null = en bas à droite. */
+  const [initialsPos, setInitialsPos] = useState<PagePosition | null>(() => {
+    try {
+      const p = JSON.parse(readPref("paperasse-paraphe-position") ?? "null");
+      return p && typeof p.fx === "number" && typeof p.fy === "number" ? p : null;
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => writePref("paperasse-paraphe-position", JSON.stringify(initialsPos)), [initialsPos]);
   useEffect(() => writePref("paperasse-paraphe-partout", allPages ? "1" : "0"), [allPages]);
   useEffect(() => writePref("paperasse-paraphe-taille", String(initialsScale)), [initialsScale]);
 
@@ -197,10 +217,25 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
     return parts.length === 1 ? parts[0] : { type: "row", parts };
   };
 
+  // Groupe de paraphes à la taille réglée, pour l'aperçu.
+  const [previewPart, setPreviewPart] = useState<PlacePart | null>(null);
+  const initialsKey = chosenInitials.map((i) => i.id + (i.dataUrl?.length ?? 0)).join("|");
+  useEffect(() => {
+    if (!everywhere) return setPreviewPart(null);
+    let alive = true;
+    initialsPart(initialsScale)
+      .then((p) => alive && setPreviewPart(p))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [everywhere, initialsKey, initialsScale]);
+
   const place = async () => {
     try {
       // Paraphes sur toutes les pages tout de suite ; le reste se pose d'un appui sur la page.
-      if (everywhere) onInitialsEverywhere(await initialsPart(initialsScale), initialsSide);
+      if (everywhere) onInitialsEverywhere(await initialsPart(initialsScale), initialsPos);
       const rest = everywhere ? selection.filter((i) => i.kind !== "initials") : selection;
       const parts: PlacePart[] = [];
       let initialsDone = false;
@@ -335,20 +370,15 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
                         <span>{t("Taille : {n} %", { n: initialsScale })}</span>
                         <input type="range" min={30} max={200} step={5} value={initialsScale} onChange={(e) => setInitialsScale(+e.target.value)} />
                       </label>
-                      <div className="seg" role="radiogroup" aria-label={t("Position")}>
-                        {(["left", "right"] as const).map((side) => (
-                          <button key={side} role="radio" aria-checked={initialsSide === side} className={initialsSide === side ? "active" : ""} onClick={() => setInitialsSide(side)}>
-                            {side === "left" ? t("En bas à gauche") : t("En bas à droite")}
-                          </button>
-                        ))}
-                      </div>
-                      {pdf && (
+                      {pdf && previewPart && (
                         <InitialsPreview
                           pdf={pdf}
-                          page={currentPage}
-                          images={chosenInitials.flatMap((i) => (i.dataUrl ? [i.dataUrl] : []))}
-                          widthPt={(WIDTH.initials * initialsScale) / 100}
-                          side={initialsSide}
+                          page={Math.min(currentPage, pageIds.length - 1)}
+                          pageId={pageIds[Math.min(currentPage, pageIds.length - 1)]}
+                          annotations={annotations}
+                          part={previewPart}
+                          pos={initialsPos}
+                          onPos={setInitialsPos}
                         />
                       )}
                     </>
@@ -447,17 +477,40 @@ function writePref(key: string, value: string) {
   }
 }
 
-/** Page affichée en miniature, paraphe en bas à droite à la taille réglée (marge de 28 pt, comme à la pose). */
-function InitialsPreview({ pdf, page, images, widthPt, side }: { pdf: PDFDocumentProxy; page: number; images: string[]; widthPt: number; side: "left" | "right" }) {
+/**
+ * Page affichée en miniature avec les éléments déjà posés : on fait glisser
+ * la paraphe (ou le groupe) à sa place ; elle évite les éléments existants
+ * exactement comme à la pose sur chaque page.
+ */
+function InitialsPreview({
+  pdf,
+  page,
+  pageId,
+  annotations,
+  part,
+  pos,
+  onPos,
+}: {
+  pdf: PDFDocumentProxy;
+  page: number;
+  pageId: string;
+  annotations: Annotation[];
+  part: PlacePart;
+  pos: PagePosition | null;
+  onPos: (p: PagePosition) => void;
+}) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [scale, setScale] = useState(0);
+  const [view, setView] = useState<{ s: number; width: number; height: number; obstacles: Box[]; placed: { a: Annotation; box: Box }[] } | null>(null);
+  const [drag, setDrag] = useState<{ x: number; y: number; pos: PagePosition } | null>(null);
+  const [dragPos, setDragPos] = useState<PagePosition | null>(null);
+
   useEffect(() => {
     let task: { cancel: () => void; promise: Promise<unknown> } | null = null;
     let alive = true;
     (async () => {
-      const p = await pdf.getPage(Math.min(page, pdf.numPages - 1) + 1);
+      const p = await pdf.getPage(page + 1);
       const base = p.getViewport({ scale: 1 });
-      const s = Math.min(240 / base.width, 320 / base.height);
+      const s = Math.min(260 / base.width, 340 / base.height);
       const vp = p.getViewport({ scale: s * (window.devicePixelRatio || 1) });
       const c = canvas.current;
       if (!alive || !c) return;
@@ -467,23 +520,79 @@ function InitialsPreview({ pdf, page, images, widthPt, side }: { pdf: PDFDocumen
       c.style.height = `${base.height * s}px`;
       task = p.render({ canvas: c, viewport: vp });
       await task.promise.catch(() => undefined);
-      if (alive) setScale(s);
+      const obstacles = obstaclesOn(annotations, pageId, base);
+      const withRect = annotations.filter((a) => a.pageId === pageId && "rect" in a && a.rect);
+      if (alive) setView({ s, width: base.width, height: base.height, obstacles, placed: withRect.map((a, k) => ({ a, box: obstacles[k] })) });
     })().catch(() => undefined);
     return () => {
       alive = false;
       task?.cancel();
     };
-  }, [pdf, page]);
+  }, [pdf, page, pageId, annotations]);
+
+  const w = partWidth(part);
+  const h = partHeight(part);
+  const images = part.type === "row" ? part.parts : part.type === "image" ? [part] : [];
+  const size = view ? { width: view.width, height: view.height } : null;
+  const current = dragPos ?? pos ?? (size ? cornerPosition("right", w, h, size) : null);
+  // Pendant le glissement : là où est le doigt ; ensuite : la place réelle (décalée si occupée).
+  const box = size && current ? (dragPos ? boxAt(current, w, h, size) : freeSpot(boxAt(current, w, h, size), view!.obstacles, size, current.fx > 0.5 ? "left" : "right")) : null;
+  const preset = (side: "left" | "right") => size && onPos(cornerPosition(side, w, h, size));
+  const near = (side: "left" | "right") => {
+    if (!size || !current) return false;
+    const c = cornerPosition(side, w, h, size);
+    return Math.abs(c.fx - current.fx) < 0.01 && Math.abs(c.fy - current.fy) < 0.01;
+  };
+
   return (
-    <div className="initials-preview">
-      <canvas ref={canvas} />
-      {scale > 0 && (
-        <div className="initials-preview-row" style={{ gap: 6 * scale, bottom: 28 * scale, [side]: 28 * scale }}>
-          {images.map((src, i) => (
-            <img key={i} src={src} alt="" style={{ width: widthPt * scale }} />
-          ))}
-        </div>
-      )}
+    <div className="initials-place">
+      <div className="seg" role="radiogroup" aria-label={t("Position")}>
+        {(["left", "right"] as const).map((side) => (
+          <button key={side} role="radio" aria-checked={near(side)} className={near(side) ? "active" : ""} onClick={() => preset(side)}>
+            {side === "left" ? t("En bas à gauche") : t("En bas à droite")}
+          </button>
+        ))}
+      </div>
+      <p className="hint">{t("Faites glisser la paraphe dans l'aperçu pour choisir sa place : elle sera au même endroit sur chaque page, à côté des éléments déjà posés.")}</p>
+      <div className="initials-preview">
+        <canvas ref={canvas} />
+        {view &&
+          view.placed.map(({ a, box: b }, n) => {
+            const style = { left: b[0] * view.s, top: b[1] * view.s, width: (b[2] - b[0]) * view.s, height: (b[3] - b[1]) * view.s };
+            return a.kind === "image" ? <img key={n} className="initials-existing" src={a.dataUrl} alt="" style={style} /> : <span key={n} className="initials-existing box" style={style} />;
+          })}
+        {view && box && (
+          <div
+            className={`initials-group ${dragPos ? "dragging" : ""}`}
+            style={{ left: box[0] * view.s, top: box[1] * view.s, width: w * view.s, height: h * view.s, gap: 6 * view.s }}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setDrag({ x: e.clientX, y: e.clientY, pos: { fx: (box[0] + box[2]) / 2 / view.width, fy: (box[1] + box[3]) / 2 / view.height } });
+            }}
+            onPointerMove={(e) => {
+              if (!drag) return;
+              setDragPos({ fx: drag.pos.fx + (e.clientX - drag.x) / (view.s * view.width), fy: drag.pos.fy + (e.clientY - drag.y) / (view.s * view.height) });
+            }}
+            onPointerUp={() => {
+              if (dragPos) {
+                const b = boxAt(dragPos, w, h, size!);
+                onPos({ fx: (b[0] + b[2]) / 2 / view.width, fy: (b[1] + b[3]) / 2 / view.height });
+              }
+              setDrag(null);
+              setDragPos(null);
+            }}
+            onPointerCancel={() => {
+              setDrag(null);
+              setDragPos(null);
+            }}
+          >
+            {images.map((img, n) => (
+              <img key={n} src={img.dataUrl} alt="" draggable={false} style={{ width: img.width * view.s }} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

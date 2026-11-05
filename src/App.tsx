@@ -33,7 +33,7 @@ import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SearchPanel } from "./components/SearchPanel";
 import { FormsPanel } from "./components/FormsPanel";
 import { SignDialog } from "./components/SignDialog";
-import { layoutParts, partHeight, partWidth, type PlacePart } from "./lib/signatures";
+import { boxAt, cornerPosition, freeSpot, layoutParts, obstaclesOn, partHeight, partWidth, type PagePosition, type PlacePart } from "./lib/signatures";
 import { DocumentTools, type DocTab } from "./components/DocumentTools";
 import { MobileBar } from "./components/MobileBar";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
@@ -902,16 +902,23 @@ export default function App() {
     [pending, doc, addAnnotations],
   );
 
-  /** Paraphe(s) en bas à droite ou à gauche de chaque page (marge de 28 pt), en une seule étape annulable. */
-  const initialsEverywhere = async (part: PlacePart, side: "left" | "right") => {
+  /**
+   * Paraphe(s) au même endroit de chaque page (position choisie dans l'aperçu),
+   * décalées à côté des éléments déjà posés ; une seule étape annulable.
+   */
+  const initialsEverywhere = async (part: PlacePart, chosen: PagePosition | null) => {
     if (!doc || !pdf) return;
     const added: Annotation[] = [];
+    const w = partWidth(part);
+    const h = partHeight(part);
     for (let i = 0; i < pdf.numPages; i++) {
       const page = await pdf.getPage(i + 1);
       const vp = page.getViewport({ scale: 1 });
-      const h = partHeight(part);
-      const w = partWidth(part);
-      const [x, y] = vp.convertToPdfPoint(side === "right" ? vp.width - 28 - w / 2 : 28 + w / 2, vp.height - 28 - h / 2);
+      const size = { width: vp.width, height: vp.height };
+      const obstacles = obstaclesOn(doc.annotations, doc.pageIds[i], vp);
+      const pos = chosen ?? cornerPosition("right", w, h, size);
+      const box = freeSpot(boxAt(pos, w, h, size), obstacles, size, pos.fx > 0.5 ? "left" : "right");
+      const [x, y] = vp.convertToPdfPoint((box[0] + box[2]) / 2, (box[1] + box[3]) / 2);
       for (const p of layoutParts([part], [x, y], page.rotate)) {
         if (p.type === "image") added.push({ id: newId("annot"), kind: "image", pageId: doc.pageIds[i], rect: p.rect, dataUrl: p.dataUrl, color: "#000000", opacity: 1 });
       }
@@ -1747,6 +1754,8 @@ export default function App() {
       {signing && (
         <SignDialog
           pdf={pdf}
+          annotations={doc.annotations}
+          pageIds={doc.pageIds}
           currentPage={currentPage}
           fileFonts={fileFonts}
           onClose={() => setSigning(false)}
@@ -1759,9 +1768,9 @@ export default function App() {
             setSelectedId(null);
             notify(t("Touchez la page à l'endroit où signer."));
           }}
-          onInitialsEverywhere={(part, side) => {
+          onInitialsEverywhere={(part, pos) => {
             setSigning(false);
-            initialsEverywhere(part, side).catch(fail);
+            initialsEverywhere(part, pos).catch(fail);
           }}
         />
       )}
