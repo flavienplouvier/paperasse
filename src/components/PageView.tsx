@@ -583,7 +583,9 @@ function PageViewImpl(props: Props) {
     if (!runs || !covers.length) return null;
     const owns = (c: Annotation, r: TextRun) => {
       const rt = c.kind === "whiteout" ? c.removeText : undefined;
-      if (!rt || !hasRect(c) || r.angle !== 0) return false;
+      if (!rt || !hasRect(c)) return false;
+      // Texte tourné (ex. mention légale verticale) : même point de départ que la ligne retirée.
+      if (r.angle !== 0 || rt.angle) return Math.hypot(r.baseline[0] - rt.origin[0], r.baseline[1] - rt.origin[1]) < 0.5 * r.fontSize;
       return Math.abs(r.baseline[1] - rt.origin[1]) < 0.3 * r.fontSize && r.baseline[0] >= c.rect[0] - 1 && r.baseline[0] <= c.rect[2] + 1;
     };
     return new Set(runs.filter((r) => covers.some((c) => owns(c, r))));
