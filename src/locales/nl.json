@@ -504,5 +504,8 @@
   "Ajouter « Fait à …, le »": "„Getekend te …, op” toevoegen",
   "Choisir une police": "Lettertype kiezen",
   "Paraphe (toutes les pages)": "Paraaf (alle pagina's)",
-  "Taille : {n} %": "Grootte: {n}%"
+  "Taille : {n} %": "Grootte: {n}%",
+  "Cocher tous les éléments « {name} »": "Alle items “{name}” selecteren",
+  "Profils": "Profielen",
+  "Remplacera l'élément « {name} » de cet onglet.": "Vervangt het item “{name}” op dit tabblad."
 }

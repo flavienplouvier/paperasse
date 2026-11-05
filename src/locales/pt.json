@@ -504,5 +504,8 @@
   "Ajouter « Fait à …, le »": "Adicionar «…, a»",
   "Choisir une police": "Escolher tipo de letra",
   "Paraphe (toutes les pages)": "Rubrica (todas as páginas)",
-  "Taille : {n} %": "Tamanho: {n}%"
+  "Taille : {n} %": "Tamanho: {n}%",
+  "Cocher tous les éléments « {name} »": "Selecionar todos os elementos «{name}»",
+  "Profils": "Perfis",
+  "Remplacera l'élément « {name} » de cet onglet.": "Substituirá o elemento «{name}» deste separador."
 }

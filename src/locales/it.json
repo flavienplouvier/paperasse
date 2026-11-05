@@ -504,5 +504,8 @@
   "Ajouter « Fait à …, le »": "Aggiungi «…, lì»",
   "Choisir une police": "Scegli un font",
   "Paraphe (toutes les pages)": "Sigla (tutte le pagine)",
-  "Taille : {n} %": "Dimensione: {n}%"
+  "Taille : {n} %": "Dimensione: {n}%",
+  "Cocher tous les éléments « {name} »": "Seleziona tutti gli elementi «{name}»",
+  "Profils": "Profili",
+  "Remplacera l'élément « {name} » de cet onglet.": "Sostituirà l'elemento «{name}» di questa scheda."
 }

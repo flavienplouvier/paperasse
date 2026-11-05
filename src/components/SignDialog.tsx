@@ -143,12 +143,29 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
   }, [chosen]);
 
   const ofTab = items.filter((i) => i.kind === tab);
+  /** Noms déjà donnés (tous onglets) : ils relient signature, paraphe, identité… d'une même personne ou d'un même usage. */
+  const names = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const i of items) if (i.name?.trim() && !seen.has(i.name.trim().toLowerCase())) seen.set(i.name.trim().toLowerCase(), i.name.trim());
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, currentLocale()));
+  }, [items]);
+  /** Coche d'un coup tous les éléments portant ce nom (un par onglet). */
+  const chooseProfile = (name: string) =>
+    setChosen((c) => {
+      const next = { ...c };
+      for (const i of items) if (sameName(i.name, name)) next[i.kind] = i.id;
+      return next;
+    });
+  const profileActive = (name: string) => items.filter((i) => sameName(i.name, name)).every((i) => chosen[i.kind] === i.id);
 
   const toggle = (item: SignItem) => setChosen((c) => ({ ...c, [item.kind]: c[item.kind] === item.id ? undefined : item.id }));
 
-  const add = async (item: SignItem, remember: boolean) => {
+  const add = async (fresh: SignItem, remember: boolean) => {
+    // Même nom dans le même onglet : l'ancien élément est remplacé (il garde sa place et son identifiant).
+    const same = fresh.name ? items.find((i) => i.kind === fresh.kind && sameName(i.name, fresh.name)) : undefined;
+    const item = same ? { ...fresh, id: same.id, createdAt: same.createdAt } : fresh;
     if (remember) await saveSignItem(item).catch(() => onError(t("Enregistrement impossible sur cet appareil (navigation privée ?).")));
-    setItems((l) => [...l, item]);
+    setItems((l) => (same ? l.map((i) => (i.id === same.id ? item : i)) : [...l, item]));
     setChosen((c) => ({ ...c, [item.kind]: item.id }));
     setEditing(false);
   };
@@ -247,9 +264,20 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
           ))}
         </nav>
 
+        {names.length > 0 && (
+          <div className="sign-profiles" aria-label={t("Profils")}>
+            <span>{t("Profils")}</span>
+            {names.map((n) => (
+              <button key={n} className={profileActive(n) ? "active" : ""} title={t("Cocher tous les éléments « {name} »", { name: n })} onClick={() => chooseProfile(n)}>
+                {n}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="sign-body">
           {editing ? (
-            <Editor key={tab} kind={tab} date={signDate} onDate={setSignDate} fileFonts={fileFonts} docFont={docFont} onSave={add} onCancel={ofTab.length ? () => setEditing(false) : undefined} onError={onError} />
+            <Editor key={tab} kind={tab} names={names} existing={items} date={signDate} onDate={setSignDate} fileFonts={fileFonts} docFont={docFont} onSave={add} onCancel={ofTab.length ? () => setEditing(false) : undefined} onError={onError} />
           ) : (
             <>
               <div className="sign-list">
@@ -307,6 +335,59 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
           </button>
         </footer>
       </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ noms
+
+const sameName = (a: string | undefined, b: string | undefined) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** Champ du nom : la liste des noms déjà utilisés s'ouvre au clic et se filtre à la frappe. */
+function NameField({ value, names, onChange }: { value: string; names: string[]; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const typed = value.trim().toLowerCase();
+  // Le nom déjà tapé en entier n'est pas reproposé (l'avertissement de remplacement reste visible).
+  const shown = names.filter((n) => n.toLowerCase() !== typed && (!typed || n.toLowerCase().includes(typed)));
+  return (
+    <div className="sign-name-field">
+      <input
+        className="sign-name-input"
+        value={value}
+        maxLength={64}
+        placeholder={t("Nom (facultatif), ex. Pro")}
+        aria-label={t("Nom de l'élément")}
+        aria-autocomplete="list"
+        aria-expanded={open && shown.length > 0}
+        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+      />
+      {open && shown.length > 0 && (
+        <ul className="sign-name-list" role="listbox">
+          {shown.map((n) => (
+            <li key={n}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={n === value}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onChange(n);
+                  setOpen(false);
+                }}
+              >
+                {n}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -452,6 +533,8 @@ function Editor({
   onDate,
   fileFonts,
   docFont,
+  names,
+  existing,
   onSave,
   onCancel,
   onError,
@@ -461,6 +544,8 @@ function Editor({
   onDate: (d: string) => void;
   fileFonts: FileFont[];
   docFont: string;
+  names: string[];
+  existing: SignItem[];
   onSave: (item: SignItem, remember: boolean) => void;
   onCancel?: () => void;
   onError: (m: string) => void;
@@ -670,12 +755,15 @@ function Editor({
         </div>
       )}
 
+      {name.trim() && existing.some((i) => i.kind === kind && sameName(i.name, name)) && (
+        <p className="hint sign-replace">{t("Remplacera l'élément « {name} » de cet onglet.", { name: name.trim() })}</p>
+      )}
       <div className="modal-row sign-save">
         <label className="check">
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           {t("Mémoriser sur cet appareil")}
         </label>
-        <input className="sign-name-input" value={name} maxLength={64} placeholder={t("Nom (facultatif), ex. Pro")} aria-label={t("Nom de l'élément")} onChange={(e) => setName(e.target.value)} />
+        <NameField value={name} names={names} onChange={setName} />
         {onCancel && <button onClick={onCancel}>{t("Annuler")}</button>}
         <button className="primary" disabled={!ready} onClick={save}>
           {t("Enregistrer")}

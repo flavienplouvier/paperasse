@@ -2248,10 +2248,65 @@ kbd {
 .sign-colors {
   flex: 1;
 }
-.sign-name-input {
+.sign-name-field {
+  position: relative;
   flex: 1 1 160px;
   min-width: 0;
+}
+.sign-name-input {
+  width: 100%;
   min-height: 38px;
+}
+.sign-name-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 4px);
+  z-index: 5;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.sign-name-list button {
+  width: 100%;
+  justify-content: flex-start;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.sign-name-list button:hover {
+  background: var(--surface-2);
+}
+.sign-replace {
+  margin: 0;
+  color: var(--accent);
+}
+.sign-profiles {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  font-size: 13px;
+  color: var(--muted);
+}
+.sign-profiles button {
+  flex: none;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  font-size: 13px;
+}
+.sign-profiles button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .sign-date input[type="date"] {
   min-height: 38px;

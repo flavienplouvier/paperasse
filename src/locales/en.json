@@ -504,5 +504,8 @@
   "Ajouter « Fait à …, le »": "Add “Signed in …, on”",
   "Choisir une police": "Choose a font",
   "Paraphe (toutes les pages)": "Initials (all pages)",
-  "Taille : {n} %": "Size: {n}%"
+  "Taille : {n} %": "Size: {n}%",
+  "Cocher tous les éléments « {name} »": "Select all “{name}” items",
+  "Profils": "Profiles",
+  "Remplacera l'élément « {name} » de cet onglet.": "Will replace the “{name}” item in this tab."
 }
