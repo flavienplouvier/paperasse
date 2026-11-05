@@ -208,7 +208,6 @@ export default function App() {
   const [signing, setSigning] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [docTools, setDocTools] = useState<DocTab | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [ocrOpen, setOcrOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
@@ -1358,51 +1357,6 @@ export default function App() {
           <button className="icon-btn desktop-only" title={t("Imprimer")} onClick={print}>
             <Icon name="print" />
           </button>
-          <div className="menu-wrap desktop-only">
-            <button className="icon-btn" title={t("Plus d'outils")} aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
-              <Icon name="more" />
-            </button>
-            {menuOpen && (
-              <>
-                <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
-                <div className="menu" role="menu" onClick={() => setMenuOpen(false)}>
-                  <button role="menuitem" disabled={!editable || !doc.rewritable} onClick={() => setOcrOpen(true)}>
-                    <Icon name="search" /> {t("Reconnaissance de texte (OCR)")}
-                  </button>
-                  <hr />
-                  <button role="menuitem" disabled={!editable} onClick={() => setDocTools("numbers")}>
-                    <Icon name="pages" /> {t("Numéroter les pages")}
-                  </button>
-                  <button role="menuitem" disabled={!editable} onClick={() => setDocTools("headers")}>
-                    <Icon name="text" /> {t("En-tête et pied de page")}
-                  </button>
-                  <button role="menuitem" disabled={!editable} onClick={() => setDocTools("watermark")}>
-                    <Icon name="stamp" /> {t("Filigrane")}
-                  </button>
-                  <button role="menuitem" disabled={!editable} onClick={() => setDocTools("properties")}>
-                    <Icon name="info" /> {t("Propriétés du document")}
-                  </button>
-                  <button role="menuitem" disabled={!editable || !doc.rewritable} onClick={() => setDocTools("compress")}>
-                    <Icon name="compress" /> {t("Compresser le PDF")}
-                  </button>
-                  <hr />
-                  <button role="menuitem" onClick={exportPageImage}>
-                    <Icon name="image" /> {t("Exporter la page en image (PNG)")}
-                  </button>
-                  <button role="menuitem" onClick={share}>
-                    <Icon name="share" /> {t("Partager")}
-                  </button>
-                  <button role="menuitem" onClick={print}>
-                    <Icon name="print" /> {t("Imprimer")}
-                  </button>
-                  <hr />
-                  <button role="menuitem" onClick={() => setShowShortcuts(true)}>
-                    <Icon name="keyboard" /> {t("Raccourcis clavier")}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
           <button className="icon-btn desktop-only" title={t("Partager")} onClick={share}>
             <Icon name="share" />
           </button>
@@ -1513,8 +1467,9 @@ export default function App() {
               { icon: "image", label: t("Exporter la page en image"), run: exportPageImage },
               { icon: "print", label: t("Imprimer"), run: print },
               { icon: "info", label: t("Propriétés du document"), run: () => setDocTools("properties"), off: !editable },
-            ].map((m) => (
-              <div key={m.label}>
+              { icon: "keyboard", label: t("Raccourcis clavier"), run: () => setShowShortcuts(true), sep: true, desktop: true },
+            ].map((m: { icon: string; label: string; run: () => void; off?: boolean; sep?: boolean; desktop?: boolean }) => (
+              <div key={m.label} className={m.desktop ? "desktop-only" : undefined}>
                 {m.sep && <hr />}
                 <button
                   className="mdrawer-item"
