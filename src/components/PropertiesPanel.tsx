@@ -47,7 +47,12 @@ export function applyStyle(
     }
     if (text !== undefined) next.text = text;
     // Choisir une autre police abandonne la police incorporée d'origine.
-    if (patch.fontKey !== undefined) delete next.embedded;
+    if (patch.fontKey !== undefined) {
+      delete next.embedded;
+      // Une police choisie s'applique à tout le texte (styles mélangés abandonnés).
+      delete next.styles;
+      delete next.fonts;
+    }
     onUpdate(next as unknown as Annotation, commit);
   }
 }

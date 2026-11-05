@@ -529,5 +529,8 @@
   "Tirer pour déplacer l'extrémité": "Drag to move the end",
   "Tirer pour faire pivoter": "Drag to rotate",
   "Barré": "Strikethrough",
-  "Sans surlignage": "No highlight"
+  "Sans surlignage": "No highlight",
+  "Le texte dépasse de {n} lignes la place d'origine.": "The text runs {n} lines past its original space.",
+  "Ajuster pour tenir": "Shrink to fit",
+  "Le texte dépasse d'une ligne la place d'origine.": "The text runs one line past its original space."
 }

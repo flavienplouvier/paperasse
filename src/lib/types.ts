@@ -100,7 +100,17 @@ export interface TextAnnotation extends AnnotationBase {
    * Bloc de texte (paragraphe, titre sur plusieurs lignes) : le texte est remis en
    * page dans cette largeur, avec cet alignement et cet interligne (points).
    */
-  box?: { width: number; align: "left" | "center" | "right" | "justify"; lineHeight: number };
+  box?: {
+    width: number;
+    align: "left" | "center" | "right" | "justify";
+    lineHeight: number;
+    /** Nombre de lignes du bloc d'origine : au-delà, le texte déborde sur ce qui suit. */
+    lines?: number;
+  };
+  /** Styles mélangés d'un bloc : plages écrites dans d'autres polices (gras, lien, symbole…). */
+  styles?: { start: number; end: number; font: number }[];
+  /** Polices de ces plages (police de remplacement et police d'origine incorporée). */
+  fonts?: { fontKey: string; embedded?: EmbeddedFont }[];
   /** Police d'origine du texte modifié (pour retrouver la vraie police plus tard). */
   originalFont?: { name: string; bold?: boolean; italic?: boolean };
   /**

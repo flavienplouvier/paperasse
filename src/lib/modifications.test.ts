@@ -165,6 +165,30 @@ describe("blocs de texte", () => {
     expect(page.text.replace(/\s+/g, " ")).toContain("Un paragraphe");
   });
 
+  it("garde le gras d'un mot au milieu d'un bloc", async () => {
+    const doc = await PDFDocument.create();
+    const regular = await doc.embedFont(StandardFonts.Helvetica);
+    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+    // « DEUX MOIS » en gras (police 0), le reste normal.
+    const block = text("a", "le délai est de DEUX MOIS et plus", [60, 600], {
+      fontSize: 10,
+      fontKey: "std:Helvetica",
+      box: { width: 400, align: "left", lineHeight: 14 },
+      styles: [{ start: 16, end: 25, font: 0 }],
+      fonts: [{ fontKey: "std:Helvetica-Bold" }],
+    });
+    const parts = await blockParts(block, async (k) => (k.includes("Bold") ? bold : regular));
+    expect(parts.map((p) => [p.text, p.fontKey])).toEqual([
+      ["le délai est de ", "std:Helvetica"],
+      ["DEUX MOIS", "std:Helvetica-Bold"],
+      [" et plus", "std:Helvetica"],
+    ]);
+    // Le gras commence juste après le texte normal qui le précède.
+    expect(parts[1].origin[0]).toBeCloseTo(60 + regular.widthOfTextAtSize("le délai est de ", 10), 3);
+    // Exporté sans erreur.
+    expect((await readPages(await exportPdf(await samplePdf(1), ["a"], [block])))[0].text).toContain("DEUX MOIS");
+  });
+
   it("une ligne justifiée va jusqu'au bord droit", async () => {
     const doc = await PDFDocument.create();
     const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -172,7 +196,7 @@ describe("blocs de texte", () => {
       fontSize: 10,
       box: { width: 150, align: "justify", lineHeight: 14 },
     });
-    const parts = await blockParts(block, font);
+    const parts = await blockParts(block, async () => font);
     const firstLine = parts.filter((p) => p.origin[1] === 600);
     const last = firstLine[firstLine.length - 1];
     // Le dernier mot de la première ligne finit au bord droit du bloc (60 + 150).

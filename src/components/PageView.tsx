@@ -9,10 +9,11 @@ import { extractRuns, runAt, type TextRun } from "../lib/text";
 import { LINE_HEIGHT, isTextCover } from "../lib/exportPdf";
 import { getFont } from "../lib/fonts";
 import { Icon } from "./Icon";
-import { t, useLocale } from "../i18n";
+import { t, tn, useLocale } from "../i18n";
 import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
-import { blockAt, blocksOf, layoutText, type TextBlock } from "../lib/textBlocks";
+import { blockAt, blocksOf, fontIndexAt, layoutText, shiftStyles, type TextBlock } from "../lib/textBlocks";
+import type { EmbeddedFont } from "../lib/embeddedFonts";
 
 export interface ToolStyle {
   color: string;
@@ -88,6 +89,11 @@ type Drag = {
 } | null;
 
 const MAX_CANVAS_PIXELS = 16_777_216;
+
+/** Nouveau texte saisi ; les styles mélangés suivent la modification. */
+function withText(a: TextAnnotation, text: string): TextAnnotation {
+  return a.styles?.length ? { ...a, text, styles: shiftStyles(a.styles, a.text, text) } : { ...a, text };
+}
 
 let measureCtx: CanvasRenderingContext2D | null = null;
 /** Largeur d'une ligne de texte à l'écran (police CSS complète). */
@@ -478,17 +484,40 @@ function PageViewImpl(props: Props) {
    * lignes saisies. Partagée par le rendu et la zone de saisie.
    */
   const textLayout = (a: TextAnnotation) => {
-    // Police incorporée d'origine, lettre par lettre : les caractères absents du
+    // Une police par style : principale (-1) et polices des plages (gras, lien, symbole…).
+    // Police incorporée d'origine, lettre par lettre ; les caractères absents du
     // sous-ensemble s'affichent avec la police de remplacement.
-    const original = a.embedded ?? null;
-    const fallbackCss = fontCss(a.fontKey);
-    const css = original ? { fontFamily: original.cssFamily } : fallbackCss;
-    const font = `${"fontStyle" in css && css.fontStyle ? css.fontStyle : "normal"} ${"fontWeight" in css && css.fontWeight ? css.fontWeight : 400} ${a.fontSize}px ${css.fontFamily}`;
-    const measure = (str: string) => measureText(original ? displayText(original, str) : str, font);
+    const ctxOf = (fontKey: string, embedded?: EmbeddedFont) => {
+      const original = embedded ?? null;
+      const fallbackCss = fontCss(fontKey);
+      const css = original ? { fontFamily: original.cssFamily } : fallbackCss;
+      const font = `${"fontStyle" in css && css.fontStyle ? css.fontStyle : "normal"} ${"fontWeight" in css && css.fontWeight ? css.fontWeight : 400} ${a.fontSize}px ${css.fontFamily}`;
+      return { original, fallbackCss, css, measure: (str: string) => measureText(original ? displayText(original, str) : str, font) };
+    };
+    const main = ctxOf(a.fontKey, a.embedded);
+    const others = (a.fonts ?? []).map((f) => ctxOf(f.fontKey, f.embedded));
+    const ctx = (k: number) => (k >= 0 && others[k]) || main;
+    /** Morceaux de même style d'un passage du texte situé à `offset`. */
+    const runsOf = (str: string, offset: number) => {
+      const out: { text: string; font: number }[] = [];
+      [...str].forEach((ch, i) => {
+        const f = a.styles ? fontIndexAt(a.styles, offset + i) : -1;
+        const last = out[out.length - 1];
+        if (last && last.font === f) last.text += ch;
+        else out.push({ text: ch, font: f });
+      });
+      return out;
+    };
+    const measure = (str: string, offset: number) => (a.styles?.length ? runsOf(str, offset).reduce((w, r) => w + ctx(r.font).measure(r.text), 0) : main.measure(str));
+    let start = 0;
     const laid = a.box
       ? layoutText(a.text, a.box.width, a.box.align, measure)
-      : a.text.split(/\r?\n/).map((line) => ({ text: line, x: 0, wordSpacing: 0, width: line ? measure(line) : 0 }));
-    return { original, fallbackCss, css, laid };
+      : a.text.split(/\r?\n/).map((line) => {
+          const l = { text: line, start, x: 0, wordSpacing: 0, width: line ? measure(line, start) : 0 };
+          start += line.length + 1;
+          return l;
+        });
+    return { ...main, laid, ctx, runsOf };
   };
 
   /** Rendu d'un élément, tourné de son angle propre autour de son centre. */
@@ -607,16 +636,18 @@ function PageViewImpl(props: Props) {
       case "text": {
         const [x, y] = toView(a.origin);
         const size = a.fontSize * scale;
-        const { original, fallbackCss, css, laid } = textLayout(a);
+        const { css, laid, ctx, runsOf } = textLayout(a);
         const step = (a.box ? a.box.lineHeight : a.fontSize * LINE_HEIGHT) * scale;
-        const lineContent = (line: string) =>
-          original && line
-            ? segmentLine(original, line).map((seg, k) =>
+        /** Un morceau de même style : police d'origine lettre par lettre, remplacement pour les absentes. */
+        const runContent = (text: string, k: number) => {
+          const { original, fallbackCss } = ctx(k);
+          return original
+            ? segmentLine(original, text).map((seg, n) =>
                 seg.source === -1 || seg.source === "space" ? (
-                  <tspan key={k}>{displayText(original, seg.text)}</tspan>
+                  <tspan key={n}>{displayText(original, seg.text)}</tspan>
                 ) : (
                   <tspan
-                    key={k}
+                    key={n}
                     fontFamily={fallbackCss.fontFamily}
                     fontWeight={"fontWeight" in fallbackCss ? fallbackCss.fontWeight : undefined}
                     fontStyle={"fontStyle" in fallbackCss ? fallbackCss.fontStyle : undefined}
@@ -625,7 +656,20 @@ function PageViewImpl(props: Props) {
                   </tspan>
                 ),
               )
-            : line || " ";
+            : text;
+        };
+        const lineContent = (line: string, offset: number) =>
+          !line
+            ? " "
+            : runsOf(line, offset).map((r, n) => {
+                if (r.font < 0) return <tspan key={n}>{runContent(r.text, -1)}</tspan>;
+                const c = ctx(r.font).css;
+                return (
+                  <tspan key={n} fontFamily={c.fontFamily} fontWeight={"fontWeight" in c ? c.fontWeight : undefined} fontStyle={"fontStyle" in c ? c.fontStyle : undefined}>
+                    {runContent(r.text, r.font)}
+                  </tspan>
+                );
+              });
         const turn = `rotate(${rotation - a.rotation} ${x} ${y})`;
         const textEl = (
           <text
@@ -645,7 +689,7 @@ function PageViewImpl(props: Props) {
           >
             {laid.map((l, i) => (
               <tspan key={i} x={x + l.x * scale} y={y + i * step} style={l.wordSpacing ? { wordSpacing: `${l.wordSpacing * scale}px` } : undefined}>
-                {lineContent(l.text)}
+                {lineContent(l.text, l.start)}
               </tspan>
             ))}
           </text>
@@ -758,6 +802,8 @@ function PageViewImpl(props: Props) {
     const size = a.fontSize * scale;
     const asc = size * BASELINE;
     const lines = a.text.split(/\r?\n/);
+    // Bloc qui s'allonge : nombre de lignes en trop par rapport au bloc d'origine.
+    const overflow = a.box?.lines ? Math.max(0, textLayout(a).laid.length - a.box.lines) : 0;
     const gripMove = (e: React.PointerEvent, final: boolean) => {
       const g = grip.current;
       if (!g || g.pointerId !== e.pointerId) return;
@@ -793,6 +839,27 @@ function PageViewImpl(props: Props) {
         >
           <Icon name="move" size={16} />
         </button>
+        {overflow > 0 && (
+          <div className="block-overflow">
+            <span>{tn("Le texte dépasse d'une ligne la place d'origine.", "Le texte dépasse de {n} lignes la place d'origine.", overflow)}</span>
+            <button
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => {
+                // Réduit taille et interligne ensemble jusqu'à retrouver le nombre de lignes d'origine.
+                let k = 1;
+                let next = a;
+                for (let n = 0; n < 40 && k > 0.5; n++) {
+                  k *= 0.97;
+                  next = { ...a, fontSize: Math.round(a.fontSize * k * 100) / 100, box: { ...a.box!, lineHeight: Math.round(a.box!.lineHeight * k * 100) / 100 } };
+                  if (textLayout(next).laid.length <= a.box!.lines!) break;
+                }
+                props.onChange(next, true);
+              }}
+            >
+              {t("Ajuster pour tenir")}
+            </button>
+          </div>
+        )}
         <textarea
           ref={editorRef}
           spellCheck
@@ -810,9 +877,9 @@ function PageViewImpl(props: Props) {
             ...(a.box ? { width: a.box.width * scale, whiteSpace: "pre-wrap", textAlign: a.box.align, overflow: "hidden" } : {}),
           }}
           onFocus={(e) => (editStart.current = e.target.value)}
-          onChange={(e) => props.onChange({ ...a, text: e.target.value }, false)}
+          onChange={(e) => props.onChange(withText(a, e.target.value), false)}
           onBlur={(e) => {
-            if (editStart.current !== e.target.value) props.onChange({ ...a, text: e.target.value }, true);
+            if (editStart.current !== e.target.value) props.onChange(withText(a, e.target.value), true);
             editStart.current = null;
           }}
           onKeyDown={(e) => {

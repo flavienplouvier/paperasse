@@ -529,5 +529,8 @@
   "Tirer pour déplacer l'extrémité": "Arrastar para mover a extremidade",
   "Tirer pour faire pivoter": "Arrastar para rodar",
   "Barré": "Rasurado",
-  "Sans surlignage": "Sem realce"
+  "Sans surlignage": "Sem realce",
+  "Le texte dépasse de {n} lignes la place d'origine.": "O texto excede em {n} linhas o espaço original.",
+  "Ajuster pour tenir": "Ajustar para caber",
+  "Le texte dépasse d'une ligne la place d'origine.": "O texto excede em uma linha o espaço original."
 }

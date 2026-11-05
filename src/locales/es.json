@@ -529,5 +529,8 @@
   "Tirer pour déplacer l'extrémité": "Arrastrar para mover el extremo",
   "Tirer pour faire pivoter": "Arrastrar para girar",
   "Barré": "Tachado",
-  "Sans surlignage": "Sin resaltado"
+  "Sans surlignage": "Sin resaltado",
+  "Le texte dépasse de {n} lignes la place d'origine.": "El texto sobrepasa en {n} líneas el espacio original.",
+  "Ajuster pour tenir": "Ajustar para que quepa",
+  "Le texte dépasse d'une ligne la place d'origine.": "El texto sobrepasa en una línea el espacio original."
 }

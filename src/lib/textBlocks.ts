@@ -26,6 +26,8 @@ export interface BlockLine {
   origin: Point;
   width: number;
   text: string;
+  /** Police (nom pdf.js) de chaque caractère de `text`. */
+  fonts: string[];
   fontSize: number;
   pieces: Piece[];
 }
@@ -43,8 +45,10 @@ export interface TextBlock {
   /** Bord gauche et largeur du bloc. */
   left: number;
   width: number;
-  /** Texte du bloc, lignes recollées par une espace (le retour à la ligne se refait à la mise en page). */
+  /** Texte du bloc, lignes recollées par une espace (la coupure se refait à la mise en page). */
   text: string;
+  /** Police (nom pdf.js) de chaque caractère de `text` : gras, liens, symboles… */
+  fonts: string[];
 }
 
 const right = (p: Piece) => p.baseline[0] + (p.width ?? 0);
@@ -65,20 +69,34 @@ export function groupLines(pieces: Piece[]): BlockLine[] {
     let cur: Piece[] = [];
     const flush = () => {
       if (!cur.length) return;
-      let text = "";
+      // Caractères et police de chacun ; les blancs consécutifs sont réduits à une espace.
+      const chars: { ch: string; font: string }[] = [];
+      const push = (ch: string, font: string) => {
+        const space = /\s/.test(ch);
+        if (space && (!chars.length || chars[chars.length - 1].ch === " ")) return;
+        chars.push({ ch: space ? " " : ch, font });
+      };
       for (const [i, p] of cur.entries()) {
         if (i) {
           const gap = p.baseline[0] - right(cur[i - 1]);
           // Espace implicite (mots positionnés sans caractère espace).
-          if (gap > 0.15 * p.fontSize && !text.endsWith(" ") && !p.str.startsWith(" ")) text += " ";
+          if (gap > 0.15 * p.fontSize && !p.str.startsWith(" ")) push(" ", cur[i - 1].fontName);
         }
-        text += p.str;
+        for (const ch of p.str) push(ch, p.fontName);
       }
-      const trimmed = text.replace(/\s+/g, " ").trim();
+      while (chars.length && chars[chars.length - 1].ch === " ") chars.pop();
+      const trimmed = chars.map((c) => c.ch).join("");
       if (trimmed) {
         const first = cur.find((p) => p.str.trim()) ?? cur[0];
         const last = [...cur].reverse().find((p) => p.str.trim()) ?? cur[cur.length - 1];
-        lines.push({ origin: [first.baseline[0], first.baseline[1]], width: right(last) - first.baseline[0], text: trimmed, fontSize: Math.max(...cur.map((p) => p.fontSize)), pieces: cur });
+        lines.push({
+          origin: [first.baseline[0], first.baseline[1]],
+          width: right(last) - first.baseline[0],
+          text: trimmed,
+          fonts: chars.map((c) => c.font),
+          fontSize: Math.max(...cur.map((p) => p.fontSize)),
+          pieces: cur,
+        });
       }
       cur = [];
     };
@@ -155,31 +173,88 @@ export function groupBlocks(lines: BlockLine[]): TextBlock[] {
       align: detectAlign(g, 0.8 * fontSize),
       left,
       width: rightEdge - left,
-      text: joinLines(g, rightEdge),
+      ...joinLines(g, rightEdge),
     };
   });
 }
 
 /** Début d'élément de liste : puce, flèche, tiret, numéro. */
-const BULLET = /^([–—•→▪●◦■□*-]|\(?\d{1,2}[.)\]]|\[\d{1,2}\]|[a-z][.)])\s/u;
+const BULLET = /^([–—•→▪●◦■□*-]|\(?\d{1,2}[.)\]]|\d{1,3}(\.\d{1,3})+\.?|\[\d{1,2}\]|[a-z][.)])\s/u;
 
 /**
  * Texte du bloc : les lignes d'un même paragraphe sont recollées par une
  * espace (la coupure se refait à la mise en page) ; un retour à la ligne est
  * gardé avant un élément de liste et après une ligne courte qui finit une phrase.
  */
-export function joinLines(lines: BlockLine[], rightEdge: number): string {
+export function joinLines(lines: BlockLine[], rightEdge: number): { text: string; fonts: string[] } {
   let text = "";
+  const fonts: string[] = [];
   lines.forEach((l, i) => {
     if (i) {
       const prev = lines[i - 1];
       const short = rightEdge - (prev.origin[0] + prev.width) > 2 * l.fontSize;
       const hard = BULLET.test(l.text) || (short && /[.:;!?…»)]$/.test(prev.text));
       text += hard ? "\n" : " ";
+      fonts.push(prev.fonts[prev.fonts.length - 1]);
     }
     text += l.text;
+    fonts.push(...l.fonts);
   });
-  return text.replace(/[ \t]+/g, " ").trim();
+  return { text, fonts };
+}
+
+// ------------------------------------------------------------------ styles mélangés
+
+/** Plage du texte écrite dans une autre police que la principale (index dans la liste des polices). */
+export interface StyleRange {
+  start: number;
+  end: number;
+  font: number;
+}
+
+/** Police de chaque caractère → plages pour les polices autres que `main`, et liste de ces polices. */
+export function stylesFromFonts(fonts: string[], main: string): { styles: StyleRange[]; names: string[] } {
+  const names: string[] = [];
+  const styles: StyleRange[] = [];
+  fonts.forEach((f, i) => {
+    if (f === main) return;
+    let k = names.indexOf(f);
+    if (k < 0) k = names.push(f) - 1;
+    const last = styles[styles.length - 1];
+    if (last && last.font === k && last.end === i) last.end = i + 1;
+    else styles.push({ start: i, end: i + 1, font: k });
+  });
+  return { styles, names };
+}
+
+/** Index de police d'un caractère (-1 = police principale). */
+export function fontIndexAt(styles: StyleRange[] | undefined, i: number): number {
+  return styles?.find((r) => i >= r.start && i < r.end)?.font ?? -1;
+}
+
+/**
+ * Suit une modification du texte : la partie commune au début et à la fin
+ * garde ses styles ; le texte inséré prend le style du caractère qui le
+ * précède (ou qui le suit, en tout début).
+ */
+export function shiftStyles(styles: StyleRange[], before: string, after: string): StyleRange[] {
+  if (!styles.length || before === after) return styles;
+  let pre = 0;
+  while (pre < before.length && pre < after.length && before[pre] === after[pre]) pre++;
+  let suf = 0;
+  while (suf < before.length - pre && suf < after.length - pre && before[before.length - 1 - suf] === after[after.length - 1 - suf]) suf++;
+  const oldFonts = [...Array(before.length).keys()].map((i) => fontIndexAt(styles, i));
+  const inserted = after.length - pre - suf;
+  const inherit = pre > 0 ? oldFonts[pre - 1] : (oldFonts[before.length - suf] ?? -1);
+  const fonts = [...oldFonts.slice(0, pre), ...Array<number>(inserted).fill(inherit), ...oldFonts.slice(before.length - suf)];
+  const out: StyleRange[] = [];
+  fonts.forEach((f, i) => {
+    if (f < 0) return;
+    const last = out[out.length - 1];
+    if (last && last.font === f && last.end === i) last.end = i + 1;
+    else out.push({ start: i, end: i + 1, font: f });
+  });
+  return out;
 }
 
 export function blocksOf(pieces: Piece[]): TextBlock[] {
@@ -204,6 +279,8 @@ export function blockAt(blocks: TextBlock[], p: Point, margin = 1): TextBlock | 
 
 export interface LaidLine {
   text: string;
+  /** Position du début de la ligne dans le texte complet. */
+  start: number;
   /** Décalage depuis le bord gauche du bloc. */
   x: number;
   /** Espace supplémentaire ajouté à chaque espace (justification). */
@@ -215,46 +292,48 @@ export interface LaidLine {
  * Remet un texte en page dans une largeur : coupure aux espaces (un mot trop
  * long est coupé), retours à la ligne voulus conservés, alignement ; en
  * justifié, la dernière ligne de chaque paragraphe reste alignée à gauche.
+ * `measure(s, offset)` mesure `s` situé à `offset` dans le texte (styles mélangés).
  */
-export function layoutText(text: string, maxWidth: number, align: Align, measure: (s: string) => number): LaidLine[] {
+export function layoutText(text: string, maxWidth: number, align: Align, measure: (s: string, offset: number) => number): LaidLine[] {
   const out: LaidLine[] = [];
-  const spaceW = measure(" ");
-  for (const para of text.split(/\r?\n/)) {
-    const words = para.split(" ").filter((w, _i, all) => w || all.length === 1);
-    const lines: string[][] = [];
-    let cur: string[] = [];
-    let curW = 0;
+  let offset = 0;
+  for (const para of text.split("\n")) {
+    type Word = { w: string; at: number };
+    const words: Word[] = [];
+    let at = offset;
+    for (const w of para.split(" ")) {
+      if (w) words.push({ w, at });
+      at += w.length + 1;
+    }
+    const lines: Word[][] = [];
+    let cur: Word[] = [];
+    const span = (ws: Word[]) => text.slice(ws[0].at, ws[ws.length - 1].at + ws[ws.length - 1].w.length);
     for (let word of words) {
-      let w = measure(word);
       // Mot plus large que la ligne : coupé en morceaux.
-      while (w > maxWidth && word.length > 1) {
-        let n = word.length - 1;
-        while (n > 1 && measure(word.slice(0, n)) > maxWidth) n--;
-        if (cur.length) lines.push(cur), (cur = []), (curW = 0);
-        lines.push([word.slice(0, n)]);
-        word = word.slice(n);
-        w = measure(word);
+      while (measure(word.w, word.at) > maxWidth && word.w.length > 1) {
+        let n = word.w.length - 1;
+        while (n > 1 && measure(word.w.slice(0, n), word.at) > maxWidth) n--;
+        if (cur.length) lines.push(cur), (cur = []);
+        lines.push([{ w: word.w.slice(0, n), at: word.at }]);
+        word = { w: word.w.slice(n), at: word.at + n };
       }
-      const add = cur.length ? spaceW + w : w;
-      if (cur.length && curW + add > maxWidth + 0.01) {
+      if (cur.length && measure(span([...cur, word]), cur[0].at) > maxWidth + 0.01) {
         lines.push(cur);
         cur = [word];
-        curW = w;
-      } else {
-        cur.push(word);
-        curW += add;
-      }
+      } else cur.push(word);
     }
     lines.push(cur);
     lines.forEach((ws, i) => {
-      const line = ws.join(" ");
-      const width = measure(line);
+      const start = ws.length ? ws[0].at : offset;
+      const line = ws.length ? span(ws) : "";
+      const width = line ? measure(line, start) : 0;
       const free = Math.max(0, maxWidth - width);
       const last = i === lines.length - 1;
       const spaces = ws.length - 1;
-      if (align === "justify" && !last && spaces > 0) out.push({ text: line, x: 0, wordSpacing: free / spaces, width: maxWidth });
-      else out.push({ text: line, x: align === "center" ? free / 2 : align === "right" ? free : 0, wordSpacing: 0, width });
+      if (align === "justify" && !last && spaces > 0) out.push({ text: line, start, x: 0, wordSpacing: free / spaces, width: maxWidth });
+      else out.push({ text: line, start, x: align === "center" ? free / 2 : align === "right" ? free : 0, wordSpacing: 0, width });
     });
+    offset += para.length + 1;
   }
   return out;
 }

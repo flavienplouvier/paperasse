@@ -529,5 +529,8 @@
   "Tirer pour déplacer l'extrémité": "Slepen om het uiteinde te verplaatsen",
   "Tirer pour faire pivoter": "Slepen om te draaien",
   "Barré": "Doorgehaald",
-  "Sans surlignage": "Geen markering"
+  "Sans surlignage": "Geen markering",
+  "Le texte dépasse de {n} lignes la place d'origine.": "De tekst loopt {n} regels buiten de oorspronkelijke ruimte.",
+  "Ajuster pour tenir": "Passend maken",
+  "Le texte dépasse d'une ligne la place d'origine.": "De tekst loopt één regel buiten de oorspronkelijke ruimte."
 }

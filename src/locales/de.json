@@ -529,5 +529,8 @@
   "Tirer pour déplacer l'extrémité": "Ziehen, um das Ende zu verschieben",
   "Tirer pour faire pivoter": "Ziehen zum Drehen",
   "Barré": "Durchgestrichen",
-  "Sans surlignage": "Ohne Hervorhebung"
+  "Sans surlignage": "Ohne Hervorhebung",
+  "Le texte dépasse de {n} lignes la place d'origine.": "Der Text ist {n} Zeilen länger als der ursprüngliche Platz.",
+  "Ajuster pour tenir": "Anpassen",
+  "Le texte dépasse d'une ligne la place d'origine.": "Der Text ist eine Zeile länger als der ursprüngliche Platz."
 }

@@ -529,5 +529,8 @@
   "Tirer pour déplacer l'extrémité": "Trascina per spostare l'estremità",
   "Tirer pour faire pivoter": "Trascina per ruotare",
   "Barré": "Barrato",
-  "Sans surlignage": "Nessuna evidenziazione"
+  "Sans surlignage": "Nessuna evidenziazione",
+  "Le texte dépasse de {n} lignes la place d'origine.": "Il testo supera di {n} righe lo spazio originale.",
+  "Ajuster pour tenir": "Adatta",
+  "Le texte dépasse d'une ligne la place d'origine.": "Il testo supera di una riga lo spazio originale."
 }

@@ -23,6 +23,7 @@ import { clearDraft, draftInfo, formatSavedAt, loadDraft, saveDraft, type DraftI
 import { facesFor, restoreFaces } from "./lib/embeddedFontBuilder";
 import { duplicateAnnotation } from "./lib/annotations";
 import { buildEmbeddedFont } from "./lib/embeddedFontBuilder";
+import { stylesFromFonts } from "./lib/textBlocks";
 import { documentFontFor, restoreDocumentFont } from "./lib/documentFonts";
 import { fileFonts as listFileFonts, type FileFont } from "./lib/fileFonts";
 import { addPickedColor, loadPickedColors, toHex } from "./lib/pickedColors";
@@ -831,6 +832,24 @@ export default function App() {
       };
       // Bloc (titre, paragraphe) : toutes ses lignes deviennent un seul texte remis en page.
       const asBlock = block && (block.lines.length > 1 || block.lines[0].pieces.length > 1) ? block : null;
+      // Styles mélangés du bloc (gras, lien, symbole) : chaque autre police est préparée comme la principale.
+      const mixed = asBlock ? stylesFromFonts(asBlock.fonts, run.fontName) : null;
+      const extraFonts = mixed
+        ? await Promise.all(
+            mixed.names.map(async (name) => {
+              const other = fontInfo(page, name);
+              let key = documentFontFor(other.name, other) ?? matchFont(other.name, undefined, other);
+              const emb = doc.rewritable ? await buildEmbeddedFont(doc.bytes, page, name) : null;
+              try {
+                await ensureCssFont(key);
+              } catch {
+                key = matchFont(other.name, undefined, other);
+                await ensureCssFont(key).catch(() => undefined);
+              }
+              return { fontKey: key, ...(emb ? { embedded: emb } : {}) };
+            }),
+          )
+        : [];
       const covers = asBlock
         ? asBlock.lines.map((l) => coverFor([l.origin[0], l.origin[1] - l.fontSize * 0.25, l.origin[0] + l.width, l.origin[1] + l.fontSize * 0.95], l.origin, 0, l.width, l.fontSize))
         : [coverFor(run.rect, run.baseline, run.angle, run.width ?? run.rect[2] - run.rect[0], run.fontSize)];
@@ -843,7 +862,13 @@ export default function App() {
         ...(asBlock
           ? {
               // Légère marge : les mesures de l'écran et du PDF diffèrent de quelques centièmes.
-              box: { width: asBlock.width + asBlock.fontSize * 0.05, align: asBlock.align, lineHeight: Math.round(asBlock.lineHeight * 100) / 100 },
+              box: {
+                width: asBlock.width + asBlock.fontSize * 0.05,
+                align: asBlock.align,
+                lineHeight: Math.round(asBlock.lineHeight * 100) / 100,
+                lines: asBlock.lines.length,
+              },
+              ...(mixed && mixed.styles.length ? { styles: mixed.styles, fonts: extraFonts } : {}),
             }
           : {}),
         fontKey,

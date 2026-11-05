@@ -12,7 +12,7 @@ import {
 } from "pdf-lib";
 import { compatFontkit, withPreferredFont } from "./fontkitCompat";
 import { drawEmbeddedText, embeddedTextWidth, missingChars } from "./embeddedFonts";
-import { layoutText } from "./textBlocks";
+import { fontIndexAt, layoutText } from "./textBlocks";
 import { createFormField } from "./formFields";
 import { removeTextInRects } from "./removeText";
 import { curvePoints, rectCenter } from "./annotations";
@@ -80,25 +80,67 @@ async function drawTextAnnotation(doc: PDFDocument, page: PDFPage, a: TextAnnota
   await drawText(page, a, await fonts.get(a.fontKey));
 }
 
-/** Bloc de texte remis en page : une annotation par ligne, ou par mot sur une ligne justifiée. */
-export async function blockParts(a: TextAnnotation, fallback: PDFFont | null): Promise<TextAnnotation[]> {
+/**
+ * Bloc de texte remis en page : une annotation par morceau de même style
+ * (gras, lien, symbole…) sur chaque ligne, par mot sur une ligne justifiée.
+ */
+export async function blockParts(a: TextAnnotation, loadFont: (key: string) => Promise<PDFFont>): Promise<TextAnnotation[]> {
   const box = a.box!;
-  const fbWidth = (x: string) => fallback?.widthOfTextAtSize(x, a.fontSize) ?? x.length * a.fontSize * 0.5;
-  const measure = (s: string) => (a.embedded ? embeddedTextWidth(a.embedded, s, a.fontSize, fbWidth) : fbWidth(s));
+  const styles = a.styles ?? [];
+  const at = (i: number) => fontIndexAt(styles, i);
+  const styleOf = (k: number) => (k >= 0 && a.fonts?.[k]) || { fontKey: a.fontKey, embedded: a.embedded };
+  // Caractères de chaque style, pour ne charger une police de remplacement que si elle sert :
+  // une police CFF (Marianne…) intégrée sans aucun caractère fait échouer l'enregistrement (fontkit).
+  const used = new Map<number, string>();
+  [...a.text].forEach((ch, i) => used.set(at(i), (used.get(at(i)) ?? "") + ch));
+  const fallback = new Map<number, PDFFont | null>();
+  for (const [k, chars] of used) {
+    const st = styleOf(k);
+    fallback.set(k, !st.embedded || missingChars(st.embedded, chars).length ? await loadFont(st.fontKey) : null);
+  }
+  const widthOf = (k: number, str: string) => {
+    const st = styleOf(k);
+    const fb = fallback.get(k) ?? null;
+    const fbWidth = (x: string) => fb?.widthOfTextAtSize(x, a.fontSize) ?? x.length * a.fontSize * 0.5;
+    return st.embedded ? embeddedTextWidth(st.embedded, str, a.fontSize, fbWidth) : fbWidth(str);
+  };
+  /** Morceaux de même style d'un passage situé à `offset`. */
+  const runsOf = (str: string, offset: number) => {
+    const out: { text: string; font: number; at: number }[] = [];
+    [...str].forEach((ch, i) => {
+      const f = at(offset + i);
+      const last = out[out.length - 1];
+      if (last && last.font === f) last.text += ch;
+      else out.push({ text: ch, font: f, at: offset + i });
+    });
+    return out;
+  };
+  const measure = (str: string, offset: number) => runsOf(str, offset).reduce((w, r) => w + widthOf(r.font, r.text), 0);
   const { right, down } = screenAxes(a.rotation);
   const parts: TextAnnotation[] = [];
+  const base = { ...a, box: undefined, styles: undefined, fonts: undefined };
   layoutText(a.text, box.width, box.align, measure).forEach((l, i) => {
     if (!l.text) return;
     const start = addScaled(addScaled(a.origin, down, i * box.lineHeight), right, l.x);
-    const base = { ...a, box: undefined };
-    if (!l.wordSpacing) {
-      parts.push({ ...base, text: l.text, origin: start });
-      return;
-    }
     let x = 0;
-    for (const word of l.text.split(" ")) {
-      parts.push({ ...base, text: word, origin: addScaled(start, right, x) });
-      x += measure(word) + measure(" ") + l.wordSpacing;
+    // Ligne justifiée : chaque mot est placé séparément, les espaces élargies.
+    const pieces = l.wordSpacing ? l.text.split(/( )/) : [l.text];
+    let offset = l.start;
+    for (const piece of pieces) {
+      if (piece === " ") {
+        x += measure(" ", offset) + l.wordSpacing;
+        offset += 1;
+        continue;
+      }
+      for (const r of runsOf(piece, offset)) {
+        const st = styleOf(r.font);
+        const part: TextAnnotation = { ...base, text: r.text, origin: addScaled(start, right, x), fontKey: st.fontKey };
+        if (st.embedded) part.embedded = st.embedded;
+        else delete part.embedded;
+        parts.push(part);
+        x += widthOf(r.font, r.text);
+      }
+      offset += piece.length;
     }
   });
   return parts;
@@ -248,10 +290,7 @@ async function drawAnnotationBase(doc: PDFDocument, page: PDFPage, a: Annotation
     case "text":
       if (a.box) {
         // Bloc : remis en page dans sa largeur, puis écrit ligne par ligne (mot par mot si justifié).
-        // Police de remplacement chargée seulement si elle sert : une police CFF (Marianne…)
-        // intégrée sans aucun caractère fait échouer l'enregistrement (fontkit).
-        const needed = !a.embedded || missingChars(a.embedded, a.text).length > 0;
-        for (const part of await blockParts(a, needed ? await fonts.get(a.fontKey) : null)) await drawTextAnnotation(doc, page, part, fonts);
+        for (const part of await blockParts(a, (key) => fonts.get(key))) await drawTextAnnotation(doc, page, part, fonts);
         return;
       }
       await drawTextAnnotation(doc, page, a, fonts);

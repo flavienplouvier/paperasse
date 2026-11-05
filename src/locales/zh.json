@@ -529,5 +529,8 @@
   "Tirer pour déplacer l'extrémité": "拖动以移动端点",
   "Tirer pour faire pivoter": "拖动以旋转",
   "Barré": "删除线",
-  "Sans surlignage": "无高亮"
+  "Sans surlignage": "无高亮",
+  "Le texte dépasse de {n} lignes la place d'origine.": "文本超出原有空间 {n} 行。",
+  "Ajuster pour tenir": "缩放以适应",
+  "Le texte dépasse d'une ligne la place d'origine.": "文本超出原有空间一行。"
 }

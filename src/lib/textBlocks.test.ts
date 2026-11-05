@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blockAt, blocksOf, layoutText, type Piece } from "./textBlocks";
+import { blockAt, blocksOf, layoutText, shiftStyles, stylesFromFonts, type Piece } from "./textBlocks";
 
 const piece = (str: string, x: number, y: number, width: number, fontSize = 18, fontName = "f1"): Piece => ({ str, baseline: [x, y], width, fontSize, fontName, angle: 0 });
 
@@ -92,6 +92,11 @@ describe("blocs de texte", () => {
     );
   });
 
+  it("garde chaque entrée d'un sommaire numéroté sur sa ligne", () => {
+    const toc = ["13.1 – Rachats exceptionnels", "13.2 – Garantie en cas de décès", "13.3 – Garantie plancher"].map((str, i) => piece(str, 51, 500 - i * 14, 150, 10, "f1"));
+    expect(blocksOf(toc)[0].text.split("\n")).toHaveLength(3);
+  });
+
   it("centre un titre centré", () => {
     const centered = [piece("Un titre bien centré", 200, 700, 195), piece("court", 260, 680, 75)];
     expect(blocksOf(centered)[0].align).toBe("center");
@@ -116,12 +121,42 @@ describe("mise en page", () => {
   it("centre et garde les retours à la ligne voulus", () => {
     const lines = layoutText("ab\ncd", 100, "center", measure);
     expect(lines).toEqual([
-      { text: "ab", x: 40, wordSpacing: 0, width: 20 },
-      { text: "cd", x: 40, wordSpacing: 0, width: 20 },
+      { text: "ab", start: 0, x: 40, wordSpacing: 0, width: 20 },
+      { text: "cd", start: 3, x: 40, wordSpacing: 0, width: 20 },
     ]);
   });
 
   it("coupe un mot plus large que la ligne", () => {
     expect(layoutText("abcdefghijkl", 50, "left", measure).map((l) => l.text)).toEqual(["abcde", "fghij", "kl"]);
+  });
+});
+
+describe("styles mélangés", () => {
+  it("garde la police de chaque caractère (gras, symbole)", () => {
+    const pieces = [piece("→", 51, 500, 10, 10, "f1"), piece(" Toutefois,", 61, 500, 50, 10, "f5"), piece("dans le mois", 115, 500, 55, 10, "f3")];
+    const [b] = blocksOf(pieces);
+    expect(b.text).toBe("→ Toutefois, dans le mois");
+    expect(b.fonts.length).toBe(b.text.length);
+    expect(b.fonts[0]).toBe("f1");
+    expect(b.fonts[b.text.indexOf("T")]).toBe("f5");
+    expect(b.fonts[b.text.indexOf("m")]).toBe("f3");
+    const { styles, names } = stylesFromFonts(b.fonts, "f3");
+    expect(names).toEqual(["f1", "f5"]);
+    expect(styles[0]).toEqual({ start: 0, end: 1, font: 0 });
+  });
+
+  it("suit les modifications : le texte inséré prend le style voisin", () => {
+    // « ab » en gras (police 0), « cd » normal.
+    const styles = [{ start: 0, end: 2, font: 0 }];
+    expect(shiftStyles(styles, "abcd", "abXcd")).toEqual([{ start: 0, end: 3, font: 0 }]);
+    expect(shiftStyles(styles, "abcd", "Xabcd")).toEqual([{ start: 0, end: 3, font: 0 }]);
+    expect(shiftStyles(styles, "abcd", "acd")).toEqual([{ start: 0, end: 1, font: 0 }]);
+    expect(shiftStyles(styles, "abcd", "abcdY")).toEqual([{ start: 0, end: 2, font: 0 }]);
+  });
+
+  it("mesure chaque mot à sa position dans le texte", () => {
+    const seen: number[] = [];
+    layoutText("aa bb", 100, "left", (s, at) => (seen.push(at), s.length * 10));
+    expect(seen).toContain(3);
   });
 });
