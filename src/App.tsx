@@ -32,7 +32,8 @@ import { Thumbnails } from "./components/Thumbnails";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SearchPanel } from "./components/SearchPanel";
 import { FormsPanel } from "./components/FormsPanel";
-import { SignaturePad } from "./components/SignaturePad";
+import { SignDialog } from "./components/SignDialog";
+import { layoutParts, type PlacePart } from "./lib/signatures";
 import { DocumentTools, type DocTab } from "./components/DocumentTools";
 import { MobileBar } from "./components/MobileBar";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
@@ -183,7 +184,8 @@ export default function App() {
   const [activeHit, setActiveHit] = useState(-1);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; error?: boolean } | null>(null);
-  const [pending, setPending] = useState<{ dataUrl: string; w: number; h: number; kind: PendingKind } | null>(null);
+  /** Image, tampon ou groupe (signature, mention…) prêt à être posé d'un appui sur la page. */
+  const [pending, setPending] = useState<{ dataUrl: string; w: number; h: number; kind: PendingKind; group?: PlacePart[] } | null>(null);
   const [signing, setSigning] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [docTools, setDocTools] = useState<DocTab | null>(null);
@@ -843,8 +845,22 @@ export default function App() {
   );
 
   const onPlace = useCallback(
-    (pageId: string, at: Point) => {
+    (pageId: string, at: Point, rotation: number) => {
       if (!pending || !doc) return;
+      if (pending.group) {
+        const placed = layoutParts(pending.group, at, rotation).map(
+          (p): Annotation =>
+            p.type === "image"
+              ? { id: newId("annot"), kind: "image", pageId, rect: p.rect, dataUrl: p.dataUrl, color: "#000000", opacity: 1 }
+              : { id: newId("annot"), kind: "text", pageId, origin: p.origin, text: p.text, fontKey: p.fontKey, fontSize: p.fontSize, color: p.color, opacity: 1, rotation: p.rotation },
+        );
+        addAnnotations(...placed);
+        setPending(null);
+        // Rien de sélectionné : le texte posé n'ouvre pas le clavier du téléphone.
+        setTool("select");
+        setSelectedId(null);
+        return;
+      }
       const width = { signature: 160, stamp: 150, image: Math.min(240, pending.w * 0.75) }[pending.kind];
       const height = (width * pending.h) / pending.w;
       const a: Annotation = {
@@ -866,6 +882,24 @@ export default function App() {
     },
     [pending, doc, addAnnotations],
   );
+
+  /** Paraphe en bas à droite de chaque page (marge de 28 pt), en une seule étape annulable. */
+  const initialsEverywhere = async (part: PlacePart) => {
+    if (!doc || !pdf) return;
+    const added: Annotation[] = [];
+    for (let i = 0; i < pdf.numPages; i++) {
+      const page = await pdf.getPage(i + 1);
+      const vp = page.getViewport({ scale: 1 });
+      const h = part.type === "image" ? part.height : part.fontSize * 1.25;
+      const w = part.type === "image" ? part.width : 120;
+      const [x, y] = vp.convertToPdfPoint(vp.width - 28 - w / 2, vp.height - 28 - h / 2);
+      for (const p of layoutParts([part], [x, y], page.rotate)) {
+        if (p.type === "image") added.push({ id: newId("annot"), kind: "image", pageId: doc.pageIds[i], rect: p.rect, dataUrl: p.dataUrl, color: "#000000", opacity: 1 });
+      }
+    }
+    addAnnotations(...added);
+    notify(tn("Paraphe ajoutée sur {n} page (Ctrl+Z pour annuler).", "Paraphe ajoutée sur {n} pages (Ctrl+Z pour annuler).", added.length));
+  };
 
   const startImage = async (dataUrl: string, kind: PendingKind) => {
     const { w, h } = await imageSize(dataUrl);
@@ -1672,12 +1706,20 @@ export default function App() {
         />
       )}
       {signing && (
-        <SignaturePad
-          onCancel={() => setSigning(false)}
+        <SignDialog
+          onClose={() => setSigning(false)}
           onError={(m) => notify(m, true)}
-          onDone={(url) => {
+          onInfo={(m) => notify(m, false, 6000)}
+          onPlace={(group) => {
             setSigning(false);
-            startImage(url, "signature").catch(fail);
+            setPending({ dataUrl: "", w: 0, h: 0, kind: "signature", group });
+            setTool("image");
+            setSelectedId(null);
+            notify(t("Touchez la page à l'endroit où signer."));
+          }}
+          onInitialsEverywhere={(part) => {
+            setSigning(false);
+            initialsEverywhere(part).catch(fail);
           }}
         />
       )}

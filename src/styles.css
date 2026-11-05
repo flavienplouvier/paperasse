@@ -1996,3 +1996,210 @@ kbd {
     display: none;
   }
 }
+
+/* ----------------------------------------------------------------- signer */
+
+.sign-dialog {
+  width: min(640px, 100%);
+  max-height: calc(100dvh - 24px);
+  display: flex;
+  flex-direction: column;
+}
+.sign-head-actions {
+  display: flex;
+  gap: 2px;
+}
+.sign-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.sign-tabs button {
+  position: relative;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 52px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 12px;
+}
+.sign-tabs button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.sign-dot {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.sign-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sign-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+}
+.sign-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: #1b1d22;
+}
+.sign-card.chosen {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.sign-card label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 76px;
+  padding: 8px 36px 8px 10px;
+  cursor: pointer;
+}
+.sign-card .icon-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: #555;
+}
+.sign-thumb {
+  max-width: 100%;
+  max-height: 60px;
+  object-fit: contain;
+}
+.sign-thumb.big {
+  max-height: 120px;
+  align-self: center;
+}
+.sign-text {
+  margin: 0;
+  font-size: 13px;
+  white-space: pre-line;
+  font-family: Helvetica, Arial, sans-serif;
+}
+.sign-text.mention {
+  font-size: 22px;
+}
+.sign-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sign-editor > input {
+  min-height: 44px;
+  font-size: 16px;
+}
+.sign-import {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.seg {
+  display: flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  gap: 3px;
+}
+.seg button {
+  flex: 1;
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+.seg button.active {
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  font-weight: 600;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chips button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 17px;
+  font-size: 13px;
+}
+.chips button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.script-fonts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px;
+}
+.script-fonts button {
+  min-height: 64px;
+  font-size: 30px;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.script-fonts button.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.sign-save {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.sign-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.sign-summary {
+  flex: 1;
+  font-size: 13px;
+  color: var(--muted);
+}
+.sign-foot .primary {
+  min-width: 120px;
+  min-height: 44px;
+}
+@media (max-width: 899px) {
+  .modal-backdrop:has(.sign-dialog) {
+    padding: 0;
+    align-items: stretch;
+  }
+  .sign-dialog {
+    width: 100%;
+    max-height: none;
+    height: 100dvh;
+    border-radius: 0;
+    padding: calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom));
+  }
+  .sign-tabs button {
+    min-width: 64px;
+    font-size: 11px;
+  }
+}

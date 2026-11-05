@@ -52,8 +52,16 @@ rien n'est envoyé sur un serveur.
   l'enregistrement (il n'est plus copiable ni indexable). Les images et dessins
   sous le cache sont seulement recouverts.
 - Tampons (Approuvé, Payé, Reçu, Confidentiel… ou texte libre), avec date.
-- Signature au doigt, au stylet ou à la souris, ou importée depuis une photo /
-  un scan (fond blanc retiré automatiquement) ; insertion d'images.
+- *Signer* : signatures, paraphes, mentions (« Lu et approuvé »…), identité
+  (nom, « Fait à …, le … ») et tampons, dessinés au doigt / au stylet, écrits
+  en police manuscrite ou importés d'une photo (fond blanc retiré). Ils sont
+  enregistrés sur l'appareil pour être réutilisés ; on coche ce qu'on veut
+  poser et un appui sur la page les place empilés, chacun dans son cadre.
+  « Parapher toutes les pages » pose la paraphe en bas à droite de chaque page.
+  Sauvegarde et chargement dans un fichier pour passer d'un appareil à l'autre ;
+  « Mémoriser sur cet appareil » décochable, « Tout effacer ». Il s'agit d'une
+  signature manuscrite apposée, pas d'une signature électronique certifiée.
+- Insertion d'images.
 - Remplissage des formulaires PDF (texte, cases, listes, boutons radio).
 - Création de formulaires : zones de texte (une ou plusieurs lignes), cases à
   cocher, listes déroulantes, enregistrées comme de vrais champs PDF.
@@ -206,7 +214,8 @@ src/
     Thumbnails.tsx        miniatures et opérations sur les pages
     PropertiesPanel.tsx   réglages de l'outil / de l'élément sélectionné
     FontPicker.tsx        choix de police (standard, installées, importées)
-    SearchPanel.tsx, FormsPanel.tsx, SignaturePad.tsx
+    SearchPanel.tsx, FormsPanel.tsx
+    SignDialog.tsx        signatures, paraphes, mentions, identité, tampons enregistrés
     Scanner.tsx           numérisation (caméra, recadrage, filtres), chargé à la demande
   lib/
     pdfjs.ts              ouverture et rendu (pdf.js)
@@ -217,6 +226,7 @@ src/
     fontkitCompat.ts      prise en charge des collections de polices (.ttc)
     rasterExport.ts       export des PDF chiffrés
     scan.ts               détection de la feuille, redressement, nettoyage des ombres
+    signatures.ts         éléments de signature enregistrés (IndexedDB), sauvegarde, empilement
 ```
 
 Les annotations sont gardées dans l'espace de coordonnées PDF et rattachées à
