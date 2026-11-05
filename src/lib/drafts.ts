@@ -11,6 +11,8 @@ export interface Draft {
   pageIds: string[];
   annotations: Annotation[];
   rewritable: boolean;
+  /** Document numérisé (nom demandé à l'enregistrement). */
+  scan?: boolean;
   savedAt: number;
   /** Polices incorporées utilisées par l'aperçu (famille CSS → données). */
   faces: Record<string, Uint8Array>;

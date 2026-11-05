@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PDFDocument } from "pdf-lib";
 import { fontInfo, openPdf, PasswordRequired, pdfjs, type PDFDocumentProxy } from "./lib/pdfjs";
 import type { Annotation, DocState, Point, Rect, TextAnnotation, Tool } from "./lib/types";
@@ -42,6 +42,11 @@ import { addInvisibleText } from "./lib/ocrLayer";
 import { suggestFieldName } from "./lib/formFields";
 import type { ShapeId } from "./lib/shapes";
 import { Icon } from "./components/Icon";
+import { FileNameDialog } from "./components/FileNameDialog";
+import { isoDate, scanFileName, splitScanFileName } from "./lib/scan";
+
+/** Écran de numérisation chargé à la demande (caméra, détection, nettoyage). */
+const Scanner = lazy(() => import("./components/Scanner"));
 
 type Snapshot = Pick<DocState, "bytes" | "pageIds" | "annotations">;
 type Panel = "pages" | "search" | "forms";
@@ -181,6 +186,14 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [ocrOpen, setOcrOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
+  // Le scanner est préchargé en arrière-plan : le service worker le garde pour un usage hors ligne.
+  useEffect(() => {
+    const t = window.setTimeout(() => void import("./components/Scanner").catch(() => undefined), 5000);
+    return () => window.clearTimeout(t);
+  }, []);
+  /** Nom demandé avant d'enregistrer ou de partager un document numérisé. */
+  const [askName, setAskName] = useState<"save" | "share" | null>(null);
   /** Document qui semble être un scan (pas de texte) : l'OCR est proposé. */
   const [scanned, setScanned] = useState(false);
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
@@ -353,7 +366,7 @@ export default function App() {
   }, [doc, fail]);
 
   const loadDocument = useCallback(
-    async (bytes: Uint8Array, name: string) => {
+    async (bytes: Uint8Array, name: string, extra: { scan?: boolean } = {}) => {
       let password: string | undefined;
       for (;;) {
         try {
@@ -369,7 +382,7 @@ export default function App() {
           setHits([]);
           setCurrentPage(0);
           setFitWidth(true);
-          setDoc({ name, bytes, pageIds: ops.freshPageIds(count), annotations: [], rewritable, password });
+          setDoc({ name, bytes, pageIds: ops.freshPageIds(count), annotations: [], rewritable, password, ...(extra.scan ? { scan: true } : {}) });
           if (!rewritable) {
             notify("PDF protégé ou atypique : l'annotation reste possible, l'export se fera page par page en image.");
           }
@@ -450,6 +463,7 @@ export default function App() {
           pageIds: doc.pageIds,
           annotations: doc.annotations,
           rewritable: doc.rewritable,
+          scan: doc.scan,
           savedAt: Date.now(),
           faces: facesFor(families),
           importedFonts: await importedFonts(),
@@ -477,7 +491,7 @@ export default function App() {
       setHits([]);
       setCurrentPage(0);
       setFitWidth(true);
-      setDoc({ name: d.name, bytes: d.bytes, pageIds: d.pageIds, annotations: d.annotations, rewritable: d.rewritable });
+      setDoc({ name: d.name, bytes: d.bytes, pageIds: d.pageIds, annotations: d.annotations, rewritable: d.rewritable, ...(d.scan ? { scan: true } : {}) });
     } catch (e) {
       fail(e);
     } finally {
@@ -891,14 +905,39 @@ export default function App() {
     }
   };
 
-  const save = () => withExport("Enregistrement…", (b) => download(b, doc!.name.replace(/\.pdf$/i, "") + ".pdf"));
+  const saveAs = (name: string) => withExport("Enregistrement…", (b) => download(b, name.replace(/\.pdf$/i, "") + ".pdf"));
 
-  const share = () =>
+  const shareAs = (name: string) =>
     withExport("Préparation du partage…", async (b) => {
-      const file = new File([b as BlobPart], doc!.name, { type: "application/pdf" });
-      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: doc!.name });
-      else download(b, doc!.name);
+      const file = new File([b as BlobPart], name, { type: "application/pdf" });
+      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: name });
+      else download(b, name);
     });
+
+  // Un document numérisé n'a pas encore de vrai nom : on le demande d'abord.
+  const save = () => (doc?.scan ? setAskName("save") : saveAs(doc!.name));
+  const share = () => (doc?.scan ? setAskName("share") : shareAs(doc!.name));
+
+  const confirmName = (fileName: string) => {
+    const kind = askName;
+    setAskName(null);
+    setDoc((d) => (d ? { ...d, name: fileName } : d));
+    if (kind === "share") shareAs(fileName);
+    else saveAs(fileName);
+  };
+
+  const finishScan = async (bytes: Uint8Array, pages: number) => {
+    setScanOpen(false);
+    setBusy("Ouverture…");
+    try {
+      await loadDocument(bytes, scanFileName("Scan", isoDate()), { scan: true });
+      notify(`Document numérisé : ${pages} page${pages > 1 ? "s" : ""}. Son nom vous sera demandé à l'enregistrement.`, false, 5000);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const print = () =>
     withExport("Préparation de l'impression…", (b) => {
@@ -1132,6 +1171,12 @@ export default function App() {
     </>
   );
 
+  const scanner = scanOpen && (
+    <Suspense fallback={<div className="busy">Ouverture du scanner…</div>}>
+      <Scanner onDone={finishScan} onCancel={() => setScanOpen(false)} />
+    </Suspense>
+  );
+
   if (!doc) {
     return (
       <div className={`welcome ${dragOver ? "drag" : ""}`}>
@@ -1144,6 +1189,9 @@ export default function App() {
           <p>Lisez, annotez, modifiez, signez et réorganisez vos PDF. Tout reste sur votre appareil : rien n'est envoyé sur internet.</p>
           <button className="primary big" onClick={() => openInput.current?.click()}>
             <Icon name="open" /> Ouvrir un fichier
+          </button>
+          <button className="big scan-btn" onClick={() => setScanOpen(true)}>
+            <Icon name="camera" /> Scanner un document
           </button>
           <div className="welcome-actions">
             <button onClick={newBlank}>Nouveau PDF vierge</button>
@@ -1172,6 +1220,7 @@ export default function App() {
         </div>
         {busy && <div className="busy">{busy}</div>}
         {toast && <div className={`toast ${toast.error ? "error" : ""}`}>{toast.msg}</div>}
+        {scanner}
       </div>
     );
   }
@@ -1368,6 +1417,7 @@ export default function App() {
             </div>
             {[
               { icon: "open", label: "Ouvrir un fichier", run: () => openInput.current?.click() },
+              { icon: "camera", label: "Scanner un document", run: () => setScanOpen(true) },
               { icon: "pages", label: "Pages et miniatures", run: () => setPanel("pages") },
               { icon: "search", label: "Rechercher", run: () => setPanel("search") },
               { icon: "form", label: "Formulaire", run: () => setPanel("forms") },
@@ -1565,6 +1615,15 @@ export default function App() {
         <DocumentTools bytes={doc.bytes} initialTab={docTools} onApply={applyToDocument} onClose={() => setDocTools(null)} />
       )}
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      {askName && doc && (
+        <FileNameDialog
+          {...splitScanFileName(doc.name)}
+          action={askName === "share" ? "Partager" : "Enregistrer"}
+          onConfirm={confirmName}
+          onClose={() => setAskName(null)}
+        />
+      )}
+      {scanner}
       {ocrOpen && pdf && (
         <OcrDialog
           pdf={pdf}

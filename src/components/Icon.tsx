@@ -50,6 +50,12 @@ const PATHS: Record<string, string> = {
   menu: "M4 6h16 M4 12h16 M4 18h16",
   move: "M12 3v18 M3 12h18 M9 6l3-3 3 3 M9 18l3 3 3-3 M6 9l-3 3 3 3 M18 9l3 3-3 3",
   upload: "M12 16V4 M7 9l5-5 5 5 M4 20h16",
+  camera: "M4 8h3l2-3h6l2 3h3v11H4z M12 10a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z",
+  scan: "M4 8V4h4 M16 4h4v4 M20 16v4h-4 M8 20H4v-4 M7 12h10",
+  flash: "M13 2L5 14h6l-1 8 8-12h-6z",
+  flashOff: "M13 2l-3.5 5.2 M7.7 10L5 14h6l-1 8 4.2-6.3 M15.5 12.4L18 10h-6l1-3.4 M3 3l18 18",
+  crop: "M6 2v16h16 M2 6h16v16",
+  check: "M5 12.5l4.5 4.5L19 7",
 };
 
 export function Icon({ name, size = 20 }: { name: keyof typeof PATHS | string; size?: number }) {

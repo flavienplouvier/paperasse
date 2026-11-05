@@ -116,6 +116,25 @@ export async function imagesToPdf(images: { bytes: Uint8Array; type: string }[])
   return out.save();
 }
 
+/**
+ * Pages scannées (JPEG) → PDF : largeur A4, hauteur selon les proportions de
+ * la photo redressée, pour une impression à la bonne taille.
+ */
+export async function scansToPdf(pages: Uint8Array[]): Promise<Uint8Array> {
+  const out = await PDFDocument.create();
+  out.setProducer("Paperasse PDF");
+  out.setCreator("Paperasse — numérisation");
+  const A4_WIDTH = 595.28;
+  for (const jpeg of pages) {
+    const img = await out.embedJpg(jpeg);
+    const width = img.width >= img.height * 1.2 ? 841.89 : A4_WIDTH; // paysage : largeur A4 couchée
+    const height = (width * img.height) / img.width;
+    const page = out.addPage([width, height]);
+    page.drawImage(img, { x: 0, y: 0, width, height });
+  }
+  return out.save();
+}
+
 export function freshPageIds(count: number): string[] {
   return Array.from({ length: count }, () => newId("page"));
 }

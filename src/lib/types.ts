@@ -149,6 +149,8 @@ export interface DocState {
    */
   rewritable: boolean;
   password?: string;
+  /** Document créé par la numérisation : son nom est demandé à l'enregistrement. */
+  scan?: boolean;
 }
 
 let counter = 0;

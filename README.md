@@ -74,6 +74,18 @@ rien n'est envoyé sur un serveur.
   filigrane, propriétés du document (titre, auteur, sujet, mots-clés).
 - Export d'une page en image PNG.
 
+**Numérisation (appareil photo)**
+- *Scanner un document* : la feuille est détectée en direct dans l'image de la
+  caméra, ses bords sont proposés et s'ajustent au doigt (loupe pendant le
+  glissement), puis la page est redressée.
+- Ombres et dominante de couleur retirées, fond blanchi ; rendus « Éclairci »,
+  « Gris », « Noir et blanc » ou « Original ».
+- Plusieurs pages, rotation, recadrage après coup ; flash (lampe) sur les
+  téléphones qui le permettent, sinon appareil photo du téléphone ou import de photos.
+- Le PDF (pages au format A4) s'ouvre dans l'éditeur ; à l'enregistrement, son
+  nom est demandé avec une date facultative : `Facture EDF_2026-11-05.pdf`.
+- Tout le traitement se fait sur l'appareil.
+
 **Partout**
 - Interface adaptée au téléphone (barre d'outils en bas, panneaux en tiroir).
 - Application installable (PWA) et utilisable hors ligne.
@@ -154,6 +166,10 @@ fonctionne sans connexion.
 - Les PDF chiffrés sont réenregistrés page par page en image (texte non
   sélectionnable), et uniquement si leurs permissions autorisent la modification.
 - Les formulaires XFA (anciens formulaires dynamiques Adobe) ne sont pas remplissables.
+- Numérisation : la détection automatique a besoin d'un fond qui contraste avec
+  la feuille (feuille blanche sur table blanche : ajustez les coins à la main).
+  Le flash n'est pilotable que là où le navigateur l'autorise (Chrome sur Android) ;
+  sur iPhone, le bouton « appareil photo du téléphone » ouvre la caméra native et son flash.
 
 ## Architecture
 
@@ -166,6 +182,7 @@ src/
     PropertiesPanel.tsx   réglages de l'outil / de l'élément sélectionné
     FontPicker.tsx        choix de police (standard, installées, importées)
     SearchPanel.tsx, FormsPanel.tsx, SignaturePad.tsx
+    Scanner.tsx           numérisation (caméra, recadrage, filtres), chargé à la demande
   lib/
     pdfjs.ts              ouverture et rendu (pdf.js)
     exportPdf.ts          écriture des annotations dans le PDF (pdf-lib)
@@ -174,6 +191,7 @@ src/
     fonts.ts              registre et correspondance des polices
     fontkitCompat.ts      prise en charge des collections de polices (.ttc)
     rasterExport.ts       export des PDF chiffrés
+    scan.ts               détection de la feuille, redressement, nettoyage des ombres
 ```
 
 Les annotations sont gardées dans l'espace de coordonnées PDF et rattachées à
