@@ -149,6 +149,21 @@ describe("modifier le texte (cache blanc + texte de remplacement)", () => {
   });
 });
 
+describe("formes tournées et flèches courbes", () => {
+  it("une forme tournée est dessinée avec une rotation autour de son centre", async () => {
+    const annotations: Annotation[] = [{ id: "r", pageId: "a", color: "#0090ff", opacity: 1, kind: "rect", rect: [100, 400, 300, 500], width: 2, fill: false, angle: 30 }];
+    const fns = await operators(await exportPdf(await samplePdf(1), ["a"], annotations));
+    expect(fns).toContain("transform");
+  });
+
+  it("une flèche courbe est tracée en plusieurs segments", async () => {
+    const straight: Annotation = { id: "l", pageId: "a", color: "#000000", opacity: 1, kind: "line", from: [100, 100], to: [300, 100], width: 2, arrow: true };
+    const curved: Annotation = { ...straight, control: [200, 250] } as Annotation;
+    const count = async (a: Annotation) => (await operators(await exportPdf(await samplePdf(1), ["a"], [a]))).filter((f) => f === "constructPath").length;
+    expect(await count(curved)).toBeGreaterThan((await count(straight)) + 10);
+  });
+});
+
 describe("modifications et opérations sur les pages", () => {
   it("les annotations suivent leur page après un déplacement", async () => {
     const moved = await ops.movePage(await samplePdf(3), ["a", "b", "c"], 0, 2);

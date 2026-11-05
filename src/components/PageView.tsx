@@ -4,7 +4,7 @@ import { pdfjs, type PDFDocumentProxy, type PDFPageProxy } from "../lib/pdfjs";
 import type { Annotation, FieldType, Point, Rect, Tool } from "../lib/types";
 import { newId } from "../lib/types";
 import { addScaled, arrowHead, normalizeRect, normalizeRotation, rectContains, screenAxes } from "../lib/geometry";
-import { hasRect, simplifyPath, translateAnnotation } from "../lib/annotations";
+import { bendControl, curveAt, hasRect, pointsBox, rectCenter, resizeRotated, scalePoints, simplifyPath, translateAnnotation } from "../lib/annotations";
 import { extractRuns, runAt, type TextRun } from "../lib/text";
 import { LINE_HEIGHT, isTextCover } from "../lib/exportPdf";
 import { getFont } from "../lib/fonts";
@@ -68,8 +68,13 @@ type Draft =
   | { kind: "shape"; start: Point; end: Point }
   | null;
 
+/** Éléments qui peuvent pivoter (poignée de rotation). */
+const ROTATABLE = new Set<Annotation["kind"]>(["rect", "ellipse", "shape", "image"]);
+
+type DragMode = "move" | "resize" | "rotate" | "from" | "to" | "bend";
+
 type Drag = {
-  mode: "move" | "resize";
+  mode: DragMode;
   pointerId: number;
   start: Point;
   original: Annotation;
@@ -430,7 +435,7 @@ function PageViewImpl(props: Props) {
     setDraft(null);
   };
 
-  const startDrag = (e: React.PointerEvent, a: Annotation, mode: "move" | "resize", corner?: [number, number]) => {
+  const startDrag = (e: React.PointerEvent, a: Annotation, mode: DragMode, corner?: [number, number]) => {
     if (tool !== "select") return;
     e.stopPropagation();
     e.preventDefault();
@@ -441,7 +446,19 @@ function PageViewImpl(props: Props) {
 
   // ---------------------------------------------------------------- rendu SVG
 
+  /** Rendu d'un élément, tourné de son angle propre autour de son centre. */
   const renderAnnotation = (a: Annotation) => {
+    const el = renderBase(a);
+    if (!el || !a.angle || !ROTATABLE.has(a.kind) || !hasRect(a)) return el;
+    const [cx, cy] = toView(rectCenter(a.rect));
+    return (
+      <g key={a.id} transform={`rotate(${a.angle} ${cx} ${cy})`}>
+        {el}
+      </g>
+    );
+  };
+
+  const renderBase = (a: Annotation) => {
     const sel = tool === "select";
     // En modes texte, un texte déjà ajouté ou modifié se rouvre d'un clic.
     const reopen = a.kind === "text" && TEXT_TOOLS.has(tool);
@@ -480,19 +497,22 @@ function PageViewImpl(props: Props) {
       case "line": {
         const f = toView(a.from);
         const to = toView(a.to);
+        const c = a.control ? toView(a.control) : null;
+        // Trait droit, ou courbe passant par la poignée du milieu.
+        const d = c ? `M${f[0]},${f[1]} Q${c[0]},${c[1]} ${to[0]},${to[1]}` : `M${f[0]},${f[1]} L${to[0]},${to[1]}`;
         return (
           <g key={a.id} data-annot={a.id} {...common}>
-            <line x1={f[0]} y1={f[1]} x2={to[0]} y2={to[1]} stroke="transparent" strokeWidth={14} />
-            <line x1={f[0]} y1={f[1]} x2={to[0]} y2={to[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
+            <path d={d} fill="none" stroke="transparent" strokeWidth={14} />
+            <path d={d} fill="none" stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
             {a.arrow &&
-              arrowHead(a.from, a.to, a.width).map((p, i) => {
+              arrowHead(a.control ?? a.from, a.to, a.width).map((p, i) => {
                 const h = toView(p);
                 return (
                   <line key={i} x1={to[0]} y1={to[1]} x2={h[0]} y2={h[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
                 );
               })}
             {a.arrowStart &&
-              arrowHead(a.to, a.from, a.width).map((p, i) => {
+              arrowHead(a.control ?? a.to, a.from, a.width).map((p, i) => {
                 const h = toView(p);
                 return (
                   <line key={`s${i}`} x1={f[0]} y1={f[1]} x2={h[0]} y2={h[1]} stroke={a.color} strokeWidth={a.width * scale} strokeLinecap="round" />
@@ -754,33 +774,75 @@ function PageViewImpl(props: Props) {
     } else setSelBox(box);
   }, [selected, viewport]);
 
-  const resizeHandle = (() => {
-    if (!selected || !hasRect(selected) || tool !== "select") return null;
-    const r = selected.rect;
+  /**
+   * Poignées de l'élément sélectionné : extrémités et courbure des traits et
+   * flèches ; coin de redimensionnement et rotation des formes, images et dessins.
+   */
+  const handles = (() => {
+    if (!selected || tool !== "select" || selected.kind === "text") return null;
+    if (selected.kind === "line") {
+      const mid = selected.control ? curveAt(selected.from, selected.to, selected.control, 0.5) : ([(selected.from[0] + selected.to[0]) / 2, (selected.from[1] + selected.to[1]) / 2] as Point);
+      const points: [DragMode, Point][] = [
+        ["from", selected.from],
+        ["to", selected.to],
+        ["bend", mid],
+      ];
+      return (
+        <g>
+          {points.map(([mode, pt]) => {
+            const v = toView(pt);
+            return (
+              <circle
+                key={mode}
+                className={`handle ${mode === "bend" ? "bend" : ""}`}
+                cx={v[0]}
+                cy={v[1]}
+                r={mode === "bend" ? 7 : 9}
+                onPointerDown={(e) => startDrag(e, selected, mode)}
+              >
+                <title>{mode === "bend" ? t("Tirer pour courber") : t("Tirer pour déplacer l'extrémité")}</title>
+              </circle>
+            );
+          })}
+        </g>
+      );
+    }
+    const box = hasRect(selected) ? selected.rect : selected.kind === "ink" ? pointsBox(selected.points) : null;
+    if (!box) return null;
+    const r = viewRect(box);
     const corners: [number, number][] = [
       [0, 1],
       [2, 1],
       [0, 3],
       [2, 3],
     ];
+    // Coin en bas à droite à l'écran (repère non tourné de l'élément).
     let best = corners[0];
     let bestScore = -Infinity;
     for (const c of corners) {
-      const v = toView([r[c[0]], r[c[1]]]);
+      const v = toView([box[c[0]], box[c[1]]]);
       if (v[0] + v[1] > bestScore) {
         bestScore = v[0] + v[1];
         best = c;
       }
     }
-    const v = toView([r[best[0]], r[best[1]]]);
+    const v = toView([box[best[0]], box[best[1]]]);
+    const [cx, cy] = toView(rectCenter(box));
+    const rotatable = ROTATABLE.has(selected.kind);
+    const angle = rotatable ? (selected.angle ?? 0) : 0;
     return (
-      <circle
-        className="handle"
-        cx={v[0]}
-        cy={v[1]}
-        r={9}
-        onPointerDown={(e) => startDrag(e, selected, "resize", best)}
-      />
+      <g transform={angle ? `rotate(${angle} ${cx} ${cy})` : undefined}>
+        <rect className="selection" x={r.x - 4} y={r.y - 4} width={r.w + 8} height={r.h + 8} />
+        <circle className="handle" cx={v[0]} cy={v[1]} r={9} onPointerDown={(e) => startDrag(e, selected, "resize", best)} />
+        {rotatable && (
+          <>
+            <line className="rotate-stem" x1={cx} y1={r.y - 4} x2={cx} y2={r.y - 22} />
+            <circle className="handle rotate" cx={cx} cy={r.y - 28} r={8} onPointerDown={(e) => startDrag(e, selected, "rotate")}>
+              <title>{t("Tirer pour faire pivoter")}</title>
+            </circle>
+          </>
+        )}
+      </g>
     );
   })();
 
@@ -886,10 +948,10 @@ function PageViewImpl(props: Props) {
         {/* Caches de « Modifier le texte » dessous ; le reste dans l'ordre de création (un cache blanc masque ce qui est derrière lui). */}
         {annotations.filter(isTextCover).map(renderAnnotation)}
         {annotations.filter((a) => !isTextCover(a)).map(renderAnnotation)}
-        {selBox && tool === "select" && !editing && (
+        {selBox && tool === "select" && !editing && !handles && (
           <rect className="selection" x={selBox.x - 4} y={selBox.y - 4} width={selBox.width + 8} height={selBox.height + 8} />
         )}
-        {resizeHandle}
+        {handles}
         {draftEl}
       </svg>
       {inlineEditor}
@@ -968,11 +1030,44 @@ function PageViewImpl(props: Props) {
   }
 
   function applyDrag(d: NonNullable<Drag>, dx: number, dy: number, p: Point): Annotation {
-    if (d.mode === "move" || !d.corner || !hasRect(d.original)) return translateAnnotation(d.original, dx, dy);
-    const r = [...d.original.rect] as Rect;
-    r[d.corner[0]] = p[0];
-    r[d.corner[1]] = p[1];
-    return { ...d.original, rect: normalizeRect([r[0], r[1]], [r[2], r[3]]) };
+    const o = d.original;
+    if (d.mode === "move") return translateAnnotation(o, dx, dy);
+    if (o.kind === "line") {
+      if (d.mode === "from") return { ...o, from: p };
+      if (d.mode === "to") return { ...o, to: p };
+      if (d.mode === "bend") {
+        // Presque aligné : le trait redevient droit.
+        const control = bendControl(o.from, o.to, p);
+        const mid: Point = [(o.from[0] + o.to[0]) / 2, (o.from[1] + o.to[1]) / 2];
+        const { control: _old, ...straight } = o;
+        return Math.hypot(p[0] - mid[0], p[1] - mid[1]) * scale < 6 ? straight : { ...o, control };
+      }
+    }
+    if (d.mode === "rotate" && hasRect(o)) {
+      const c = toView(rectCenter(o.rect));
+      const v = toView(p);
+      let deg = (Math.atan2(v[1] - c[1], v[0] - c[0]) * 180) / Math.PI + 90;
+      deg = ((deg % 360) + 360) % 360;
+      if (deg > 180) deg -= 360;
+      // Aimanté tous les 15° (horizontal, vertical, 45°…).
+      const snap = Math.round(deg / 15) * 15;
+      if (Math.abs(snap - deg) < 4) deg = snap;
+      const { angle: _old, ...rest } = o;
+      return Math.round(deg) ? { ...o, angle: Math.round(deg) } : (rest as Annotation);
+    }
+    if (d.mode === "resize" && d.corner) {
+      if (o.kind === "ink") {
+        const box = pointsBox(o.points);
+        const r = [...box] as Rect;
+        r[d.corner[0]] = p[0];
+        r[d.corner[1]] = p[1];
+        const next = normalizeRect([r[0], r[1]], [r[2], r[3]]);
+        if (next[2] - next[0] < 2 || next[3] - next[1] < 2) return o;
+        return { ...o, points: scalePoints(o.points, box, next) };
+      }
+      if (hasRect(o)) return { ...o, rect: resizeRotated(o.rect, d.corner, p, o.angle ?? 0) };
+    }
+    return translateAnnotation(o, dx, dy);
   }
 }
 

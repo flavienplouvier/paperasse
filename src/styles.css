@@ -2511,3 +2511,17 @@ kbd {
 .initials-place .initials-preview {
   align-self: center;
 }
+/* Poignées : courbure des traits, rotation des formes et images. */
+.handle.bend {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-dasharray: 3 2;
+}
+.handle.rotate {
+  cursor: grab;
+}
+.rotate-stem {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  pointer-events: none;
+}

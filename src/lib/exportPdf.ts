@@ -6,11 +6,15 @@ import {
   type PDFPage,
   degrees,
   rgb,
+  concatTransformationMatrix,
+  popGraphicsState,
+  pushGraphicsState,
 } from "pdf-lib";
 import { compatFontkit, withPreferredFont } from "./fontkitCompat";
 import { drawEmbeddedText } from "./embeddedFonts";
 import { createFormField } from "./formFields";
 import { removeTextInRects } from "./removeText";
+import { curvePoints, rectCenter } from "./annotations";
 import { shapeDef } from "./shapes";
 import type { Annotation, Point, ShapeAnnotation, TextAnnotation } from "./types";
 import { addScaled, arrowHead, hexToRgb01, normalizeRotation, screenAxes, shapeBox } from "./geometry";
@@ -96,6 +100,24 @@ async function drawText(page: PDFPage, a: TextAnnotation, font: PDFFont) {
 }
 
 export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotation, fonts: FontCache) {
+  // Rotation propre (formes, images) : tout le dessin tourne autour du centre de l'élément.
+  if (a.angle && "rect" in a && a.rect) {
+    const [cx, cy] = rectCenter(a.rect);
+    const r = (-a.angle * Math.PI) / 180; // sens horaire à l'écran = sens inverse dans le repère PDF
+    const cos = Math.cos(r);
+    const sin = Math.sin(r);
+    page.pushOperators(pushGraphicsState(), concatTransformationMatrix(cos, sin, -sin, cos, cx - cos * cx + sin * cy, cy - sin * cx - cos * cy));
+    try {
+      await drawAnnotationBase(doc, page, a, fonts);
+    } finally {
+      page.pushOperators(popGraphicsState());
+    }
+    return;
+  }
+  return drawAnnotationBase(doc, page, a, fonts);
+}
+
+async function drawAnnotationBase(doc: PDFDocument, page: PDFPage, a: Annotation, fonts: FontCache) {
   switch (a.kind) {
     case "ink": {
       for (let i = 1; i < a.points.length; i++) {
@@ -114,9 +136,11 @@ export async function drawAnnotation(doc: PDFDocument, page: PDFPage, a: Annotat
       return;
     }
     case "line": {
-      const segments: [Point, Point][] = [[a.from, a.to]];
-      if (a.arrow) for (const p of arrowHead(a.from, a.to, a.width)) segments.push([a.to, p]);
-      if (a.arrowStart) for (const p of arrowHead(a.to, a.from, a.width)) segments.push([a.from, p]);
+      // Courbe : découpée en petits segments (extrémités arrondies, rendu continu).
+      const path = a.control ? curvePoints(a.from, a.to, a.control) : [a.from, a.to];
+      const segments: [Point, Point][] = path.slice(1).map((p, i) => [path[i], p]);
+      if (a.arrow) for (const p of arrowHead(a.control ?? a.from, a.to, a.width)) segments.push([a.to, p]);
+      if (a.arrowStart) for (const p of arrowHead(a.control ?? a.to, a.from, a.width)) segments.push([a.from, p]);
       for (const [s, e] of segments) {
         page.drawLine({
           start: { x: s[0], y: s[1] },

@@ -32,6 +32,8 @@ interface AnnotationBase {
   pageId: string;
   color: string;
   opacity: number;
+  /** Rotation propre (degrés, sens horaire à l'écran) autour du centre : formes, images. */
+  angle?: number;
 }
 
 export interface InkAnnotation extends AnnotationBase {
@@ -74,6 +76,8 @@ export interface LineAnnotation extends AnnotationBase {
   arrow?: boolean;
   /** Pointe de flèche aussi au départ `from` (double flèche). */
   arrowStart?: boolean;
+  /** Point de contrôle (courbe de Bézier quadratique) : trait ou flèche courbe. */
+  control?: Point;
 }
 
 export interface TextAnnotation extends AnnotationBase {
