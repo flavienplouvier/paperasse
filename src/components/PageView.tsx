@@ -527,7 +527,7 @@ function PageViewImpl(props: Props) {
           start += line.length + 1;
           return l;
         });
-    return { ...main, laid, ctx, runsOf, spaceFix };
+    return { ...main, laid, ctx, runsOf, spaceFix, measure };
   };
 
   /** Rendu d'un élément, tourné de son angle propre autour de son centre. */
@@ -799,11 +799,66 @@ function PageViewImpl(props: Props) {
       // Texte tout juste ajouté : tout sélectionner pour que la frappe remplace « Texte ».
       if (el.value === t("Texte")) el.select();
       else el.setSelectionRange(el.value.length, el.value.length);
+      syncSel();
     }, 30);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing?.id]);
   const grip = useRef<{ pointerId: number; start: Point; original: Annotation } | null>(null);
+  /** Sélection de la zone de saisie, dessinée par-dessus le texte affiché. */
+  const [sel, setSel] = useState<{ start: number; end: number; focused: boolean }>({ start: 0, end: 0, focused: false });
+  const syncSel = () => {
+    const el = editorRef.current;
+    if (el) setSel({ start: el.selectionStart, end: el.selectionEnd, focused: document.activeElement === el });
+  };
+  const selecting = useRef<{ pointerId: number; anchor: number } | null>(null);
+  const lastTap = useRef<{ time: number; idx: number } | null>(null);
+
+  /**
+   * Géométrie du curseur, calculée sur le texte tel qu'il est affiché (mêmes
+   * largeurs, espaces, justification) : position d'un caractère et caractère
+   * sous un point. Unités PDF, repère du texte (x vers la droite, n° de ligne).
+   */
+  const caretGeometry = (a: TextAnnotation) => {
+    const { laid, measure } = textLayout(a);
+    const step = a.box ? a.box.lineHeight : a.fontSize * LINE_HEIGHT;
+    const xIn = (l: (typeof laid)[number], idx: number) => {
+      const pre = a.text.slice(l.start, idx);
+      return l.x + (pre ? measure(pre, l.start) : 0) + (pre.split(" ").length - 1) * l.wordSpacing;
+    };
+    const lineOf = (idx: number) => {
+      let found = 0;
+      laid.forEach((l, i) => {
+        if (idx >= l.start && idx <= l.start + l.text.length) found = i;
+        else if (idx > l.start + l.text.length) found = Math.min(i + 1, laid.length - 1);
+      });
+      return found;
+    };
+    const posOf = (idx: number) => {
+      const line = lineOf(idx);
+      const l = laid[line];
+      return { line, x: xIn(l, Math.min(Math.max(idx, l.start), l.start + l.text.length)) };
+    };
+    const indexIn = (line: number, x: number) => {
+      const l = laid[Math.max(0, Math.min(laid.length - 1, line))];
+      let best = l.start;
+      let dist = Infinity;
+      for (let k = l.start; k <= l.start + l.text.length; k++) {
+        const d = Math.abs(xIn(l, k) - x);
+        if (d < dist) (dist = d), (best = k);
+      }
+      return best;
+    };
+    /** Caractère le plus proche d'un point de la page (repère PDF). */
+    const indexAt = (p: Point) => {
+      const { right, down } = screenAxes(a.rotation);
+      const v = [p[0] - a.origin[0], p[1] - a.origin[1]];
+      const dx = v[0] * right[0] + v[1] * right[1];
+      const dy = v[0] * down[0] + v[1] * down[1];
+      return indexIn(Math.floor((dy + a.fontSize * 0.8) / step), dx);
+    };
+    return { laid, step, xIn, posOf, indexIn, indexAt };
+  };
 
   const inlineEditor = (() => {
     if (!editing || !viewport) return null;
@@ -811,9 +866,9 @@ function PageViewImpl(props: Props) {
     const [x, y] = toView(a.origin);
     const size = a.fontSize * scale;
     const asc = size * BASELINE;
-    const lines = a.text.split(/\r?\n/);
+    const geo = caretGeometry(a);
     // Bloc qui s'allonge : nombre de lignes en trop par rapport au bloc d'origine.
-    const overflow = a.box?.lines ? Math.max(0, textLayout(a).laid.length - a.box.lines) : 0;
+    const overflow = a.box?.lines ? Math.max(0, geo.laid.length - a.box.lines) : 0;
     const gripMove = (e: React.PointerEvent, final: boolean) => {
       const g = grip.current;
       if (!g || g.pointerId !== e.pointerId) return;
@@ -875,35 +930,112 @@ function PageViewImpl(props: Props) {
             )}
           </div>
         )}
+        {/* Sélection et curseur dessinés sur le texte affiché (la zone de saisie, invisible, ne sert qu'au clavier). */}
+        {sel.focused &&
+          geo.laid.map((l, i) => {
+            const from = Math.max(sel.start, l.start);
+            const to = Math.min(sel.end, l.start + l.text.length);
+            if (sel.start === sel.end || from > to || (from === to && !(sel.start < l.start + l.text.length + 1 && sel.end > l.start + l.text.length))) return null;
+            const x0 = geo.xIn(l, from);
+            const x1 = from === to ? x0 + a.fontSize * 0.3 : geo.xIn(l, to);
+            return <span key={i} className="text-sel" style={{ left: x0 * scale, top: i * geo.step * scale, width: Math.max(1, (x1 - x0) * scale), height: asc + size * 0.28 }} />;
+          })}
+        {sel.focused && sel.start === sel.end && (() => {
+          const c = geo.posOf(sel.end);
+          return <span className="text-caret" key={`${sel.end}-${a.text.length}`} style={{ left: c.x * scale, top: c.line * geo.step * scale, height: asc + size * 0.28 }} />;
+        })()}
         <textarea
           ref={editorRef}
           spellCheck
           value={a.text}
-          rows={a.box ? textLayout(a).laid.length : lines.length}
-          cols={a.box ? undefined : Math.max(2, ...lines.map((l) => l.length))}
-          // Texte de saisie transparent : le rendu visible reste celui de la page
-          // (police incorporée comprise) ; seuls le curseur et la sélection s'affichent.
-          // Bloc : même largeur, alignement et interligne que le texte remis en page.
+          // Zone de saisie invisible couvrant le texte affiché : elle reçoit le clavier ; le clic,
+          // le glissement et les flèches haut / bas sont placés d'après le texte affiché.
           style={{
             ...(a.embedded ? { fontFamily: a.embedded.cssFamily } : fontCss(a.fontKey)),
             fontSize: size,
-            lineHeight: a.box ? `${a.box.lineHeight * scale}px` : LINE_HEIGHT,
+            lineHeight: `${geo.step * scale}px`,
             color: "transparent",
-            ...(a.box ? { width: a.box.width * scale, whiteSpace: "pre-wrap", textAlign: a.box.align, overflow: "hidden" } : {}),
+            caretColor: "transparent",
+            width: Math.max(a.box?.width ?? 0, ...geo.laid.map((l) => l.x + l.width)) * scale + size,
+            height: geo.laid.length * geo.step * scale + size * 0.3,
+            whiteSpace: "pre",
+            overflow: "hidden",
           }}
-          onFocus={(e) => (editStart.current = e.target.value)}
-          onChange={(e) => props.onChange(withText(a, e.target.value), false)}
+          onFocus={(e) => {
+            editStart.current = e.target.value;
+            syncSel();
+          }}
+          onSelect={syncSel}
+          onKeyUp={syncSel}
+          onChange={(e) => {
+            props.onChange(withText(a, e.target.value), false);
+            syncSel();
+          }}
           onBlur={(e) => {
             if (editStart.current !== e.target.value) props.onChange(withText(a, e.target.value), true);
             editStart.current = null;
+            setSel((v) => ({ ...v, focused: false }));
           }}
           onKeyDown={(e) => {
+            const el = e.currentTarget;
             if (e.key === "Escape") {
-              e.currentTarget.blur();
+              el.blur();
               props.onSelect(null);
+              return;
+            }
+            // Haut / bas, début / fin : d'après les lignes affichées.
+            if (["ArrowUp", "ArrowDown", "Home", "End"].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+              e.preventDefault();
+              const focus = el.selectionDirection === "backward" ? el.selectionStart : el.selectionEnd;
+              const anchor = el.selectionDirection === "backward" ? el.selectionEnd : el.selectionStart;
+              const c = geo.posOf(focus);
+              const l = geo.laid[c.line];
+              let next = focus;
+              if (e.key === "Home") next = l.start;
+              else if (e.key === "End") next = l.start + l.text.length;
+              else {
+                const line = c.line + (e.key === "ArrowUp" ? -1 : 1);
+                next = line < 0 ? 0 : line >= geo.laid.length ? a.text.length : geo.indexIn(line, c.x);
+              }
+              if (e.shiftKey) el.setSelectionRange(Math.min(anchor, next), Math.max(anchor, next), next < anchor ? "backward" : "forward");
+              else el.setSelectionRange(next, next);
+              syncSel();
             }
           }}
-          onPointerDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const el = e.currentTarget;
+            el.focus({ preventScroll: true });
+            const idx = geo.indexAt(toPdf(...local(e)));
+            // Double-clic (les événements de pointeur ne comptent pas les clics) : deux appuis rapprochés au même endroit.
+            const now = Date.now();
+            const twice = lastTap.current && now - lastTap.current.time < 450 && Math.abs(lastTap.current.idx - idx) <= 1;
+            lastTap.current = twice ? null : { time: now, idx };
+            if (twice) {
+              // Double-clic : le mot entier.
+              let s0 = idx;
+              let s1 = idx;
+              while (s0 > 0 && /\S/.test(a.text[s0 - 1])) s0--;
+              while (s1 < a.text.length && /\S/.test(a.text[s1])) s1++;
+              el.setSelectionRange(s0, s1);
+            } else {
+              const anchor = e.shiftKey ? el.selectionStart : idx;
+              el.setSelectionRange(Math.min(anchor, idx), Math.max(anchor, idx), idx < anchor ? "backward" : "forward");
+              el.setPointerCapture(e.pointerId);
+              selecting.current = { pointerId: e.pointerId, anchor };
+            }
+            syncSel();
+          }}
+          onPointerMove={(e) => {
+            const s0 = selecting.current;
+            if (!s0 || s0.pointerId !== e.pointerId) return;
+            const idx = geo.indexAt(toPdf(...local(e)));
+            e.currentTarget.setSelectionRange(Math.min(s0.anchor, idx), Math.max(s0.anchor, idx), idx < s0.anchor ? "backward" : "forward");
+            syncSel();
+          }}
+          onPointerUp={() => (selecting.current = null)}
+          onPointerCancel={() => (selecting.current = null)}
         />
       </div>
     );

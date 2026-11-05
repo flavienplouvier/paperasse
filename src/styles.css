@@ -2552,3 +2552,28 @@ kbd {
   padding: 0 8px;
   font-size: 12px;
 }
+/* Curseur et sélection dessinés sur le texte affiché (« Modifier le texte », « Ajouter du texte »). */
+.inline-text textarea::selection {
+  background: transparent;
+  color: transparent;
+}
+.inline-text .text-sel {
+  position: absolute;
+  background: rgba(0, 120, 255, 0.28);
+  pointer-events: none;
+  z-index: 1;
+}
+.inline-text .text-caret {
+  position: absolute;
+  width: 1.5px;
+  margin-left: -0.75px;
+  background: var(--focus);
+  pointer-events: none;
+  z-index: 1;
+  animation: caret-blink 1.06s steps(1) infinite;
+}
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
