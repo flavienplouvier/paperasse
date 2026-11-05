@@ -45,6 +45,7 @@ import { suggestFieldName } from "./lib/formFields";
 import type { ShapeId } from "./lib/shapes";
 import { Icon } from "./components/Icon";
 import { FileNameDialog } from "./components/FileNameDialog";
+import { ShareDialog } from "./components/ShareDialog";
 import { LanguagePicker } from "./components/LanguagePicker";
 import { initialLanguage } from "./lib/language";
 import { msg, setLocale, t, tn, useLocale, type Locale } from "./i18n";
@@ -1024,11 +1025,11 @@ export default function App() {
 
   const saveAs = (name: string) => withExport(t("Enregistrement…"), (b) => download(b, name.replace(/\.pdf$/i, "") + ".pdf"));
 
+  // Le PDF est préparé, puis partagé depuis une fenêtre (le menu de partage exige un clic récent).
+  const [shareFile, setShareFile] = useState<File | null>(null);
   const shareAs = (name: string) =>
-    withExport(t("Préparation du partage…"), async (b) => {
-      const file = new File([b as BlobPart], name, { type: "application/pdf" });
-      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: name });
-      else download(b, name);
+    withExport(t("Préparation du partage…"), (b) => {
+      setShareFile(new File([b as BlobPart], name, { type: "application/pdf" }));
     });
 
   // Le nom du fichier est choisi à chaque enregistrement ou partage.
@@ -1721,6 +1722,14 @@ export default function App() {
         <DocumentTools bytes={doc.bytes} initialTab={docTools} onApply={applyToDocument} onClose={() => setDocTools(null)} />
       )}
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      {shareFile && (
+        <ShareDialog
+          file={shareFile}
+          onDownload={() => shareFile.arrayBuffer().then((b) => download(new Uint8Array(b), shareFile.name))}
+          onError={fail}
+          onClose={() => setShareFile(null)}
+        />
+      )}
       {askName && doc && (
         <FileNameDialog
           base={doc.fileBase ?? doc.name.replace(/\.pdf$/i, "")}

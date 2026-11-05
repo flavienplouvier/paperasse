@@ -546,5 +546,11 @@
   "Rotation : {n}°": "Drehung: {n}°",
   "Tirer pour redimensionner le cadre": "Ziehen, um die Größe des Rahmens zu ändern",
   "Fond opaque (masque ce qui est dessous)": "Deckender Hintergrund (verdeckt, was darunter liegt)",
-  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Ohne Hintergrund wird nur der ursprüngliche Text verdeckt: benachbarter Text bleibt sichtbar."
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Ohne Hintergrund wird nur der ursprüngliche Text verdeckt: benachbarter Text bleibt sichtbar.",
+  "Bonjour,\n\nVeuillez trouver ci-joint le document « {name} ».\n": "Guten Tag,\n\nanbei finden Sie das Dokument „{name}“.\n",
+  "Ce navigateur ne sait pas partager un fichier directement (c'est le cas de Chrome et Firefox sous Linux).": "Dieser Browser kann eine Datei nicht direkt teilen (so bei Chrome und Firefox unter Linux).",
+  "Envoyer par e-mail": "Per E-Mail senden",
+  "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "Die Datei wurde heruntergeladen: Hängen Sie sie an die gerade geöffnete Nachricht an.",
+  "Partager…": "Teilen…",
+  "Télécharger": "Herunterladen"
 }

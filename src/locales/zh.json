@@ -546,5 +546,11 @@
   "Rotation : {n}°": "旋转：{n}°",
   "Tirer pour redimensionner le cadre": "拖动以调整文本框大小",
   "Fond opaque (masque ce qui est dessous)": "不透明背景（遮住下方内容）",
-  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "无背景时只遮住原文字：旁边的文字仍然可见。"
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "无背景时只遮住原文字：旁边的文字仍然可见。",
+  "Bonjour,\n\nVeuillez trouver ci-joint le document « {name} ».\n": "您好：\n\n附件为文档「{name}」。\n",
+  "Ce navigateur ne sait pas partager un fichier directement (c'est le cas de Chrome et Firefox sous Linux).": "此浏览器无法直接分享文件（Linux 上的 Chrome 和 Firefox 即如此）。",
+  "Envoyer par e-mail": "通过电子邮件发送",
+  "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "文件已下载：请将其附加到刚打开的邮件中。",
+  "Partager…": "分享…",
+  "Télécharger": "下载"
 }

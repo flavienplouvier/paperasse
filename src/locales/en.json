@@ -546,5 +546,11 @@
   "Rotation : {n}°": "Rotation: {n}°",
   "Tirer pour redimensionner le cadre": "Drag to resize the frame",
   "Fond opaque (masque ce qui est dessous)": "Opaque background (hides what is underneath)",
-  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Without a background, only the original text is hidden: nearby text stays visible."
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Without a background, only the original text is hidden: nearby text stays visible.",
+  "Bonjour,\n\nVeuillez trouver ci-joint le document « {name} ».\n": "Hello,\n\nPlease find attached the document “{name}”.\n",
+  "Ce navigateur ne sait pas partager un fichier directement (c'est le cas de Chrome et Firefox sous Linux).": "This browser cannot share a file directly (this is the case for Chrome and Firefox on Linux).",
+  "Envoyer par e-mail": "Send by email",
+  "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "The file has been downloaded: attach it to the message that just opened.",
+  "Partager…": "Share…",
+  "Télécharger": "Download"
 }

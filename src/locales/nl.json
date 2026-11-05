@@ -546,5 +546,11 @@
   "Rotation : {n}°": "Rotatie: {n}°",
   "Tirer pour redimensionner le cadre": "Sleep om het kader te vergroten of te verkleinen",
   "Fond opaque (masque ce qui est dessous)": "Ondoorzichtige achtergrond (verbergt wat eronder ligt)",
-  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Zonder achtergrond wordt alleen de oorspronkelijke tekst verborgen: tekst in de buurt blijft zichtbaar."
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Zonder achtergrond wordt alleen de oorspronkelijke tekst verborgen: tekst in de buurt blijft zichtbaar.",
+  "Bonjour,\n\nVeuillez trouver ci-joint le document « {name} ».\n": "Hallo,\n\nIn de bijlage vindt u het document ‘{name}’.\n",
+  "Ce navigateur ne sait pas partager un fichier directement (c'est le cas de Chrome et Firefox sous Linux).": "Deze browser kan een bestand niet rechtstreeks delen (dat geldt voor Chrome en Firefox op Linux).",
+  "Envoyer par e-mail": "Per e-mail versturen",
+  "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "Het bestand is gedownload: voeg het toe aan het bericht dat net is geopend.",
+  "Partager…": "Delen…",
+  "Télécharger": "Downloaden"
 }

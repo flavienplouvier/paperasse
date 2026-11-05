@@ -546,5 +546,11 @@
   "Rotation : {n}°": "Rotación: {n}°",
   "Tirer pour redimensionner le cadre": "Arrastre para cambiar el tamaño del marco",
   "Fond opaque (masque ce qui est dessous)": "Fondo opaco (oculta lo que hay debajo)",
-  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Sin fondo, solo se oculta el texto original: el texto cercano sigue visible."
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Sin fondo, solo se oculta el texto original: el texto cercano sigue visible.",
+  "Bonjour,\n\nVeuillez trouver ci-joint le document « {name} ».\n": "Hola:\n\nAdjunto el documento «{name}».\n",
+  "Ce navigateur ne sait pas partager un fichier directement (c'est le cas de Chrome et Firefox sous Linux).": "Este navegador no puede compartir un archivo directamente (es el caso de Chrome y Firefox en Linux).",
+  "Envoyer par e-mail": "Enviar por correo",
+  "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "El archivo se ha descargado: adjúntelo al mensaje que se acaba de abrir.",
+  "Partager…": "Compartir…",
+  "Télécharger": "Descargar"
 }
