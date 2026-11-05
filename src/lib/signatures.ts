@@ -17,6 +17,8 @@ export interface SignItem {
   id: string;
   kind: SignKind;
   createdAt: number;
+  /** Nom donné par l'utilisateur (« Pro », « Perso »…). */
+  name?: string;
   /** Image PNG (signature, paraphe, mention dessinée, tampon importé). */
   dataUrl?: string;
   /** Texte (mention écrite, nom de l'identité). */

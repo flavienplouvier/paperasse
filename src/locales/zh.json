@@ -496,5 +496,10 @@
   "Zoom avant": "放大",
   "Réduire le panneau": "收起面板",
   "Afficher le panneau": "展开面板",
-  "Panneau": "面板"
+  "Panneau": "面板",
+  "Aujourd'hui": "今天",
+  "Autre couleur": "其他颜色",
+  "Date de signature": "签署日期",
+  "Nom (facultatif), ex. Pro": "名称（可选），如：工作",
+  "Nom de l'élément": "项目名称"
 }

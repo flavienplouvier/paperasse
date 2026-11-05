@@ -5,6 +5,8 @@ import { currentLocale, msg, t, tn, useLocale } from "../i18n";
 import { ensureCssFont, getFont } from "../lib/fonts";
 import { renderStamp } from "../lib/stamp";
 import { newId } from "../lib/types";
+import { addPickedColor, loadPickedColors, toHex } from "../lib/pickedColors";
+import { isoDate as isoToday } from "../lib/fileName";
 import {
   clearSignItems,
   deleteSignItem,
@@ -51,22 +53,27 @@ function imageSize(dataUrl: string): Promise<{ w: number; h: number }> {
   });
 }
 
-const today = () => new Date().toLocaleDateString(currentLocale());
+/** AAAA-MM-JJ → date écrite dans la langue de l'interface. */
+const showDate = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return y ? new Date(y, m - 1, d).toLocaleDateString(currentLocale()) : new Date().toLocaleDateString(currentLocale());
+};
 
-/** Lignes de texte d'une identité. */
-export function identityText(item: SignItem): string {
+/** Lignes de texte d'une identité, à la date choisie (AAAA-MM-JJ). */
+export function identityText(item: SignItem, date = isoToday()): string {
   const lines = [item.text ?? ""];
-  if (item.withDate) lines.push(item.city?.trim() ? t("Fait à {city}, le {date}", { city: item.city.trim(), date: today() }) : t("Le {date}", { date: today() }));
+  const day = showDate(date);
+  if (item.withDate) lines.push(item.city?.trim() ? t("Fait à {city}, le {date}", { city: item.city.trim(), date: day }) : t("Le {date}", { date: day }));
   return lines.filter(Boolean).join("\n");
 }
 
 /** Élément enregistré → élément à poser (image ou texte). */
-export async function toPart(item: SignItem): Promise<PlacePart> {
+export async function toPart(item: SignItem, date?: string): Promise<PlacePart> {
   if (item.kind === "mention" && item.text) {
     await ensureCssFont(MENTION_FONT).catch(() => undefined);
     return { type: "text", text: item.text, fontKey: MENTION_FONT, fontSize: 16, color: item.color ?? INK[0] };
   }
-  if (item.kind === "identity") return { type: "text", text: identityText(item), fontKey: "std:Helvetica", fontSize: 11, color: item.color ?? "#000000" };
+  if (item.kind === "identity") return { type: "text", text: identityText(item, date), fontKey: "std:Helvetica", fontSize: 11, color: item.color ?? "#000000" };
   const dataUrl = item.stamp ? renderStamp(item.stamp.label, item.stamp.color, item.stamp.withDate) : item.dataUrl!;
   const { w, h } = await imageSize(dataUrl);
   const width = WIDTH[item.kind];
@@ -87,6 +94,8 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
   const [items, setItems] = useState<SignItem[]>([]);
   const [tab, setTab] = useState<SignKind>("signature");
   const [editing, setEditing] = useState(false);
+  /** Date écrite par l'identité : aujourd'hui par défaut, modifiable. */
+  const [signDate, setSignDate] = useState(isoToday);
   const [chosen, setChosen] = useState<Partial<Record<SignKind, string>>>(() => {
     try {
       return JSON.parse(localStorage.getItem(CHOICE_KEY) ?? "{}");
@@ -134,7 +143,7 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
 
   const place = async () => {
     try {
-      onPlace(await Promise.all(selection.map(toPart)));
+      onPlace(await Promise.all(selection.map((i) => toPart(i, signDate))));
     } catch (e) {
       onError((e as Error).message);
     }
@@ -216,7 +225,7 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
 
         <div className="sign-body">
           {editing ? (
-            <Editor kind={tab} onSave={add} onCancel={ofTab.length ? () => setEditing(false) : undefined} onError={onError} />
+            <Editor key={tab} kind={tab} date={signDate} onDate={setSignDate} onSave={add} onCancel={ofTab.length ? () => setEditing(false) : undefined} onError={onError} />
           ) : (
             <>
               <div className="sign-list">
@@ -224,7 +233,7 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
                   <div key={item.id} className={`sign-card ${chosen[item.kind] === item.id ? "chosen" : ""}`}>
                     <label>
                       <input type="checkbox" checked={chosen[item.kind] === item.id} onChange={() => toggle(item)} />
-                      <Preview item={item} />
+                      <Preview item={item} date={signDate} />
                     </label>
                     <button className="icon-btn" title={t("Supprimer")} onClick={() => remove(item)}>
                       <Icon name="trash" size={16} />
@@ -232,6 +241,7 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
                   </div>
                 ))}
               </div>
+              {tab === "identity" && <DateField value={signDate} onChange={setSignDate} />}
               <div className="modal-row">
                 <button onClick={() => setEditing(true)}>
                   <Icon name="plus" size={18} /> {t("Nouveau")}
@@ -261,7 +271,16 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
 
 // ------------------------------------------------------------------ aperçu
 
-function Preview({ item }: { item: SignItem }) {
+function Preview({ item, date }: { item: SignItem; date: string }) {
+  return (
+    <span className="sign-preview">
+      <PreviewBody item={item} date={date} />
+      {item.name && <small className="sign-name">{item.name}</small>}
+    </span>
+  );
+}
+
+function PreviewBody({ item, date }: { item: SignItem; date: string }) {
   const stampUrl = useMemo(() => (item.stamp ? renderStamp(item.stamp.label, item.stamp.color, item.stamp.withDate) : null), [item.stamp]);
   const [mentionFont, setMentionFont] = useState<string | undefined>();
   useEffect(() => {
@@ -272,14 +291,80 @@ function Preview({ item }: { item: SignItem }) {
   }, [item.kind, item.text]);
   if (stampUrl || item.dataUrl) return <img className="sign-thumb" src={stampUrl ?? item.dataUrl} alt="" />;
   if (item.kind === "mention") return <span className="sign-text mention" style={{ fontFamily: mentionFont, color: item.color }}>{item.text}</span>;
-  return <span className="sign-text">{identityText(item)}</span>;
+  return <span className="sign-text">{identityText(item, date)}</span>;
+}
+
+function DateField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="field sign-date">
+      <span>{t("Date de signature")}</span>
+      <span className="modal-row">
+        <input type="date" value={value} onChange={(e) => e.target.value && onChange(e.target.value)} />
+        {value !== isoToday() && (
+          <button type="button" className="link" onClick={() => onChange(isoToday())}>
+            {t("Aujourd'hui")}
+          </button>
+        )}
+      </span>
+    </label>
+  );
+}
+
+/** Couleurs de base, couleurs prises à la pipette, pipette (si le navigateur l'a) et choix libre. */
+function ColorRow({ base, value, onChange }: { base: string[]; value: string; onChange: (c: string) => void }) {
+  const [picked, setPicked] = useState(loadPickedColors);
+  const remember = (c: string) => {
+    const hex = toHex(c);
+    if (!hex) return;
+    if (![...base].includes(hex)) setPicked((l) => addPickedColor(l, hex));
+    onChange(hex);
+  };
+  const dropper = (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
+  const colors = [...base, ...picked.filter((c) => !base.includes(c))];
+  return (
+    <div className="swatches sign-colors">
+      {colors.map((c) => (
+        <button key={c} type="button" className={`swatch ${c === value ? "active" : ""}`} style={{ background: c }} onClick={() => onChange(c)} aria-label={t("Couleur {color}", { color: c })} />
+      ))}
+      {dropper && (
+        <button
+          type="button"
+          className="icon-btn"
+          title={t("Pipette")}
+          onClick={() =>
+            new dropper()
+              .open()
+              .then((r) => remember(r.sRGBHex))
+              .catch(() => undefined)
+          }
+        >
+          <Icon name="pipette" size={18} />
+        </button>
+      )}
+      <input type="color" value={value} title={t("Autre couleur")} onChange={(e) => onChange(e.target.value)} onBlur={(e) => remember(e.target.value)} />
+    </div>
+  );
 }
 
 // ------------------------------------------------------------------ création
 
 type Mode = "draw" | "type" | "import";
 
-function Editor({ kind, onSave, onCancel, onError }: { kind: SignKind; onSave: (item: SignItem, remember: boolean) => void; onCancel?: () => void; onError: (m: string) => void }) {
+function Editor({
+  kind,
+  date,
+  onDate,
+  onSave,
+  onCancel,
+  onError,
+}: {
+  kind: SignKind;
+  date: string;
+  onDate: (d: string) => void;
+  onSave: (item: SignItem, remember: boolean) => void;
+  onCancel?: () => void;
+  onError: (m: string) => void;
+}) {
   useLocale();
   const modes: Mode[] = kind === "identity" ? ["type"] : kind === "mention" ? ["type", "draw"] : ["draw", "type", "import"];
   const [mode, setMode] = useState<Mode>(modes[0]);
@@ -293,6 +378,7 @@ function Editor({ kind, onSave, onCancel, onError }: { kind: SignKind; onSave: (
   const [imported, setImported] = useState<string | null>(null);
   const [removeBackground, setRemoveBackground] = useState(true);
   const [remember, setRemember] = useState(true);
+  const [name, setName] = useState("");
   const canvas = useRef<HTMLCanvasElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -309,7 +395,7 @@ function Editor({ kind, onSave, onCancel, onError }: { kind: SignKind; onSave: (
     Promise.all(list.map((k) => ensureCssFont(k).catch(() => undefined))).then(() => setFontsReady((n) => n + 1));
   }, [mode, kind]);
 
-  const base = { id: newId("sign"), kind, createdAt: Date.now() };
+  const base = { id: newId("sign"), kind, createdAt: Date.now(), ...(name.trim() ? { name: name.trim() } : {}) };
   const textMode = mode === "type";
 
   const save = async () => {
@@ -405,15 +491,18 @@ function Editor({ kind, onSave, onCancel, onError }: { kind: SignKind; onSave: (
           </label>
           <label className="check">
             <input type="checkbox" checked={withDate} onChange={(e) => setWithDate(e.target.checked)} />
-            {t("Ajouter « Fait à …, le {date} »", { date: today() })}
+            {t("Ajouter « Fait à …, le {date} »", { date: showDate(date) })}
           </label>
           {withDate && (
-            <label className="field">
-              <span>{t("Ville (facultatif)")}</span>
-              <input value={city} placeholder={t("Ex. Lyon")} onChange={(e) => setCity(e.target.value)} />
-            </label>
+            <>
+              <label className="field">
+                <span>{t("Ville (facultatif)")}</span>
+                <input value={city} placeholder={t("Ex. Lyon")} onChange={(e) => setCity(e.target.value)} />
+              </label>
+              <DateField value={date} onChange={onDate} />
+            </>
           )}
-          {text.trim() && <pre className="sign-text">{identityText({ ...base, text, city, withDate })}</pre>}
+          {text.trim() && <pre className="sign-text">{identityText({ ...base, text, city, withDate }, date)}</pre>}
         </>
       )}
 
@@ -443,9 +532,7 @@ function Editor({ kind, onSave, onCancel, onError }: { kind: SignKind; onSave: (
 
       {mode !== "import" && (
         <div className="modal-row">
-          {(kind === "stamp" ? STAMP_COLORS : INK).map((c) => (
-            <button key={c} className={`swatch ${c === color ? "active" : ""}`} style={{ background: c }} onClick={() => setColor(c)} aria-label={t("Couleur {color}", { color: c })} />
-          ))}
+          <ColorRow base={kind === "stamp" ? STAMP_COLORS : INK} value={color} onChange={setColor} />
           {mode === "draw" && (
             <button
               onClick={() => {
@@ -464,7 +551,7 @@ function Editor({ kind, onSave, onCancel, onError }: { kind: SignKind; onSave: (
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           {t("Mémoriser sur cet appareil")}
         </label>
-        <span className="spacer" />
+        <input className="sign-name-input" value={name} maxLength={40} placeholder={t("Nom (facultatif), ex. Pro")} aria-label={t("Nom de l'élément")} onChange={(e) => setName(e.target.value)} />
         {onCancel && <button onClick={onCancel}>{t("Annuler")}</button>}
         <button className="primary" disabled={!ready} onClick={save}>
           {t("Enregistrer")}

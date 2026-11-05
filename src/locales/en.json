@@ -496,5 +496,10 @@
   "Zoom avant": "Zoom in",
   "Réduire le panneau": "Collapse panel",
   "Afficher le panneau": "Show panel",
-  "Panneau": "Panel"
+  "Panneau": "Panel",
+  "Aujourd'hui": "Today",
+  "Autre couleur": "Other color",
+  "Date de signature": "Signing date",
+  "Nom (facultatif), ex. Pro": "Name (optional), e.g. Work",
+  "Nom de l'élément": "Item name"
 }
