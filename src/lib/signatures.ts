@@ -94,9 +94,12 @@ export function parseSignItems(text: string): SignItem[] | null {
 // ------------------------------------------------------------------ pose sur la page
 
 /** Élément prêt à poser : une image ou des lignes de texte. */
+export type ImagePart = { type: "image"; dataUrl: string; width: number; height: number };
 export type PlacePart =
-  | { type: "image"; dataUrl: string; width: number; height: number }
-  | { type: "text"; text: string; fontKey: string; fontSize: number; color: string };
+  | ImagePart
+  | { type: "text"; text: string; fontKey: string; fontSize: number; color: string }
+  /** Plusieurs images côte à côte (paraphes de plusieurs signataires), chacune dans son cadre. */
+  | { type: "row"; parts: ImagePart[] };
 
 export const sortForStack = <T extends { kind: SignKind }>(list: T[]) =>
   [...list].sort((a, b) => STACK_ORDER.indexOf(a.kind) - STACK_ORDER.indexOf(b.kind));
@@ -104,7 +107,11 @@ export const sortForStack = <T extends { kind: SignKind }>(list: T[]) =>
 const GAP = 6;
 const LINE = 1.25;
 
-export const partHeight = (p: PlacePart) => (p.type === "image" ? p.height : p.fontSize * LINE * p.text.split("\n").length);
+export const partHeight = (p: PlacePart): number =>
+  p.type === "image" ? p.height : p.type === "row" ? Math.max(...p.parts.map((x) => x.height)) : p.fontSize * LINE * p.text.split("\n").length;
+
+export const partWidth = (p: PlacePart): number =>
+  p.type === "image" ? p.width : p.type === "row" ? p.parts.reduce((w, x) => w + x.width, 0) + GAP * (p.parts.length - 1) : 0;
 
 export type Placed =
   | { type: "image"; rect: Rect; dataUrl: string }
@@ -117,17 +124,27 @@ export type Placed =
  */
 export function layoutParts(parts: PlacePart[], at: Point, rotation: number): Placed[] {
   const { right, down } = screenAxes(rotation);
-  const width = Math.max(...parts.map((p) => (p.type === "image" ? p.width : 0)), 120);
+  // Largeur du bloc : celle des images ; un texte seul réserve 120 pt (sa largeur réelle dépend de la police).
+  const width = Math.max(...parts.map(partWidth), parts.some((p) => p.type === "text") ? 120 : 0);
   const total = parts.reduce((h, p) => h + partHeight(p), 0) + GAP * (parts.length - 1);
   let top = addScaled(addScaled(at, right, -width / 2), down, -total / 2);
   const sideways = normalizeRotation(rotation) % 180 !== 0;
   const out: Placed[] = [];
+  const image = (img: ImagePart, left: Point, rowHeight: number) => {
+    // Centrée verticalement dans sa rangée.
+    const center = addScaled(addScaled(left, right, img.width / 2), down, rowHeight / 2);
+    const [hw, hh] = sideways ? [img.height / 2, img.width / 2] : [img.width / 2, img.height / 2];
+    out.push({ type: "image", dataUrl: img.dataUrl, rect: [center[0] - hw, center[1] - hh, center[0] + hw, center[1] + hh] });
+  };
   for (const p of parts) {
     const h = partHeight(p);
-    if (p.type === "image") {
-      const center = addScaled(addScaled(top, right, p.width / 2), down, h / 2);
-      const [hw, hh] = sideways ? [h / 2, p.width / 2] : [p.width / 2, h / 2];
-      out.push({ type: "image", dataUrl: p.dataUrl, rect: [center[0] - hw, center[1] - hh, center[0] + hw, center[1] + hh] });
+    if (p.type === "image") image(p, top, h);
+    else if (p.type === "row") {
+      let left = top;
+      for (const img of p.parts) {
+        image(img, left, h);
+        left = addScaled(left, right, img.width + GAP);
+      }
     } else {
       out.push({ type: "text", origin: addScaled(top, down, p.fontSize), text: p.text, fontKey: p.fontKey, fontSize: p.fontSize, color: p.color, rotation });
     }

@@ -505,7 +505,9 @@
   "Choisir une police": "Scegli un font",
   "Paraphe (toutes les pages)": "Sigla (tutte le pagine)",
   "Taille : {n} %": "Dimensione: {n}%",
-  "Cocher tous les éléments « {name} »": "Seleziona tutti gli elementi «{name}»",
-  "Profils": "Profili",
-  "Remplacera l'élément « {name} » de cet onglet.": "Sostituirà l'elemento «{name}» di questa scheda."
+  "Remplacera l'élément « {name} » de cet onglet.": "Sostituirà l'elemento «{name}» di questa scheda.",
+  "Cochez plusieurs paraphes pour les poser côte à côte (plusieurs signataires).": "Seleziona più sigle per posizionarle affiancate (più firmatari).",
+  "Écrivez votre nom (et la date si besoin) dans le cadre.": "Scrivi il tuo nome (e la data se serve) nel riquadro.",
+  "En bas à droite": "In basso a destra",
+  "En bas à gauche": "In basso a sinistra"
 }

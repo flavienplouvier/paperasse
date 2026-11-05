@@ -505,7 +505,9 @@
   "Choisir une police": "Lettertype kiezen",
   "Paraphe (toutes les pages)": "Paraaf (alle pagina's)",
   "Taille : {n} %": "Grootte: {n}%",
-  "Cocher tous les éléments « {name} »": "Alle items “{name}” selecteren",
-  "Profils": "Profielen",
-  "Remplacera l'élément « {name} » de cet onglet.": "Vervangt het item “{name}” op dit tabblad."
+  "Remplacera l'élément « {name} » de cet onglet.": "Vervangt het item “{name}” op dit tabblad.",
+  "Cochez plusieurs paraphes pour les poser côte à côte (plusieurs signataires).": "Vink meerdere parafen aan om ze naast elkaar te plaatsen (meerdere ondertekenaars).",
+  "Écrivez votre nom (et la date si besoin) dans le cadre.": "Schrijf uw naam (en indien nodig de datum) in het vak.",
+  "En bas à droite": "Rechtsonder",
+  "En bas à gauche": "Linksonder"
 }

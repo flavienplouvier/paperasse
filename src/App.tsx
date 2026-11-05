@@ -33,7 +33,7 @@ import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SearchPanel } from "./components/SearchPanel";
 import { FormsPanel } from "./components/FormsPanel";
 import { SignDialog } from "./components/SignDialog";
-import { layoutParts, type PlacePart } from "./lib/signatures";
+import { layoutParts, partHeight, partWidth, type PlacePart } from "./lib/signatures";
 import { DocumentTools, type DocTab } from "./components/DocumentTools";
 import { MobileBar } from "./components/MobileBar";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
@@ -902,22 +902,22 @@ export default function App() {
     [pending, doc, addAnnotations],
   );
 
-  /** Paraphe en bas à droite de chaque page (marge de 28 pt), en une seule étape annulable. */
-  const initialsEverywhere = async (part: PlacePart) => {
+  /** Paraphe(s) en bas à droite ou à gauche de chaque page (marge de 28 pt), en une seule étape annulable. */
+  const initialsEverywhere = async (part: PlacePart, side: "left" | "right") => {
     if (!doc || !pdf) return;
     const added: Annotation[] = [];
     for (let i = 0; i < pdf.numPages; i++) {
       const page = await pdf.getPage(i + 1);
       const vp = page.getViewport({ scale: 1 });
-      const h = part.type === "image" ? part.height : part.fontSize * 1.25;
-      const w = part.type === "image" ? part.width : 120;
-      const [x, y] = vp.convertToPdfPoint(vp.width - 28 - w / 2, vp.height - 28 - h / 2);
+      const h = partHeight(part);
+      const w = partWidth(part);
+      const [x, y] = vp.convertToPdfPoint(side === "right" ? vp.width - 28 - w / 2 : 28 + w / 2, vp.height - 28 - h / 2);
       for (const p of layoutParts([part], [x, y], page.rotate)) {
         if (p.type === "image") added.push({ id: newId("annot"), kind: "image", pageId: doc.pageIds[i], rect: p.rect, dataUrl: p.dataUrl, color: "#000000", opacity: 1 });
       }
     }
     addAnnotations(...added);
-    notify(tn("Paraphe ajoutée sur {n} page (Ctrl+Z pour annuler).", "Paraphe ajoutée sur {n} pages (Ctrl+Z pour annuler).", added.length));
+    notify(tn("Paraphe ajoutée sur {n} page (Ctrl+Z pour annuler).", "Paraphe ajoutée sur {n} pages (Ctrl+Z pour annuler).", pdf.numPages));
   };
 
   const startImage = async (dataUrl: string, kind: PendingKind) => {
@@ -1759,9 +1759,9 @@ export default function App() {
             setSelectedId(null);
             notify(t("Touchez la page à l'endroit où signer."));
           }}
-          onInitialsEverywhere={(part) => {
+          onInitialsEverywhere={(part, side) => {
             setSigning(false);
-            initialsEverywhere(part).catch(fail);
+            initialsEverywhere(part, side).catch(fail);
           }}
         />
       )}

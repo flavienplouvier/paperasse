@@ -505,7 +505,9 @@
   "Choisir une police": "Elegir una fuente",
   "Paraphe (toutes les pages)": "Rúbrica (todas las páginas)",
   "Taille : {n} %": "Tamaño: {n} %",
-  "Cocher tous les éléments « {name} »": "Marcar todos los elementos «{name}»",
-  "Profils": "Perfiles",
-  "Remplacera l'élément « {name} » de cet onglet.": "Reemplazará el elemento «{name}» de esta pestaña."
+  "Remplacera l'élément « {name} » de cet onglet.": "Reemplazará el elemento «{name}» de esta pestaña.",
+  "Cochez plusieurs paraphes pour les poser côte à côte (plusieurs signataires).": "Marque varias rúbricas para colocarlas una al lado de otra (varios firmantes).",
+  "Écrivez votre nom (et la date si besoin) dans le cadre.": "Escriba su nombre (y la fecha si es necesario) en el recuadro.",
+  "En bas à droite": "Abajo a la derecha",
+  "En bas à gauche": "Abajo a la izquierda"
 }

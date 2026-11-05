@@ -45,6 +45,23 @@ describe("pose sur la page", () => {
     expect(mention.origin[1] + 16 - 119.5 / 2).toBeCloseTo(400);
   });
 
+  it("pose plusieurs paraphes côte à côte", () => {
+    const img = (w: number) => ({ type: "image" as const, dataUrl: "data:image/png;base64,AAAA", width: w, height: 30 });
+    const placed = layoutParts([{ type: "row", parts: [img(60), img(60)] }], [300, 400], 0);
+    expect(placed).toHaveLength(2);
+    const [a, b] = placed.map((p) => (p.type === "image" ? p.rect : [0, 0, 0, 0]));
+    // Même hauteur, la seconde à droite de la première, 6 pt d'écart ; rangée centrée sur le point.
+    expect(a[1]).toBeCloseTo(b[1]);
+    expect(b[0] - a[2]).toBeCloseTo(6);
+    expect((a[0] + b[2]) / 2).toBeCloseTo(300);
+  });
+
+  it("une image seule est centrée exactement sur le point (sans largeur minimale)", () => {
+    const [p] = layoutParts([{ type: "image", dataUrl: "data:image/png;base64,AAAA", width: 60, height: 20 }], [100, 100], 0);
+    if (p.type !== "image") throw new Error("image");
+    expect(p.rect).toEqual([70, 90, 130, 110]);
+  });
+
   it("suit la rotation de la page", () => {
     const [, signature] = layoutParts(parts, [300, 400], 90);
     if (signature.type !== "image") throw new Error("image");

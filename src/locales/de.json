@@ -505,7 +505,9 @@
   "Choisir une police": "Schrift wählen",
   "Paraphe (toutes les pages)": "Paraphe (alle Seiten)",
   "Taille : {n} %": "Größe: {n} %",
-  "Cocher tous les éléments « {name} »": "Alle Elemente „{name}“ auswählen",
-  "Profils": "Profile",
-  "Remplacera l'élément « {name} » de cet onglet.": "Ersetzt das Element „{name}“ in diesem Reiter."
+  "Remplacera l'élément « {name} » de cet onglet.": "Ersetzt das Element „{name}“ in diesem Reiter.",
+  "Cochez plusieurs paraphes pour les poser côte à côte (plusieurs signataires).": "Mehrere Paraphen auswählen, um sie nebeneinander zu setzen (mehrere Unterzeichner).",
+  "Écrivez votre nom (et la date si besoin) dans le cadre.": "Schreiben Sie Ihren Namen (und bei Bedarf das Datum) in das Feld.",
+  "En bas à droite": "Unten rechts",
+  "En bas à gauche": "Unten links"
 }

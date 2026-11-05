@@ -1940,8 +1940,10 @@ kbd {
 }
 .sign-tabs {
   display: flex;
+  flex: none;
   gap: 4px;
   overflow-x: auto;
+  overflow-y: hidden;
   border-bottom: 1px solid var(--border);
   padding-bottom: 6px;
 }
@@ -2008,10 +2010,19 @@ kbd {
   padding: 8px 36px 8px 10px;
   cursor: pointer;
 }
-.sign-card .icon-btn {
+.sign-card-actions {
   position: absolute;
   top: 4px;
   right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sign-card-actions .icon-btn {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
   color: #555;
 }
 .sign-thumb {
@@ -2288,26 +2299,6 @@ kbd {
   margin: 0;
   color: var(--accent);
 }
-.sign-profiles {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-  font-size: 13px;
-  color: var(--muted);
-}
-.sign-profiles button {
-  flex: none;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 15px;
-  font-size: 13px;
-}
-.sign-profiles button.active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
 .sign-date input[type="date"] {
   min-height: 38px;
 }
@@ -2375,8 +2366,12 @@ kbd {
   line-height: 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
-.initials-preview img {
+.initials-preview-row {
   position: absolute;
+  display: flex;
+  align-items: center;
+}
+.initials-preview-row img {
   height: auto;
   outline: 1px dashed var(--accent);
 }

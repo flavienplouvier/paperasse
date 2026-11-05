@@ -76,7 +76,7 @@ export async function toPart(item: SignItem, date?: string, docFont = DEFAULT_FO
     await ensureCssFont(MENTION_FONT).catch(() => undefined);
     return { type: "text", text: item.text, fontKey: MENTION_FONT, fontSize: 16, color: item.color ?? INK[0] };
   }
-  if (item.kind === "identity") {
+  if (item.kind === "identity" && !item.dataUrl) {
     const fontKey = item.fontKey ?? docFont;
     await ensureCssFont(fontKey).catch(() => undefined);
     return { type: "text", text: identityText(item, date), fontKey, fontSize: 11, color: item.color ?? "#000000" };
@@ -94,8 +94,8 @@ interface Props {
   /** Polices du document ouvert : la première sert de police par défaut à l'identité. */
   fileFonts: FileFont[];
   onPlace: (parts: PlacePart[]) => void;
-  /** Paraphe posée en bas à droite de chaque page. */
-  onInitialsEverywhere: (part: PlacePart) => void;
+  /** Paraphe(s) posée(s) en bas de chaque page, à gauche ou à droite. */
+  onInitialsEverywhere: (part: PlacePart, side: "left" | "right") => void;
   onClose: () => void;
   onError: (msg: string) => void;
   onInfo: (msg: string) => void;
@@ -109,17 +109,24 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
   const [editing, setEditing] = useState(false);
   /** Date écrite par l'identité : aujourd'hui par défaut, modifiable. */
   const [signDate, setSignDate] = useState(isoToday);
-  const [chosen, setChosen] = useState<Partial<Record<SignKind, string>>>(() => {
+  /** Éléments cochés par onglet (plusieurs paraphes possibles, un seul élément ailleurs). */
+  const [chosen, setChosen] = useState<Partial<Record<SignKind, string[]>>>(() => {
     try {
-      return JSON.parse(localStorage.getItem(CHOICE_KEY) ?? "{}");
+      const saved = JSON.parse(localStorage.getItem(CHOICE_KEY) ?? "{}") as Record<string, string | string[]>;
+      return Object.fromEntries(Object.entries(saved).map(([k, v]) => [k, Array.isArray(v) ? v : v ? [v] : []]));
     } catch {
       return {};
     }
   });
+  const isChosen = (item: SignItem) => !!chosen[item.kind]?.includes(item.id);
+  /** Élément en cours de modification (crayon). */
+  const [edited, setEdited] = useState<SignItem | null>(null);
   const loadInput = useRef<HTMLInputElement>(null);
   /** Paraphe sur toutes les pages, et sa taille en % (retenues). */
   const [allPages, setAllPages] = useState(() => readPref("paperasse-paraphe-partout") === "1");
   const [initialsScale, setInitialsScale] = useState(() => Number(readPref("paperasse-paraphe-taille")) || 100);
+  const [initialsSide, setInitialsSide] = useState<"left" | "right">(() => (readPref("paperasse-paraphe-cote") === "left" ? "left" : "right"));
+  useEffect(() => writePref("paperasse-paraphe-cote", initialsSide), [initialsSide]);
   useEffect(() => writePref("paperasse-paraphe-partout", allPages ? "1" : "0"), [allPages]);
   useEffect(() => writePref("paperasse-paraphe-taille", String(initialsScale)), [initialsScale]);
 
@@ -133,7 +140,7 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
   }, []);
 
   // Choix retenu d'une fois sur l'autre, en ignorant les éléments supprimés.
-  const selection = useMemo(() => sortForStack(items.filter((i) => chosen[i.kind] === i.id)), [items, chosen]);
+  const selection = useMemo(() => sortForStack(items.filter((i) => chosen[i.kind]?.includes(i.id))), [items, chosen]);
   useEffect(() => {
     try {
       localStorage.setItem(CHOICE_KEY, JSON.stringify(chosen));
@@ -149,25 +156,28 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
     for (const i of items) if (i.name?.trim() && !seen.has(i.name.trim().toLowerCase())) seen.set(i.name.trim().toLowerCase(), i.name.trim());
     return [...seen.values()].sort((a, b) => a.localeCompare(b, currentLocale()));
   }, [items]);
-  /** Coche d'un coup tous les éléments portant ce nom (un par onglet). */
-  const chooseProfile = (name: string) =>
+  const toggle = (item: SignItem) =>
     setChosen((c) => {
-      const next = { ...c };
-      for (const i of items) if (sameName(i.name, name)) next[i.kind] = i.id;
-      return next;
+      const cur = c[item.kind] ?? [];
+      if (cur.includes(item.id)) return { ...c, [item.kind]: cur.filter((id) => id !== item.id) };
+      // Plusieurs paraphes (plusieurs signataires) ; un seul élément dans les autres onglets.
+      return { ...c, [item.kind]: item.kind === "initials" ? [...cur, item.id] : [item.id] };
     });
-  const profileActive = (name: string) => items.filter((i) => sameName(i.name, name)).every((i) => chosen[i.kind] === i.id);
-
-  const toggle = (item: SignItem) => setChosen((c) => ({ ...c, [item.kind]: c[item.kind] === item.id ? undefined : item.id }));
 
   const add = async (fresh: SignItem, remember: boolean) => {
-    // Même nom dans le même onglet : l'ancien élément est remplacé (il garde sa place et son identifiant).
-    const same = fresh.name ? items.find((i) => i.kind === fresh.kind && sameName(i.name, fresh.name)) : undefined;
-    const item = same ? { ...fresh, id: same.id, createdAt: same.createdAt } : fresh;
+    const known = items.some((i) => i.id === fresh.id);
+    // Même nom dans le même onglet : l'autre élément est remplacé.
+    const clash = fresh.name ? items.find((i) => i.kind === fresh.kind && i.id !== fresh.id && sameName(i.name, fresh.name)) : undefined;
+    const item = clash && !known ? { ...fresh, id: clash.id, createdAt: clash.createdAt } : fresh;
+    if (clash && known) await deleteSignItem(clash.id).catch(() => undefined);
     if (remember) await saveSignItem(item).catch(() => onError(t("Enregistrement impossible sur cet appareil (navigation privée ?).")));
-    setItems((l) => (same ? l.map((i) => (i.id === same.id ? item : i)) : [...l, item]));
-    setChosen((c) => ({ ...c, [item.kind]: item.id }));
+    setItems((l) => {
+      const rest = clash && known ? l.filter((i) => i.id !== clash.id) : l;
+      return rest.some((i) => i.id === item.id) ? rest.map((i) => (i.id === item.id ? item : i)) : [...rest, item];
+    });
+    if (!known) setChosen((c) => ({ ...c, [item.kind]: item.kind === "initials" ? [...(c.initials ?? []).filter((id) => id !== item.id), item.id] : [item.id] }));
     setEditing(false);
+    setEdited(null);
   };
 
   const remove = async (item: SignItem) => {
@@ -176,19 +186,32 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
     setItems((l) => l.filter((i) => i.id !== item.id));
   };
 
-  const chosenInitials = items.find((i) => i.kind === "initials" && chosen.initials === i.id);
-  const everywhere = allPages && !!chosenInitials;
+  const chosenInitials = selection.filter((i) => i.kind === "initials");
+  const everywhere = allPages && chosenInitials.length > 0;
 
-  /** Paraphe à la taille réglée. */
-  const scaled = (part: PlacePart): PlacePart =>
-    part.type === "image" ? { ...part, width: (part.width * initialsScale) / 100, height: (part.height * initialsScale) / 100 } : part;
+  /** Paraphe(s) : une image, ou plusieurs côte à côte ; à la taille réglée pour « toutes les pages ». */
+  const initialsPart = async (scale: number): Promise<PlacePart> => {
+    const parts = (await Promise.all(chosenInitials.map((i) => toPart(i, signDate, docFont)))).flatMap((p) =>
+      p.type === "image" ? [{ ...p, width: (p.width * scale) / 100, height: (p.height * scale) / 100 }] : [],
+    );
+    return parts.length === 1 ? parts[0] : { type: "row", parts };
+  };
 
   const place = async () => {
     try {
-      // Paraphe sur toutes les pages tout de suite ; le reste se pose d'un appui sur la page.
+      // Paraphes sur toutes les pages tout de suite ; le reste se pose d'un appui sur la page.
+      if (everywhere) onInitialsEverywhere(await initialsPart(initialsScale), initialsSide);
       const rest = everywhere ? selection.filter((i) => i.kind !== "initials") : selection;
-      if (everywhere) onInitialsEverywhere(scaled(await toPart(chosenInitials, signDate, docFont)));
-      if (rest.length) onPlace(await Promise.all(rest.map((i) => toPart(i, signDate, docFont))));
+      const parts: PlacePart[] = [];
+      let initialsDone = false;
+      for (const i of rest) {
+        if (i.kind !== "initials") parts.push(await toPart(i, signDate, docFont));
+        else if (!initialsDone) {
+          parts.push(await initialsPart(100));
+          initialsDone = true;
+        }
+      }
+      if (parts.length) onPlace(parts);
       else if (!everywhere) onClose();
     } catch (e) {
       onError((e as Error).message);
@@ -223,6 +246,11 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
     setChosen({});
   };
 
+  const startEdit = (item: SignItem) => {
+    setEdited(item);
+    setEditing(true);
+  };
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal sign-dialog" role="dialog" aria-label={t("Signer")} onClick={(e) => e.stopPropagation()}>
@@ -254,42 +282,37 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
               className={tab === tb.kind ? "active" : ""}
               onClick={() => {
                 setTab(tb.kind);
+                setEdited(null);
                 setEditing(!items.some((i) => i.kind === tb.kind));
               }}
             >
               <Icon name={tb.icon} size={18} />
               <span>{t(tb.label)}</span>
-              {chosen[tb.kind] && items.some((i) => i.id === chosen[tb.kind]) && <i className="sign-dot" />}
+              {items.some((i) => i.kind === tb.kind && isChosen(i)) && <i className="sign-dot" />}
             </button>
           ))}
         </nav>
 
-        {names.length > 0 && (
-          <div className="sign-profiles" aria-label={t("Profils")}>
-            <span>{t("Profils")}</span>
-            {names.map((n) => (
-              <button key={n} className={profileActive(n) ? "active" : ""} title={t("Cocher tous les éléments « {name} »", { name: n })} onClick={() => chooseProfile(n)}>
-                {n}
-              </button>
-            ))}
-          </div>
-        )}
-
         <div className="sign-body">
           {editing ? (
-            <Editor key={tab} kind={tab} names={names} existing={items} date={signDate} onDate={setSignDate} fileFonts={fileFonts} docFont={docFont} onSave={add} onCancel={ofTab.length ? () => setEditing(false) : undefined} onError={onError} />
+            <Editor key={`${tab}-${edited?.id ?? "new"}`} kind={tab} initial={edited ?? undefined} names={names} existing={items} date={signDate} onDate={setSignDate} fileFonts={fileFonts} docFont={docFont} onSave={add} onCancel={ofTab.length ? () => (setEditing(false), setEdited(null)) : undefined} onError={onError} />
           ) : (
             <>
               <div className="sign-list">
                 {ofTab.map((item) => (
-                  <div key={item.id} className={`sign-card ${chosen[item.kind] === item.id ? "chosen" : ""}`}>
+                  <div key={item.id} className={`sign-card ${isChosen(item) ? "chosen" : ""}`}>
                     <label>
-                      <input type="checkbox" checked={chosen[item.kind] === item.id} onChange={() => toggle(item)} />
+                      <input type="checkbox" checked={isChosen(item)} onChange={() => toggle(item)} />
                       <Preview item={item} date={signDate} docFont={docFont} />
                     </label>
-                    <button className="icon-btn" title={t("Supprimer")} onClick={() => remove(item)}>
-                      <Icon name="trash" size={16} />
-                    </button>
+                    <div className="sign-card-actions">
+                      <button className="icon-btn" title={t("Modifier")} onClick={() => startEdit(item)}>
+                        <Icon name="pen" size={16} />
+                      </button>
+                      <button className="icon-btn" title={t("Supprimer")} onClick={() => remove(item)}>
+                        <Icon name="trash" size={16} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -299,7 +322,8 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
                   <Icon name="plus" size={18} /> {t("Nouveau")}
                 </button>
               </div>
-              {tab === "initials" && chosenInitials && (
+              {tab === "initials" && ofTab.length > 1 && <p className="hint">{t("Cochez plusieurs paraphes pour les poser côte à côte (plusieurs signataires).")}</p>}
+              {tab === "initials" && chosenInitials.length > 0 && (
                 <div className="initials-all">
                   <label className="check">
                     <input type="checkbox" checked={allPages} onChange={(e) => setAllPages(e.target.checked)} />
@@ -311,8 +335,21 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
                         <span>{t("Taille : {n} %", { n: initialsScale })}</span>
                         <input type="range" min={30} max={200} step={5} value={initialsScale} onChange={(e) => setInitialsScale(+e.target.value)} />
                       </label>
-                      {pdf && chosenInitials.dataUrl && (
-                        <InitialsPreview pdf={pdf} page={currentPage} dataUrl={chosenInitials.dataUrl} widthPt={(WIDTH.initials * initialsScale) / 100} />
+                      <div className="seg" role="radiogroup" aria-label={t("Position")}>
+                        {(["left", "right"] as const).map((side) => (
+                          <button key={side} role="radio" aria-checked={initialsSide === side} className={initialsSide === side ? "active" : ""} onClick={() => setInitialsSide(side)}>
+                            {side === "left" ? t("En bas à gauche") : t("En bas à droite")}
+                          </button>
+                        ))}
+                      </div>
+                      {pdf && (
+                        <InitialsPreview
+                          pdf={pdf}
+                          page={currentPage}
+                          images={chosenInitials.flatMap((i) => (i.dataUrl ? [i.dataUrl] : []))}
+                          widthPt={(WIDTH.initials * initialsScale) / 100}
+                          side={initialsSide}
+                        />
                       )}
                     </>
                   )}
@@ -327,6 +364,7 @@ export function SignDialog({ pdf, currentPage, fileFonts, onPlace, onInitialsEve
             {selection.length
               ? selection
                   .map((i) => (i.kind === "initials" && everywhere ? t("Paraphe (toutes les pages)") : t(TABS.find((x) => x.kind === i.kind)!.label)))
+                  .filter((label, n, all) => all.indexOf(label) === n)
                   .join(" + ")
               : t("Cochez ce que vous voulez placer.")}
           </span>
@@ -410,7 +448,7 @@ function writePref(key: string, value: string) {
 }
 
 /** Page affichée en miniature, paraphe en bas à droite à la taille réglée (marge de 28 pt, comme à la pose). */
-function InitialsPreview({ pdf, page, dataUrl, widthPt }: { pdf: PDFDocumentProxy; page: number; dataUrl: string; widthPt: number }) {
+function InitialsPreview({ pdf, page, images, widthPt, side }: { pdf: PDFDocumentProxy; page: number; images: string[]; widthPt: number; side: "left" | "right" }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [scale, setScale] = useState(0);
   useEffect(() => {
@@ -439,7 +477,13 @@ function InitialsPreview({ pdf, page, dataUrl, widthPt }: { pdf: PDFDocumentProx
   return (
     <div className="initials-preview">
       <canvas ref={canvas} />
-      {scale > 0 && <img src={dataUrl} alt="" style={{ width: widthPt * scale, right: 28 * scale, bottom: 28 * scale }} />}
+      {scale > 0 && (
+        <div className="initials-preview-row" style={{ gap: 6 * scale, bottom: 28 * scale, [side]: 28 * scale }}>
+          {images.map((src, i) => (
+            <img key={i} src={src} alt="" style={{ width: widthPt * scale }} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -529,6 +573,7 @@ type Mode = "draw" | "type" | "import";
 
 function Editor({
   kind,
+  initial,
   date,
   onDate,
   fileFonts,
@@ -540,6 +585,8 @@ function Editor({
   onError,
 }: {
   kind: SignKind;
+  /** Élément à modifier (crayon) ; sinon création. */
+  initial?: SignItem;
   date: string;
   onDate: (d: string) => void;
   fileFonts: FileFont[];
@@ -551,31 +598,39 @@ function Editor({
   onError: (m: string) => void;
 }) {
   useLocale();
-  const modes: Mode[] = kind === "identity" ? ["type"] : kind === "mention" ? ["type", "draw"] : ["draw", "type", "import"];
-  const [mode, setMode] = useState<Mode>(modes[0]);
-  const [color, setColor] = useState(kind === "stamp" ? STAMP_COLORS[0] : kind === "identity" ? "#000000" : INK[0]);
-  const [text, setText] = useState("");
-  const [city, setCity] = useState("");
-  const [withDate, setWithDate] = useState(true);
-  const [font, setFont] = useState(SCRIPT_FONTS[0]);
+  const modes: Mode[] = kind === "identity" || kind === "mention" ? ["type", "draw", "import"] : ["draw", "type", "import"];
+  // Modification : on rouvre l'élément dans le mode où il a été créé (un dessin se montre comme une image, à redessiner au besoin).
+  const initialText = initial?.stamp?.label ?? initial?.text ?? "";
+  const initialMode: Mode = !initial ? modes[0] : initialText ? "type" : "import";
+  const [mode, setMode] = useState<Mode>(initialMode);
+  const [color, setColor] = useState(initial?.stamp?.color ?? initial?.color ?? (kind === "stamp" ? STAMP_COLORS[0] : kind === "identity" ? "#000000" : INK[0]));
+  const [text, setText] = useState(initialText);
+  const [city, setCity] = useState(initial?.city ?? "");
+  const [withDate, setWithDate] = useState(initial?.withDate ?? initial?.stamp?.withDate ?? true);
+  const scriptFont = (kind === "signature" || kind === "initials") && initial?.fontKey ? initial.fontKey : null;
+  const [font, setFont] = useState(scriptFont ?? SCRIPT_FONTS[0]);
   const [fontsReady, setFontsReady] = useState(0);
   const [drawn, setDrawn] = useState(false);
-  const [imported, setImported] = useState<string | null>(null);
+  const [imported, setImported] = useState<string | null>(initialMode === "import" ? (initial?.dataUrl ?? null) : null);
   const [removeBackground, setRemoveBackground] = useState(true);
   const [remember, setRemember] = useState(true);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initial?.name ?? "");
   /** Identité : police choisie explicitement (sinon celle du document). */
-  const [identityFont, setIdentityFont] = useState<string | null>(null);
+  const [identityFont, setIdentityFont] = useState<string | null>(kind === "identity" ? (initial?.fontKey ?? null) : null);
   /** Signature / paraphe écrite : police choisie dans la liste complète (6e case). */
-  const [otherFont, setOtherFont] = useState<string | null>(null);
+  const [otherFont, setOtherFont] = useState<string | null>(scriptFont && !SCRIPT_FONTS.includes(scriptFont) ? scriptFont : null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
+  // Changer de mode repart d'une saisie vide (sauf à l'ouverture d'un élément à modifier).
+  const lastMode = useRef(mode);
   useEffect(() => {
+    if (lastMode.current === mode) return;
+    lastMode.current = mode;
     setText("");
     setImported(null);
     setDrawn(false);
-  }, [kind, mode]);
+  }, [mode]);
 
   // Polices manuscrites chargées pour l'aperçu de l'écriture au clavier.
   useEffect(() => {
@@ -584,7 +639,7 @@ function Editor({
     Promise.all(list.map((k) => ensureCssFont(k).catch(() => undefined))).then(() => setFontsReady((n) => n + 1));
   }, [mode, kind]);
 
-  const base = { id: newId("sign"), kind, createdAt: Date.now(), ...(name.trim() ? { name: name.trim() } : {}) };
+  const base: SignItem = { id: initial?.id ?? newId("sign"), kind, createdAt: initial?.createdAt ?? Date.now(), ...(name.trim() ? { name: name.trim() } : {}) };
   const textMode = mode === "type";
 
   const save = async () => {
@@ -599,8 +654,9 @@ function Editor({
       if (kind === "mention") return onSave({ ...base, text: text.trim(), color }, remember);
       if (kind === "identity") return onSave({ ...base, text: text.trim(), city: city.trim(), withDate, color, ...(identityFont ? { fontKey: identityFont } : {}) }, remember);
       if (kind === "stamp") return onSave({ ...base, stamp: { label: text.trim(), color, withDate } }, remember);
+      // Signature / paraphe écrite : texte et police gardés pour pouvoir la modifier plus tard.
       const png = await renderScript(text.trim(), font, color);
-      if (png) onSave({ ...base, dataUrl: png, color }, remember);
+      if (png) onSave({ ...base, dataUrl: png, color, text: text.trim(), fontKey: font }, remember);
     } catch (e) {
       onError((e as Error).message);
     }
@@ -624,7 +680,15 @@ function Editor({
       {mode === "draw" && (
         <>
           <DrawPad color={color} canvasRef={canvas} onDraw={() => setDrawn(true)} height={kind === "initials" ? 150 : 200} />
-          <p className="hint">{kind === "initials" ? t("Tracez vos initiales dans le cadre.") : kind === "mention" ? t("Écrivez la mention dans le cadre.") : t("Signez dans le cadre.")}</p>
+          <p className="hint">
+            {kind === "initials"
+              ? t("Tracez vos initiales dans le cadre.")
+              : kind === "mention"
+                ? t("Écrivez la mention dans le cadre.")
+                : kind === "identity"
+                  ? t("Écrivez votre nom (et la date si besoin) dans le cadre.")
+                  : t("Signez dans le cadre.")}
+          </p>
         </>
       )}
 

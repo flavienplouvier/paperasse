@@ -505,7 +505,9 @@
   "Choisir une police": "Choose a font",
   "Paraphe (toutes les pages)": "Initials (all pages)",
   "Taille : {n} %": "Size: {n}%",
-  "Cocher tous les éléments « {name} »": "Select all “{name}” items",
-  "Profils": "Profiles",
-  "Remplacera l'élément « {name} » de cet onglet.": "Will replace the “{name}” item in this tab."
+  "Remplacera l'élément « {name} » de cet onglet.": "Will replace the “{name}” item in this tab.",
+  "Cochez plusieurs paraphes pour les poser côte à côte (plusieurs signataires).": "Select several initials to place them side by side (several signatories).",
+  "Écrivez votre nom (et la date si besoin) dans le cadre.": "Write your name (and the date if needed) in the box.",
+  "En bas à droite": "Bottom right",
+  "En bas à gauche": "Bottom left"
 }
