@@ -330,7 +330,7 @@ input[type="checkbox"] {
   grid-area: side;
   display: none;
   flex-direction: column;
-  width: 280px;
+  width: 300px;
   background: var(--surface);
   border-right: 1px solid var(--border);
   min-height: 0;
@@ -340,12 +340,18 @@ input[type="checkbox"] {
 }
 .tabs {
   display: flex;
+  align-items: center;
   gap: 2px;
   padding: 6px;
   border-bottom: 1px solid var(--border);
+  min-width: 0;
 }
 .tabs button {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   border-color: transparent;
   background: transparent;
   font-size: 13px;
@@ -358,9 +364,26 @@ input[type="checkbox"] {
   font-weight: 600;
 }
 .tabs .close {
-  flex: 0 0 36px;
-  width: 36px;
-  min-width: 36px;
+  flex: 0 0 32px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  margin-left: 4px;
+}
+.tabs button .icon {
+  flex-shrink: 0;
+}
+/* Bouton « réduire le panneau » : encadré, comme un bouton. */
+.tabs .close.desktop-only {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+}
+.tabs .close.desktop-only:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 .props {
