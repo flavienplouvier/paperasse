@@ -1964,13 +1964,10 @@ kbd {
   background: var(--accent-soft);
   font-weight: 600;
 }
-.welcome {
-  position: relative;
-}
 .welcome-lang {
-  position: absolute;
-  top: calc(12px + env(safe-area-inset-top));
-  right: 12px;
+  display: flex;
+  justify-content: flex-end;
+  margin: -24px -12px 4px;
 }
 .welcome-lang .lang-btn {
   border-color: var(--border);

@@ -1187,8 +1187,8 @@ export default function App() {
     return (
       <div className={`welcome ${dragOver ? "drag" : ""}`}>
         {filePickers}
-        <LanguagePicker className="welcome-lang" value={language} onChange={setLanguage} withLabel />
         <div className="welcome-card">
+          <LanguagePicker className="welcome-lang" value={language} onChange={setLanguage} withLabel />
           <div className="logo">
             <Icon name="pages" size={40} />
           </div>
