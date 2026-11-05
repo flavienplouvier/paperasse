@@ -122,7 +122,7 @@ export async function blockParts(a: TextAnnotation, loadFont: (key: string) => P
   const { right, down } = screenAxes(a.rotation);
   const parts: TextAnnotation[] = [];
   const base = { ...a, box: undefined, styles: undefined, fonts: undefined };
-  layoutText(a.text, box.width, box.align, measure).forEach((l, i) => {
+  layoutText(a.text, box.width, box.align, measure, box.original).forEach((l, i) => {
     if (!l.text) return;
     const start = addScaled(addScaled(a.origin, down, i * box.lineHeight), right, l.x);
     let x = 0;

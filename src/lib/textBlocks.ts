@@ -331,11 +331,34 @@ export interface LaidLine {
  * justifié, la dernière ligne de chaque paragraphe reste alignée à gauche.
  * `measure(s, offset)` mesure `s` situé à `offset` dans le texte (styles mélangés).
  */
-export function layoutText(text: string, maxWidth: number, align: Align, measure: (s: string, offset: number) => number): LaidLine[] {
+/** Ligne d'origine du PDF : texte, position depuis le bord gauche du bloc, largeur. */
+export interface OriginalLine {
+  text: string;
+  x: number;
+  w: number;
+}
+
+export function layoutText(
+  text: string,
+  maxWidth: number,
+  align: Align,
+  measure: (s: string, offset: number) => number,
+  original?: OriginalLine[],
+): LaidLine[] {
   const out: LaidLine[] = [];
   let offset = 0;
   const paras = text.split("\n");
   for (const [p, para] of paras.entries()) {
+    // Ligne d'origine non modifiée : exactement à sa place et à sa largeur dans le PDF
+    // (l'espacement des mots absorbe les écarts de mesure, d'espacement des lettres…).
+    const orig = original?.[p];
+    if (orig && para === orig.text && para) {
+      const natural = measure(para, offset);
+      const spaces = para.split(" ").length - 1;
+      out.push({ text: para, start: offset, x: orig.x, wordSpacing: spaces ? (orig.w - natural) / spaces : 0, width: orig.w });
+      offset += para.length + 1;
+      continue;
+    }
     // Ligne d'origine suivie d'une autre ligne du même paragraphe : justifiée elle aussi.
     const goesOn = p < paras.length - 1 && continues(para, paras[p + 1]);
     type Word = { w: string; at: number };

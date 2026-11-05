@@ -521,7 +521,7 @@ function PageViewImpl(props: Props) {
       (a.styles?.length ? runsOf(str, offset).reduce((w, r) => w + ctx(r.font).measure(r.text), 0) : main.measure(str)) + spaceFix * spaces(str);
     let start = 0;
     const laid = a.box
-      ? layoutText(a.text, a.box.width, a.box.align, measure)
+      ? layoutText(a.text, a.box.width, a.box.align, measure, a.box.original)
       : a.text.split(/\r?\n/).map((line) => {
           const l = { text: line, start, x: 0, wordSpacing: 0, width: line ? measure(line, start) : 0 };
           start += line.length + 1;
@@ -646,40 +646,67 @@ function PageViewImpl(props: Props) {
       case "text": {
         const [x, y] = toView(a.origin);
         const size = a.fontSize * scale;
-        const { css, laid, ctx, runsOf, spaceFix } = textLayout(a);
+        const { css, laid, ctx, runsOf, measure } = textLayout(a);
         const step = (a.box ? a.box.lineHeight : a.fontSize * LINE_HEIGHT) * scale;
-        /** Un morceau de même style : police d'origine lettre par lettre, remplacement pour les absentes. */
-        const runContent = (text: string, k: number) => {
-          const { original, fallbackCss } = ctx(k);
-          return original
-            ? segmentLine(original, text).map((seg, n) =>
-                seg.source === -1 || seg.source === "space" ? (
-                  <tspan key={n}>{displayText(original, seg.text)}</tspan>
-                ) : (
-                  <tspan
-                    key={n}
-                    fontFamily={fallbackCss.fontFamily}
-                    fontWeight={"fontWeight" in fallbackCss ? fallbackCss.fontWeight : undefined}
-                    fontStyle={"fontStyle" in fallbackCss ? fallbackCss.fontStyle : undefined}
-                  >
-                    {seg.text}
-                  </tspan>
-                ),
-              )
-            : text;
+        // Chaque lettre est placée à sa position calculée (largeurs du PDF, espaces d'origine,
+        // justification), comme le fait pdf.js : l'affichage, le curseur et l'export coïncident.
+        const xsOf = (l: (typeof laid)[number]) => {
+          const xs: number[] = [];
+          let cx = l.x;
+          [...l.text].forEach((ch, k) => {
+            xs.push(x + cx * scale);
+            cx += measure(ch, l.start + k) + (ch === " " ? l.wordSpacing : 0);
+          });
+          return xs;
         };
-        const lineContent = (line: string, offset: number) =>
-          !line
-            ? " "
-            : runsOf(line, offset).map((r, n) => {
-                if (r.font < 0) return <tspan key={n}>{runContent(r.text, -1)}</tspan>;
-                const c = ctx(r.font).css;
-                return (
-                  <tspan key={n} fontFamily={c.fontFamily} fontWeight={"fontWeight" in c ? c.fontWeight : undefined} fontStyle={"fontStyle" in c ? c.fontStyle : undefined}>
-                    {runContent(r.text, r.font)}
-                  </tspan>
-                );
-              });
+        const at = (xs: number[]) => xs.map((v) => v.toFixed(2)).join(" ");
+        /** Un morceau de même style : police d'origine lettre par lettre, remplacement pour les absentes. */
+        const runContent = (text: string, k: number, xs: number[]) => {
+          const { original, fallbackCss } = ctx(k);
+          if (!original) return <tspan x={at(xs)}>{text}</tspan>;
+          let i = 0;
+          return segmentLine(original, text).map((seg, n) => {
+            const len = [...seg.text].length;
+            const pos = xs.slice(i, i + len);
+            i += len;
+            if (seg.source === -1 || seg.source === "space") {
+              const shown = displayText(original, seg.text);
+              // Caractère d'affichage double (rare) : seule la première position est donnée.
+              return (
+                <tspan key={n} x={[...shown].length === len ? at(pos) : pos[0].toFixed(2)}>
+                  {shown}
+                </tspan>
+              );
+            }
+            return (
+              <tspan
+                key={n}
+                x={at(pos)}
+                fontFamily={fallbackCss.fontFamily}
+                fontWeight={"fontWeight" in fallbackCss ? fallbackCss.fontWeight : undefined}
+                fontStyle={"fontStyle" in fallbackCss ? fallbackCss.fontStyle : undefined}
+              >
+                {seg.text}
+              </tspan>
+            );
+          });
+        };
+        const lineContent = (l: (typeof laid)[number]) => {
+          if (!l.text) return " ";
+          const xs = xsOf(l);
+          let i = 0;
+          return runsOf(l.text, l.start).map((r, n) => {
+            const pos = xs.slice(i, i + [...r.text].length);
+            i += [...r.text].length;
+            if (r.font < 0) return <tspan key={n}>{runContent(r.text, -1, pos)}</tspan>;
+            const c = ctx(r.font).css;
+            return (
+              <tspan key={n} fontFamily={c.fontFamily} fontWeight={"fontWeight" in c ? c.fontWeight : undefined} fontStyle={"fontStyle" in c ? c.fontStyle : undefined}>
+                {runContent(r.text, r.font, pos)}
+              </tspan>
+            );
+          });
+        };
         const turn = `rotate(${rotation - a.rotation} ${x} ${y})`;
         const textEl = (
           <text
@@ -698,8 +725,8 @@ function PageViewImpl(props: Props) {
             style={{ ...common.style, whiteSpace: "pre", userSelect: "none" }}
           >
             {laid.map((l, i) => (
-              <tspan key={i} x={x + l.x * scale} y={y + i * step} style={l.wordSpacing || spaceFix ? { wordSpacing: `${(l.wordSpacing + spaceFix) * scale}px` } : undefined}>
-                {lineContent(l.text, l.start)}
+              <tspan key={i} x={x + l.x * scale} y={y + i * step}>
+                {lineContent(l)}
               </tspan>
             ))}
           </text>

@@ -868,6 +868,7 @@ export default function App() {
                 lineHeight: Math.round(asBlock.lineHeight * 100) / 100,
                 lines: asBlock.lines.length,
                 ...(asBlock.space ? { space: Math.round(asBlock.space * 100) / 100 } : {}),
+                original: asBlock.lines.map((l) => ({ text: l.text, x: l.origin[0] - asBlock.left, w: l.width })),
               },
               ...(mixed && mixed.styles.length ? { styles: mixed.styles, fonts: extraFonts } : {}),
             }

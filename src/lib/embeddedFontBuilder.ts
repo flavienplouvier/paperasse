@@ -105,7 +105,10 @@ export async function buildEmbeddedFont(
   } catch {
     return null;
   }
-  const info = findFontDict(doc, font.name);
+  // Police simple ou composite (Word donne parfois le même nom aux deux) : d'après les codes.
+  const codesOf = font.widths instanceof Map ? [...font.widths.keys()] : font.widths ? Object.keys(font.widths).map(Number) : [];
+  const composite = codesOf.length ? codesOf.some((c) => c > 255) : undefined;
+  const info = findFontDict(doc, font.name, composite);
   const codes = info && fontCodeMap(info);
   if (!codes) return null;
 
@@ -116,7 +119,11 @@ export async function buildEmbeddedFont(
     const glyphs: EmbeddedFont["glyphs"] = {};
     for (const [code, text] of codes.map) {
       if ([...text].length !== 1 || glyphs[text]) continue;
-      glyphs[text] = { code, display: text, width: lookup(font.widths, code) ?? font.defaultWidth };
+      const width = lookup(font.widths, code) ?? font.defaultWidth;
+      // Largeur 0 : caractère non utilisé dans le document (Word ne déclare que ceux qu'il emploie).
+      // Écrit avec cette ressource, il n'avancerait pas : on le laisse à la police de remplacement.
+      if (!width && text.trim()) continue;
+      glyphs[text] = { code, display: text, width };
     }
     if (!Object.keys(glyphs).length) return null;
     const sys = font.systemFontInfo;

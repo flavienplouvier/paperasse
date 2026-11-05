@@ -108,6 +108,8 @@ export interface TextAnnotation extends AnnotationBase {
     lines?: number;
     /** Largeur d'une espace entre deux mots, mesurée dans le PDF d'origine (points). */
     space?: number;
+    /** Lignes d'origine (texte, position depuis le bord gauche, largeur) : non modifiées, elles restent à l'identique. */
+    original?: { text: string; x: number; w: number }[];
   };
   /** Styles mélangés d'un bloc : plages écrites dans d'autres polices (gras, lien, symbole…). */
   styles?: { start: number; end: number; font: number }[];

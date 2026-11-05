@@ -136,10 +136,12 @@ const withoutSubsetTag = (n: string) => n.replace(/^[A-Z]{6}\+/, "");
  * Correspondance exacte d'abord (un PDF peut contenir plusieurs sous-ensembles
  * de la même police), puis sans le préfixe de sous-ensemble si elle est unique.
  */
-export function findFontDict(doc: PDFDocument, baseFont: string): FontDictInfo | null {
+export function findFontDict(doc: PDFDocument, baseFont: string, composite?: boolean): FontDictInfo | null {
   const wanted = cleanName(baseFont);
   const fonts = fontDicts(doc);
-  const exact = fonts.find((f) => f.names.includes(wanted));
+  // Même nom pour une police simple et une police composite (Word) : le type départage.
+  const exacts = fonts.filter((f) => f.names.includes(wanted));
+  const exact = (composite !== undefined && exacts.find((f) => (f.info.subtype === "Type0") === composite)) || exacts[0];
   if (exact) return exact.info;
   const loose = fonts.filter((f) => f.names.some((n) => withoutSubsetTag(n) === withoutSubsetTag(wanted)));
   return loose.length === 1 ? loose[0].info : null;
@@ -305,7 +307,7 @@ export async function drawEmbeddedText(
   fallback?: () => Promise<PDFFont>,
 ): Promise<boolean> {
   const font = a.embedded;
-  const info = findFontDict(doc, font.baseFont);
+  const info = findFontDict(doc, font.baseFont, font.codeBytes === 2);
   if (!info) return false;
   page.node.normalize();
 

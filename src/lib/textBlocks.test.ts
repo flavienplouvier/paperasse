@@ -132,6 +132,18 @@ describe("mise en page", () => {
     expect(lines[1].wordSpacing).toBe(0);
   });
 
+  it("une ligne d'origine non modifiée reste à sa place et à sa largeur", () => {
+    const original = [
+      { text: "aa bb", x: 7, w: 62 },
+      { text: "cc", x: 20, w: 20 },
+    ];
+    const lines = layoutText("aa bb\ncc dd", 80, "center", measure, original);
+    // 1re ligne intacte : position et largeur d'origine, l'écart est réparti sur l'espace.
+    expect(lines[0]).toMatchObject({ x: 7, width: 62, wordSpacing: 12 });
+    // 2e ligne modifiée : recentrée normalement.
+    expect(lines[1]).toMatchObject({ text: "cc dd", x: 15, wordSpacing: 0 });
+  });
+
   it("justifie toutes les lignes sauf la dernière", () => {
     const lines = layoutText("aa bb cc dd", 60, "justify", measure);
     expect(lines.map((l) => l.text)).toEqual(["aa bb", "cc dd"]);
