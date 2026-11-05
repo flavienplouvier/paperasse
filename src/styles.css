@@ -1140,10 +1140,244 @@ kbd {
       "viewer"
       "tools";
   }
-  .toolbar {
-    border-bottom: 0;
+  /* Téléphone : la barre d'outils du bas (MobileBar) remplace la barre de bureau. */
+  .toolbar,
+  .page-indicator,
+  .zoom-fab.mobile-only {
+    display: none !important;
+  }
+  .mbar {
+    grid-area: tools;
+    display: flex !important;
+    align-items: center;
+    gap: 2px;
+    min-height: 68px;
+    padding: 4px 6px max(6px, env(safe-area-inset-bottom));
+    background: var(--surface);
     border-top: 1px solid var(--border);
-    padding-bottom: max(4px, env(safe-area-inset-bottom));
+  }
+  .mbar-back {
+    flex: none;
+    width: 44px;
+    height: 56px;
+    padding: 0;
+    border: 0;
+    border-right: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mbar-items {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .mbar-items::-webkit-scrollbar {
+    display: none;
+  }
+  .mbar-item {
+    flex: none;
+    min-width: 46px;
+    height: 56px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+  }
+  .mbar-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .mbar-item:disabled {
+    opacity: 0.4;
+  }
+  .mbar-label {
+    font-size: 10.5px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .mbar-glyph {
+    font-size: 17px;
+    line-height: 24px;
+    height: 24px;
+    font-weight: 700;
+  }
+  .mbar-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    box-sizing: border-box;
+  }
+  /* Petit volet de réglage (couleur, taille, police, opacité) au-dessus de la barre. */
+  .msheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(68px + env(safe-area-inset-bottom));
+    z-index: 30;
+    display: flex !important;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 50dvh;
+    overflow-y: auto;
+    padding: 8px 16px 14px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.1);
+  }
+  .msheet-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    align-self: center;
+  }
+  .msheet-colors {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .msheet .font-list {
+    max-height: 30dvh;
+  }
+  /* Bulle d'aide de l'outil, en haut du document. */
+  .mobile-hint {
+    position: fixed;
+    top: calc(64px + env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 25;
+    max-width: calc(100vw - 32px);
+    padding: 8px 14px;
+    border-radius: 18px;
+    background: rgba(27, 29, 34, 0.88);
+    color: #fff;
+    font-size: 13px;
+    text-align: center;
+    pointer-events: none;
+  }
+  .page-chip {
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  /* Ordre de la barre du haut : ouvrir, rechercher, ajuster, annuler, rétablir, page … enregistrer. */
+  .top-actions .open-btn {
+    order: 1;
+  }
+  .top-actions .m-search {
+    order: 2;
+  }
+  .top-actions .m-fit {
+    order: 3;
+  }
+  .top-actions [title^="Annuler"] {
+    order: 4;
+  }
+  .top-actions [title^="Rétablir"] {
+    order: 5;
+  }
+  .top-actions .page-chip {
+    order: 6;
+    margin-left: 4px;
+  }
+  .top-actions .save-btn {
+    order: 9;
+    margin-left: auto;
+  }
+  /* Tiroir du menu (☰). */
+  .mdrawer-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex !important;
+    background: rgba(20, 24, 33, 0.35);
+  }
+  .mdrawer {
+    width: min(82vw, 320px);
+    height: 100%;
+    overflow-y: auto;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    padding: calc(12px + env(safe-area-inset-top)) 10px 16px;
+    box-sizing: border-box;
+  }
+  .mdrawer hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 6px 8px;
+  }
+  .mdrawer-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px 12px;
+  }
+  .mdrawer-logo {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: var(--accent-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+  }
+  .mdrawer-name {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .mdrawer-name strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mdrawer-name small {
+    color: var(--muted);
+  }
+  .mdrawer-item {
+    width: 100%;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text);
+    font-size: 15px;
+    text-align: left;
+  }
+  .mdrawer-item:disabled {
+    opacity: 0.4;
   }
   .tool {
     min-width: 62px;
@@ -1167,9 +1401,9 @@ kbd {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(var(--toolbar-h) + env(safe-area-inset-bottom));
+    bottom: calc(68px + env(safe-area-inset-bottom));
     width: auto;
-    max-height: 48dvh;
+    max-height: 50dvh;
     z-index: 30;
     border-left: 0;
     border-top: 1px solid var(--border);
@@ -1201,7 +1435,7 @@ kbd {
   }
   .top-actions {
     flex: 1;
-    justify-content: space-between;
+    justify-content: flex-start;
     min-width: 0;
   }
   .topbar .icon-btn {
@@ -1209,7 +1443,12 @@ kbd {
     min-width: 36px;
   }
   .open-btn {
-    padding: 0 10px;
-    margin-right: auto;
+    width: 36px;
+    min-width: 36px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    justify-content: center;
   }
 }

@@ -34,6 +34,7 @@ import { SearchPanel } from "./components/SearchPanel";
 import { FormsPanel } from "./components/FormsPanel";
 import { SignaturePad } from "./components/SignaturePad";
 import { DocumentTools, type DocTab } from "./components/DocumentTools";
+import { MobileBar } from "./components/MobileBar";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import { OcrDialog } from "./components/OcrDialog";
 import { pageHasText } from "./lib/ocr";
@@ -175,6 +176,7 @@ export default function App() {
   const [toast, setToast] = useState<{ msg: string; error?: boolean } | null>(null);
   const [pending, setPending] = useState<{ dataUrl: string; w: number; h: number; kind: PendingKind } | null>(null);
   const [signing, setSigning] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState(false);
   const [docTools, setDocTools] = useState<DocTab | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -673,7 +675,7 @@ export default function App() {
       // pour enchaîner les ajouts (on en sort avec un autre outil ou Échap).
       if (a.kind === "text") {
         setSelectedId(a.id);
-        setPropsOpen(true);
+        if (!isMobile()) setPropsOpen(true);
       }
     },
     [addAnnotations, commit],
@@ -800,7 +802,7 @@ export default function App() {
       setPendingEdit({ cover, text: text as TextAnnotation, snapshot: JSON.stringify(text) });
       // On reste en mode « Modifier le texte » pour enchaîner les modifications.
       setSelectedId(text.id);
-      setPropsOpen(true);
+      if (!isMobile()) setPropsOpen(true);
       // Signale seulement une vraie substitution (autre famille que l'originale).
       const chosen = getFont(fontKey);
       const original = (real ?? "").replace(/^[A-Z]{6}\+/, "");
@@ -1178,7 +1180,11 @@ export default function App() {
     <div className={`app ${panel ? "with-panel" : ""} ${propsOpen ? "with-props" : ""} ${dragOver ? "drag" : ""}`}>
       {filePickers}
       <header className="topbar">
-        <button className="icon-btn" title="Panneau des pages" onClick={() => setPanel((p) => (p ? null : "pages"))}>
+        <button
+          className="icon-btn"
+          title="Menu"
+          onClick={() => (isMobile() ? setMobileMenu(true) : setPanel((p) => (p ? null : "pages")))}
+        >
           <Icon name="menu" />
         </button>
         <div className="doc-name" title={doc.name}>
@@ -1188,7 +1194,12 @@ export default function App() {
           <button className="open-btn" title="Ouvrir un fichier PDF ou une image (Ctrl+O)" onClick={() => openInput.current?.click()}>
             <Icon name="open" />
             <span className="desktop-only">Ouvrir un fichier</span>
-            <span className="mobile-only">Ouvrir</span>
+          </button>
+          <button className="icon-btn m-search mobile-only" title="Rechercher" onClick={() => setPanel((p) => (p === "search" ? null : "search"))}>
+            <Icon name="search" />
+          </button>
+          <button className="icon-btn m-fit mobile-only" title="Ajuster à la largeur" onClick={() => setFitWidth(true)}>
+            <Icon name="fit" />
           </button>
           <button className="icon-btn" title="Annuler (Ctrl+Z)" disabled={!past.current.length} onClick={undo}>
             <Icon name="undo" />
@@ -1207,13 +1218,18 @@ export default function App() {
             <Icon name="zoomIn" />
           </button>
           <span className="sep desktop-only" />
-          <button className="icon-btn" title="Rechercher (Ctrl+F)" onClick={() => setPanel((p) => (p === "search" ? null : "search"))}>
+          <button className="icon-btn desktop-only" title="Rechercher (Ctrl+F)" onClick={() => setPanel((p) => (p === "search" ? null : "search"))}>
             <Icon name="search" />
           </button>
+          {pdf && (
+            <button className="page-chip mobile-only" title="Pages" onClick={() => setPanel("pages")}>
+              {currentPage + 1} / {pdf.numPages}
+            </button>
+          )}
           <button className="icon-btn desktop-only" title="Imprimer" onClick={print}>
             <Icon name="print" />
           </button>
-          <div className="menu-wrap">
+          <div className="menu-wrap desktop-only">
             <button className="icon-btn" title="Plus d'outils" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
               <Icon name="more" />
             </button>
@@ -1315,6 +1331,75 @@ export default function App() {
           <span>Réglages</span>
         </button>
       </nav>
+
+      <MobileBar
+        tool={editable ? tool : "select"}
+        style={style}
+        selected={selected}
+        editable={editable}
+        placing={!!pending}
+        onTool={(t) => {
+          setTool(t);
+          setPending(null);
+          if (t !== "select") setSelectedId(null);
+        }}
+        onStyle={(p) => setStyle((s) => ({ ...s, ...p }))}
+        onUpdate={onChange}
+        onDelete={deleteSelected}
+        onDuplicate={duplicateSelected}
+        onDeselect={() => setSelectedId(null)}
+        onAction={(a) => (a === "sign" ? setSigning(true) : a === "image" ? imageInput.current?.click() : setPanel("forms"))}
+        onSettings={() => setPropsOpen(true)}
+        onError={(m) => notify(m, true)}
+        pickedColors={pickedColors}
+        onPickColor={pickColor}
+        fileFonts={fileFonts}
+      />
+
+      {mobileMenu && (
+        <div className="mdrawer-wrap mobile-only" onClick={() => setMobileMenu(false)}>
+          <aside className="mdrawer" aria-label="Menu" onClick={(e) => e.stopPropagation()}>
+            <div className="mdrawer-head">
+              <span className="mdrawer-logo">P</span>
+              <span className="mdrawer-name">
+                <strong>{doc.name}</strong>
+                {pdf && <small>{pdf.numPages} page{pdf.numPages > 1 ? "s" : ""}</small>}
+              </span>
+            </div>
+            {[
+              { icon: "open", label: "Ouvrir un fichier", run: () => openInput.current?.click() },
+              { icon: "pages", label: "Pages et miniatures", run: () => setPanel("pages") },
+              { icon: "search", label: "Rechercher", run: () => setPanel("search") },
+              { icon: "form", label: "Formulaire", run: () => setPanel("forms") },
+              { icon: "merge", label: "Ajouter un PDF ou une image", run: () => mergeInput.current?.click(), off: !editable, sep: true },
+              { icon: "pages", label: "Numéroter les pages", run: () => setDocTools("numbers"), off: !editable },
+              { icon: "text", label: "En-tête et pied de page", run: () => setDocTools("headers"), off: !editable },
+              { icon: "stamp", label: "Filigrane", run: () => setDocTools("watermark"), off: !editable },
+              { icon: "compress", label: "Compresser le PDF", run: () => setDocTools("compress"), off: !editable || !doc.rewritable },
+              { icon: "search", label: "Reconnaissance de texte (OCR)", run: () => setOcrOpen(true), off: !editable || !doc.rewritable },
+              { icon: "share", label: "Partager", run: share, sep: true },
+              { icon: "image", label: "Exporter la page en image", run: exportPageImage },
+              { icon: "print", label: "Imprimer", run: print },
+              { icon: "info", label: "Propriétés du document", run: () => setDocTools("properties"), off: !editable },
+            ].map((m) => (
+              <div key={m.label}>
+                {m.sep && <hr />}
+                <button
+                  className="mdrawer-item"
+                  disabled={m.off}
+                  onClick={() => {
+                    setMobileMenu(false);
+                    m.run();
+                  }}
+                >
+                  <Icon name={m.icon} />
+                  <span>{m.label}</span>
+                </button>
+              </div>
+            ))}
+          </aside>
+        </div>
+      )}
 
       {panel && <div className="backdrop mobile-only" onClick={() => setPanel(null)} />}
       <aside className={`side-panel ${panel ? "open" : ""}`}>
@@ -1428,7 +1513,7 @@ export default function App() {
                 onEditText={onEditText}
                 onPlace={onPlace}
                 onErase={onErase}
-                onFocusText={() => setPropsOpen(true)}
+                onFocusText={() => !isMobile() && setPropsOpen(true)}
                 registerElement={registerElement}
                 onPickColor={picking ? finishPick : undefined}
               />

@@ -41,7 +41,46 @@ function StampPicker({ onStamp }: { onStamp: (dataUrl: string) => void }) {
   );
 }
 
-const COLORS = ["#000000", "#ffffff", "#e5484d", "#f76b15", "#ffe14d", "#30a46c", "#0090ff", "#1a2b6d", "#8e4ec6"];
+export const COLORS = ["#000000", "#ffffff", "#e5484d", "#f76b15", "#ffe14d", "#30a46c", "#0090ff", "#1a2b6d", "#8e4ec6"];
+
+/**
+ * Applique un réglage (couleur, police, épaisseur…) : il est retenu pour les
+ * éléments suivants (`onStyle`) et appliqué à l'élément sélectionné s'il y en a un.
+ * Partagé par le panneau de réglages et la barre d'outils mobile.
+ */
+export function applyStyle(
+  patch: Partial<ToolStyle> & { text?: string },
+  selected: Annotation | null,
+  onStyle: (p: Partial<ToolStyle>) => void,
+  onUpdate: (a: Annotation, commit: boolean) => void,
+  commit = true,
+) {
+  const { text, ...stylePatch } = patch;
+  if (Object.keys(stylePatch).length) onStyle(stylePatch);
+  if (selected) {
+    const next = { ...selected } as Record<string, unknown>;
+    for (const [k, v] of Object.entries(patch)) {
+      if (k in selected || (k === "underline" && selected.kind === "text")) next[k] = v;
+    }
+    if (text !== undefined) next.text = text;
+    // Choisir une autre police abandonne la police incorporée d'origine.
+    if (patch.fontKey !== undefined) delete next.embedded;
+    onUpdate(next as unknown as Annotation, commit);
+  }
+}
+
+/** Valeurs affichées : celles de l'élément sélectionné, sinon celles de l'outil. */
+export function currentStyle(selected: Annotation | null, style: ToolStyle) {
+  return {
+    color: selected?.color ?? style.color,
+    opacity: selected?.opacity ?? style.opacity,
+    width: selected && "width" in selected ? selected.width : style.width,
+    fill: selected && "fill" in selected ? selected.fill : style.fill,
+    fontKey: selected?.kind === "text" ? selected.fontKey : style.fontKey,
+    fontSize: selected?.kind === "text" ? selected.fontSize : style.fontSize,
+    underline: selected?.kind === "text" ? !!selected.underline : style.underline,
+  };
+}
 
 interface Props {
   tool: Tool;
@@ -100,31 +139,10 @@ export function PropertiesPanel({
 }: Props) {
   useFonts(); // re-rendu quand la bibliothèque de polices est chargée (boutons G / I)
   // Modifie l'annotation sélectionnée, et retient le réglage pour les suivantes.
-  const set = (patch: Partial<ToolStyle> & { text?: string }, commit = true) => {
-    const { text, ...stylePatch } = patch;
-    if (Object.keys(stylePatch).length) onStyle(stylePatch);
-    if (selected) {
-      const next = { ...selected } as Record<string, unknown>;
-      for (const [k, v] of Object.entries(patch)) {
-        if (k in selected || (k === "underline" && selected.kind === "text")) next[k] = v;
-      }
-      if (text !== undefined) next.text = text;
-      // Choisir une autre police abandonne la police incorporée d'origine.
-      if (patch.fontKey !== undefined) delete next.embedded;
-      onUpdate(next as unknown as Annotation, commit);
-    }
-  };
+  const set = (patch: Partial<ToolStyle> & { text?: string }, commit = true) => applyStyle(patch, selected, onStyle, onUpdate, commit);
 
   const kind = selected?.kind ?? tool;
-  const v = {
-    color: selected?.color ?? style.color,
-    opacity: selected?.opacity ?? style.opacity,
-    width: selected && "width" in selected ? selected.width : style.width,
-    fill: selected && "fill" in selected ? selected.fill : style.fill,
-    fontKey: selected?.kind === "text" ? selected.fontKey : style.fontKey,
-    fontSize: selected?.kind === "text" ? selected.fontSize : style.fontSize,
-    underline: selected?.kind === "text" ? !!selected.underline : style.underline,
-  };
+  const v = currentStyle(selected, style);
   /**
    * Après chargement des polices de l'ordinateur : si le texte modifié vient d'une
    * police qui y est installée (ex. Times New Roman, Calibri), on l'utilise à la
