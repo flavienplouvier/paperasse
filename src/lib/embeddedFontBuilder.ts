@@ -14,6 +14,8 @@ interface PdfjsFont {
   /** Largeurs par code, en millièmes de corps. */
   widths?: Map<number, number> | Record<number, number> | number[];
   defaultWidth?: number;
+  /** Police composite (Type0) ou simple, d'après pdf.js. */
+  composite?: boolean;
   /** Police non incorporée : police système utilisée par pdf.js pour l'afficher. */
   systemFontInfo?: { css?: string; loadedName?: string } | null;
 }
@@ -105,9 +107,10 @@ export async function buildEmbeddedFont(
   } catch {
     return null;
   }
-  // Police simple ou composite (Word donne parfois le même nom aux deux) : d'après les codes.
+  // Police simple ou composite (Word donne parfois le même nom aux deux) : indiqué par pdf.js,
+  // à défaut deviné d'après les codes (un code > 255 n'existe que dans une police composite).
   const codesOf = font.widths instanceof Map ? [...font.widths.keys()] : font.widths ? Object.keys(font.widths).map(Number) : [];
-  const composite = codesOf.length ? codesOf.some((c) => c > 255) : undefined;
+  const composite = typeof font.composite === "boolean" ? font.composite : codesOf.some((c) => c > 255) || undefined;
   const info = findFontDict(doc, font.name, composite);
   const codes = info && fontCodeMap(info);
   if (!codes) return null;

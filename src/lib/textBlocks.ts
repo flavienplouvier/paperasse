@@ -1,4 +1,5 @@
 import type { Point, Rect } from "./types";
+import { horizontalBetween, verticalBetween, type Rule } from "./rules";
 
 /**
  * Blocs de texte : un PDF n'écrit pas des paragraphes mais des morceaux de
@@ -56,7 +57,7 @@ export interface TextBlock {
 const right = (p: Piece) => p.baseline[0] + (p.width ?? 0);
 
 /** Morceaux d'une même ligne recollés ; un grand écart (colonne, case de tableau) coupe la ligne. */
-export function groupLines(pieces: Piece[]): BlockLine[] {
+export function groupLines(pieces: Piece[], rules: Rule[] = []): BlockLine[] {
   const flat = pieces.filter((p) => p.angle === 0 && p.str.length && p.fontSize > 0);
   // Regroupement par ligne de base.
   const rows: Piece[][] = [];
@@ -111,6 +112,8 @@ export function groupLines(pieces: Piece[]): BlockLine[] {
       // Écart mesuré depuis le dernier mot (pas depuis une espace).
       const prev = [...cur].reverse().find((x) => x.str.trim());
       if (prev && p.baseline[0] - right(prev) > 1.2 * p.fontSize) flush();
+      // Bordure de cellule entre les deux : jamais dans le même bloc.
+      else if (prev && verticalBetween(rules, right(prev), p.baseline[0], p.baseline[1] - 0.2 * p.fontSize, p.baseline[1] + 0.7 * p.fontSize)) flush();
       cur.push(p);
     }
     flush();
@@ -142,7 +145,7 @@ function detectAlign(lines: BlockLine[], tol: number): Align {
 }
 
 /** Lignes regroupées en blocs : même corps, interligne régulier, bords alignés ou centrés. */
-export function groupBlocks(lines: BlockLine[]): TextBlock[] {
+export function groupBlocks(lines: BlockLine[], rules: Rule[] = []): TextBlock[] {
   const ordered = [...lines].sort((a, b) => b.origin[1] - a.origin[1] || a.origin[0] - b.origin[0]);
   const groups: BlockLine[][] = [];
   for (const line of ordered) {
@@ -159,6 +162,8 @@ export function groupBlocks(lines: BlockLine[]): TextBlock[] {
       const l0 = last.origin[0], r0 = l0 + last.width, l1 = line.origin[0], r1 = l1 + line.width;
       const overlap = Math.min(r0, r1) - Math.max(l0, l1);
       if (overlap < 0.3 * Math.min(r0 - l0, r1 - l1)) return false;
+      // Filet ou bordure de tableau entre les deux lignes.
+      if (horizontalBetween(rules, line.origin[1] + 0.75 * line.fontSize, last.origin[1] - 0.25 * size, Math.max(l0, l1), Math.min(r0, r1))) return false;
       const tol = 0.8 * size;
       return Math.abs(l0 - l1) < tol || Math.abs((l0 + r0) / 2 - (l1 + r1) / 2) < tol || Math.abs(r0 - r1) < tol;
     });
@@ -282,7 +287,9 @@ export function shiftStyles(styles: StyleRange[], before: string, after: string)
   while (suf < before.length - pre && suf < after.length - pre && before[before.length - 1 - suf] === after[after.length - 1 - suf]) suf++;
   const oldFonts = [...Array(before.length).keys()].map((i) => fontIndexAt(styles, i));
   const inserted = after.length - pre - suf;
-  const inherit = pre > 0 ? oldFonts[pre - 1] : (oldFonts[before.length - suf] ?? -1);
+  // Remplacement : le nouveau texte prend le style du texte remplacé ; insertion : celui qui précède.
+  const replaced = before.length - pre - suf > 0;
+  const inherit = replaced ? oldFonts[pre] : pre > 0 ? oldFonts[pre - 1] : (oldFonts[before.length - suf] ?? -1);
   const fonts = [...oldFonts.slice(0, pre), ...Array<number>(inserted).fill(inherit), ...oldFonts.slice(before.length - suf)];
   const out: StyleRange[] = [];
   fonts.forEach((f, i) => {
@@ -294,8 +301,8 @@ export function shiftStyles(styles: StyleRange[], before: string, after: string)
   return out;
 }
 
-export function blocksOf(pieces: Piece[]): TextBlock[] {
-  return groupBlocks(groupLines(pieces));
+export function blocksOf(pieces: Piece[], rules: Rule[] = []): TextBlock[] {
+  return groupBlocks(groupLines(pieces, rules), rules);
 }
 
 /** Bloc qui contient le point (le plus petit s'il y en a plusieurs). */

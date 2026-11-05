@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Rule } from "./rules";
 import { blockAt, blocksOf, layoutText, reflowText, shiftStyles, stylesFromFonts, type Piece } from "./textBlocks";
 
 const piece = (str: string, x: number, y: number, width: number, fontSize = 18, fontName = "f1"): Piece => ({ str, baseline: [x, y], width, fontSize, fontName, angle: 0 });
@@ -77,6 +78,21 @@ describe("blocs de texte", () => {
   it("une espace très large (tabulation) sépare deux colonnes", () => {
     const row = [piece("PAIEMENT :", 20.6, 338.7, 68.2, 12), piece(" ", 88.8, 338.7, 321.9, 12), piece("TOTAL H.T.", 410.7, 340.9, 64, 12)];
     expect(blocksOf(row).map((b) => b.text).sort()).toEqual(["PAIEMENT :", "TOTAL H.T."]);
+  });
+
+  it("une bordure de tableau sépare l'étiquette du montant", () => {
+    const row = [piece("TOTAL T.T.C.", 388.4, 297.4, 86.1, 14, "f4"), piece(" ", 474.5, 297.4, 9.1, 14, "f4"), piece("25615.20 €", 483.6, 297.1, 63.5, 14, "f5")];
+    expect(blocksOf(row)).toHaveLength(1);
+    const border: Rule = { x1: 476, y1: 280, x2: 477, y2: 315, vertical: true };
+    expect(blocksOf(row, [border]).map((b) => b.text).sort()).toEqual(["25615.20 €", "TOTAL T.T.C."]);
+  });
+
+  it("un filet horizontal sépare deux lignes", () => {
+    const rows = [piece("Total", 51, 500, 30, 10), piece("TVA", 51, 486, 20, 10)];
+    expect(blocksOf(rows)).toHaveLength(1);
+    expect(blocksOf(rows, [{ x1: 40, y1: 495, x2: 200, y2: 495.8, vertical: false }])).toHaveLength(2);
+    // Un soulignement juste sous la ligne ne coupe pas le bloc.
+    expect(blocksOf(rows, [{ x1: 51, y1: 498.6, x2: 81, y2: 499.2, vertical: false }])).toHaveLength(1);
   });
 
   it("trouve le bloc sous le pointeur", () => {
@@ -185,6 +201,9 @@ describe("styles mélangés", () => {
     expect(shiftStyles(styles, "abcd", "Xabcd")).toEqual([{ start: 0, end: 3, font: 0 }]);
     expect(shiftStyles(styles, "abcd", "acd")).toEqual([{ start: 0, end: 1, font: 0 }]);
     expect(shiftStyles(styles, "abcd", "abcdY")).toEqual([{ start: 0, end: 2, font: 0 }]);
+    // Remplacer le texte gras garde le gras (ex. un montant retapé).
+    const total = [{ start: 6, end: 10, font: 0 }];
+    expect(shiftStyles(total, "TOTAL 2561 €", "TOTAL 30978 €")).toEqual([{ start: 6, end: 11, font: 0 }]);
   });
 
   it("mesure chaque mot à sa position dans le texte", () => {

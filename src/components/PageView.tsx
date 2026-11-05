@@ -12,6 +12,7 @@ import { Icon } from "./Icon";
 import { t, tn, useLocale } from "../i18n";
 import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
+import { extractRules, type Rule } from "../lib/rules";
 import { blockAt, blocksOf, fontIndexAt, layoutText, reflowText, shiftStyles, type TextBlock } from "../lib/textBlocks";
 import { embeddedTextWidth, type EmbeddedFont } from "../lib/embeddedFonts";
 
@@ -127,11 +128,12 @@ function PageViewImpl(props: Props) {
   const [page, setPage] = useState<PDFPageProxy | null>(null);
   const [visible, setVisible] = useState(false);
   const [runs, setRuns] = useState<TextRun[] | null>(null);
+  const [rules, setRules] = useState<Rule[]>([]);
   const [draft, setDraft] = useState<Draft>(null);
   const [drag, setDrag] = useState<Drag>(null);
   const [hoverRun, setHoverRun] = useState<TextRun | TextBlock | null>(null);
   /** Blocs de texte (titres, paragraphes) reconstitués à partir des morceaux du PDF. */
-  const blocks = useMemo(() => (runs ? blocksOf(runs) : null), [runs]);
+  const blocks = useMemo(() => (runs ? blocksOf(runs, rules) : null), [runs, rules]);
   /** Zone modifiable sous le pointeur : le bloc entier, sinon le morceau (texte tourné). */
   const editableAt = (p: Point): TextRun | TextBlock | undefined => (blocks && blockAt(blocks, p)) || (runs ? runAt(runs, p) : undefined);
   const erasing = useRef<{ pointerId: number; ids: Set<string> } | null>(null);
@@ -221,7 +223,11 @@ function PageViewImpl(props: Props) {
   useEffect(() => {
     if (!page || runs || !(visible && (tool === "editText" || props.hits.length))) return;
     let alive = true;
-    extractRuns(page).then((r) => alive && setRuns(r));
+    Promise.all([extractRuns(page), extractRules(page)]).then(([r, lines]) => {
+      if (!alive) return;
+      setRules(lines);
+      setRuns(r);
+    });
     return () => {
       alive = false;
     };
