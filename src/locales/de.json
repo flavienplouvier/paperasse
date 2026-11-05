@@ -544,5 +544,7 @@
   "Remettre droit": "Gerade stellen",
   "Retourner (180°)": "Umdrehen (180°)",
   "Rotation : {n}°": "Drehung: {n}°",
-  "Tirer pour redimensionner le cadre": "Ziehen, um die Größe des Rahmens zu ändern"
+  "Tirer pour redimensionner le cadre": "Ziehen, um die Größe des Rahmens zu ändern",
+  "Fond opaque (masque ce qui est dessous)": "Deckender Hintergrund (verdeckt, was darunter liegt)",
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Ohne Hintergrund wird nur der ursprüngliche Text verdeckt: benachbarter Text bleibt sichtbar."
 }

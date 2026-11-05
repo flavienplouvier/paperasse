@@ -544,5 +544,7 @@
   "Remettre droit": "Enderezar",
   "Retourner (180°)": "Voltear (180°)",
   "Rotation : {n}°": "Rotación: {n}°",
-  "Tirer pour redimensionner le cadre": "Arrastre para cambiar el tamaño del marco"
+  "Tirer pour redimensionner le cadre": "Arrastre para cambiar el tamaño del marco",
+  "Fond opaque (masque ce qui est dessous)": "Fondo opaco (oculta lo que hay debajo)",
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Sin fondo, solo se oculta el texto original: el texto cercano sigue visible."
 }

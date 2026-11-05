@@ -345,10 +345,12 @@ function removeOriginalText(doc: PDFDocument, page: PDFPage, list: Annotation[])
   const covers = list.filter((a): a is ShapeAnnotation => a.kind === "whiteout");
   const done = new Set<Annotation>();
   if (!covers.length) return done;
+  // Fond opaque choisi pour le texte modifié : son cache reste dessiné (il masque ce qui est dessous).
+  const opaque = new Set(list.flatMap((a) => (a.kind === "text" && a.coverOpaque ? [a.id] : [])));
   try {
     const results = removeTextInRects(doc, page, covers.map((c) => c.removeText ?? { rect: c.rect }));
     results.forEach((r, k) => {
-      if (covers[k].removeText && r.removed > 0 && r.invisible === 0) done.add(covers[k]);
+      if (covers[k].removeText && r.removed > 0 && r.invisible === 0 && !opaque.has(covers[k].owner ?? "")) done.add(covers[k]);
     });
   } catch {
     /* contenu illisible : on garde les caches */

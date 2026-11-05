@@ -544,5 +544,7 @@
   "Remettre droit": "Rechtzetten",
   "Retourner (180°)": "Omdraaien (180°)",
   "Rotation : {n}°": "Rotatie: {n}°",
-  "Tirer pour redimensionner le cadre": "Sleep om het kader te vergroten of te verkleinen"
+  "Tirer pour redimensionner le cadre": "Sleep om het kader te vergroten of te verkleinen",
+  "Fond opaque (masque ce qui est dessous)": "Ondoorzichtige achtergrond (verbergt wat eronder ligt)",
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Zonder achtergrond wordt alleen de oorspronkelijke tekst verborgen: tekst in de buurt blijft zichtbaar."
 }

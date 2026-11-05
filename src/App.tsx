@@ -885,6 +885,8 @@ export default function App() {
         color: color ?? "#000000",
         opacity: 1,
         rotation: run.angle,
+        // Par défaut, le cache ne masque que le texte d'origine (pas les lignes voisines).
+        coverOpaque: false,
         ...(real ? { originalFont: { name: real, bold: info.bold, italic: info.italic } } : {}),
         ...(embedded ? { embedded } : {}),
       };

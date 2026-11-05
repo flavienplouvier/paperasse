@@ -94,6 +94,11 @@ export interface TextAnnotation extends AnnotationBase {
   underline?: boolean;
   /** Texte barré. */
   strike?: boolean;
+  /**
+   * Texte modifié (« Modifier le texte ») : false = le cache ne masque que le texte d'origine
+   * (les textes voisins restent visibles), true = fond opaque qui masque tout ce qui est dessous.
+   */
+  coverOpaque?: boolean;
   /** Centre de la rotation propre (`angle`), fixé au premier pivotement (espace PDF). */
   pivot?: Point;
   /** Alignement des lignes d'un texte sans bloc (sur la plus longue ligne). */

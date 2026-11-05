@@ -544,5 +544,7 @@
   "Remettre droit": "Endireitar",
   "Retourner (180°)": "Inverter (180°)",
   "Rotation : {n}°": "Rotação: {n}°",
-  "Tirer pour redimensionner le cadre": "Arraste para redimensionar a moldura"
+  "Tirer pour redimensionner le cadre": "Arraste para redimensionar a moldura",
+  "Fond opaque (masque ce qui est dessous)": "Fundo opaco (oculta o que está por baixo)",
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Sem fundo, apenas o texto original é ocultado: o texto próximo continua visível."
 }

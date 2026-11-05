@@ -544,5 +544,7 @@
   "Remettre droit": "Raddrizza",
   "Retourner (180°)": "Capovolgi (180°)",
   "Rotation : {n}°": "Rotazione: {n}°",
-  "Tirer pour redimensionner le cadre": "Trascina per ridimensionare la cornice"
+  "Tirer pour redimensionner le cadre": "Trascina per ridimensionare la cornice",
+  "Fond opaque (masque ce qui est dessous)": "Sfondo opaco (nasconde ciò che c'è sotto)",
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Senza sfondo viene nascosto solo il testo originale: il testo vicino resta visibile."
 }

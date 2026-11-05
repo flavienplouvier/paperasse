@@ -544,5 +544,7 @@
   "Remettre droit": "摆正",
   "Retourner (180°)": "翻转（180°）",
   "Rotation : {n}°": "旋转：{n}°",
-  "Tirer pour redimensionner le cadre": "拖动以调整文本框大小"
+  "Tirer pour redimensionner le cadre": "拖动以调整文本框大小",
+  "Fond opaque (masque ce qui est dessous)": "不透明背景（遮住下方内容）",
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "无背景时只遮住原文字：旁边的文字仍然可见。"
 }

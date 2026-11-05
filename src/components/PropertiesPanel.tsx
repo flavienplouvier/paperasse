@@ -302,6 +302,12 @@ export function PropertiesPanel({
               ))}
             </div>
           </div>
+          {selected?.kind === "text" && selected.coverOpaque !== undefined && (
+            <label className="field inline" title={t("Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.")}>
+              <input type="checkbox" checked={selected.coverOpaque} onChange={(e) => onUpdate({ ...selected, coverOpaque: e.target.checked }, true)} />{" "}
+              {t("Fond opaque (masque ce qui est dessous)")}
+            </label>
+          )}
           {selected?.kind === "text" && (
             <div className="field">
               {t("Rotation : {n}°", { n: selected.angle ?? 0 })}

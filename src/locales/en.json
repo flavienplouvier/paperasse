@@ -544,5 +544,7 @@
   "Remettre droit": "Straighten",
   "Retourner (180°)": "Flip (180°)",
   "Rotation : {n}°": "Rotation: {n}°",
-  "Tirer pour redimensionner le cadre": "Drag to resize the frame"
+  "Tirer pour redimensionner le cadre": "Drag to resize the frame",
+  "Fond opaque (masque ce qui est dessous)": "Opaque background (hides what is underneath)",
+  "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Without a background, only the original text is hidden: nearby text stays visible."
 }

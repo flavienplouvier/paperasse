@@ -237,7 +237,8 @@ function PageViewImpl(props: Props) {
   }, [page, viewport, visible]);
 
   useEffect(() => {
-    if (!page || runs || !(visible && (tool === "editText" || props.hits.length))) return;
+    // Textes de la page aussi nécessaires pour afficher les caches de « Modifier le texte » (voir coverHoles).
+    if (!page || runs || !(visible && (tool === "editText" || props.hits.length || annotations.some(isTextCover)))) return;
     let alive = true;
     Promise.all([extractRuns(page), extractRules(page)]).then(([r, lines]) => {
       if (!alive) return;
@@ -247,7 +248,7 @@ function PageViewImpl(props: Props) {
     return () => {
       alive = false;
     };
-  }, [page, runs, visible, tool, props.hits.length]);
+  }, [page, runs, visible, tool, props.hits.length, annotations]);
 
   // Amène le résultat de recherche actif au centre de l'écran.
   const activeHitRef = useRef<SVGRectElement>(null);
@@ -572,6 +573,29 @@ function PageViewImpl(props: Props) {
     return { ...main, laid, ctx, runsOf, spaceFix, measure };
   };
 
+  /**
+   * Cache de « Modifier le texte » laissé transparent (par défaut) : zones des textes
+   * voisins qu'il chevauche, à laisser visibles. Les textes eux-mêmes modifiés (couverts
+   * par un cache) ne sont pas concernés : leur original doit rester masqué.
+   */
+  const coveredRuns = useMemo(() => {
+    const covers = annotations.filter(isTextCover);
+    if (!runs || !covers.length) return null;
+    const owns = (c: Annotation, r: TextRun) => {
+      const rt = c.kind === "whiteout" ? c.removeText : undefined;
+      if (!rt || !hasRect(c) || r.angle !== 0) return false;
+      return Math.abs(r.baseline[1] - rt.origin[1]) < 0.3 * r.fontSize && r.baseline[0] >= c.rect[0] - 1 && r.baseline[0] <= c.rect[2] + 1;
+    };
+    return new Set(runs.filter((r) => covers.some((c) => owns(c, r))));
+  }, [annotations, runs]);
+  const coverHoles = (a: Annotation): Rect[] => {
+    if (!isTextCover(a) || !runs || !coveredRuns || !hasRect(a)) return [];
+    const owner = annotations.find((x) => x.id === (a.kind === "whiteout" ? a.owner : undefined));
+    if (owner?.kind === "text" && owner.coverOpaque !== false) return [];
+    const [x1, y1, x2, y2] = a.rect;
+    return runs.filter((r) => !coveredRuns.has(r) && r.rect[0] < x2 && r.rect[2] > x1 && r.rect[1] < y2 && r.rect[3] > y1).map((r) => r.rect);
+  };
+
   /** Rendu d'un élément, tourné de son angle propre autour de son centre. */
   const renderAnnotation = (a: Annotation) => {
     const el = renderBase(a);
@@ -652,6 +676,23 @@ function PageViewImpl(props: Props) {
       case "whiteout": {
         const r = viewRect(a.rect);
         const filled = a.kind !== "rect" || a.fill;
+        const holes = a.kind === "whiteout" ? coverHoles(a) : [];
+        if (holes.length) {
+          // Cache transparent : il masque la ligne d'origine, pas les textes voisins qu'il chevauche.
+          const id = `cover-${a.id}`;
+          return (
+            <g key={a.id}>
+              <mask id={id} maskUnits="userSpaceOnUse">
+                <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="#fff" />
+                {holes.map((h, i) => {
+                  const v = viewRect(h);
+                  return <rect key={i} x={v.x} y={v.y} width={v.w} height={v.h} fill="#000" />;
+                })}
+              </mask>
+              <rect data-annot={a.id} {...common} x={r.x} y={r.y} width={r.w} height={r.h} fill={a.color} mask={`url(#${id})`} />
+            </g>
+          );
+        }
         return (
           <rect
             key={a.id}
