@@ -539,11 +539,10 @@
   "Aligné à gauche": "Alinhado à esquerda",
   "Centré": "Centralizado",
   "Justifié": "Justificado",
-  "Largeur du cadre": "Largura da moldura",
   "Pivoter de 90° vers la droite": "Girar 90° para a direita",
   "Pivoter de 90° vers la gauche": "Girar 90° para a esquerda",
   "Remettre droit": "Endireitar",
   "Retourner (180°)": "Inverter (180°)",
   "Rotation : {n}°": "Rotação: {n}°",
-  "Tirer pour élargir ou rétrécir le cadre": "Arraste para alargar ou estreitar a moldura"
+  "Tirer pour redimensionner le cadre": "Arraste para redimensionar a moldura"
 }

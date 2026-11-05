@@ -539,11 +539,10 @@
   "Aligné à gauche": "左对齐",
   "Centré": "居中",
   "Justifié": "两端对齐",
-  "Largeur du cadre": "框宽度",
   "Pivoter de 90° vers la droite": "向右旋转 90°",
   "Pivoter de 90° vers la gauche": "向左旋转 90°",
   "Remettre droit": "摆正",
   "Retourner (180°)": "翻转（180°）",
   "Rotation : {n}°": "旋转：{n}°",
-  "Tirer pour élargir ou rétrécir le cadre": "拖动以加宽或缩窄文本框"
+  "Tirer pour redimensionner le cadre": "拖动以调整文本框大小"
 }

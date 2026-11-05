@@ -726,6 +726,12 @@ export default function App() {
         setSelectedId(a.id);
         if (!isMobile()) setPropsOpen(true);
       }
+      // Forme, trait ou flèche qu'on vient de dessiner : sélectionnée tout de suite avec ses
+      // poignées (taille, rotation, extrémités), comme dans les logiciels de dessin.
+      if (a.kind === "shape" || a.kind === "rect" || a.kind === "ellipse" || a.kind === "line") {
+        setTool("select");
+        setSelectedId(a.id);
+      }
     },
     [addAnnotations, commit],
   );

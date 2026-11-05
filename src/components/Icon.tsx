@@ -66,6 +66,9 @@ const PATHS: Record<string, string> = {
   swap: "M7 4L3 8l4 4 M3 8h14 M17 12l4 4-4 4 M21 16H7",
 };
 
+/** Tracé d'une icône (pour la dessiner dans un SVG existant). */
+export const iconPath = (name: string): string | undefined => PATHS[name];
+
 export function Icon({ name, size = 20 }: { name: keyof typeof PATHS | string; size?: number }) {
   return (
     <svg

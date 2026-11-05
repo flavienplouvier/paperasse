@@ -539,11 +539,10 @@
   "Aligné à gauche": "Alineado a la izquierda",
   "Centré": "Centrado",
   "Justifié": "Justificado",
-  "Largeur du cadre": "Ancho del marco",
   "Pivoter de 90° vers la droite": "Girar 90° a la derecha",
   "Pivoter de 90° vers la gauche": "Girar 90° a la izquierda",
   "Remettre droit": "Enderezar",
   "Retourner (180°)": "Voltear (180°)",
   "Rotation : {n}°": "Rotación: {n}°",
-  "Tirer pour élargir ou rétrécir le cadre": "Arrastre para ensanchar o estrechar el marco"
+  "Tirer pour redimensionner le cadre": "Arrastre para cambiar el tamaño del marco"
 }

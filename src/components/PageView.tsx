@@ -4,16 +4,16 @@ import { pdfjs, type PDFDocumentProxy, type PDFPageProxy } from "../lib/pdfjs";
 import type { Annotation, FieldType, Point, Rect, TextAnnotation, Tool } from "../lib/types";
 import { newId } from "../lib/types";
 import { addScaled, arrowHead, normalizeRect, normalizeRotation, rectContains, screenAxes } from "../lib/geometry";
-import { bendControl, curveAt, hasRect, pointsBox, rectCenter, resizeRotated, scalePoints, simplifyPath, translateAnnotation } from "../lib/annotations";
+import { RESIZE_HANDLES, bendControl, curveAt, hasRect, moveSides, pointsBox, rectCenter, resizeRotated, scalePoints, simplifyPath, translateAnnotation, type ResizeHandle } from "../lib/annotations";
 import { extractRuns, runAt, type TextRun } from "../lib/text";
 import { LINE_HEIGHT, isTextCover } from "../lib/exportPdf";
 import { getFont } from "../lib/fonts";
-import { Icon } from "./Icon";
+import { Icon, iconPath } from "./Icon";
 import { t, tn, useLocale } from "../i18n";
 import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
 import { extractRules, type Rule } from "../lib/rules";
-import { alongLine, frameCenter, unrotateText, withAngle } from "../lib/textFrame";
+import { frameCenter, unrotateText, withAngle } from "../lib/textFrame";
 import { layoutFor, blockAt, blocksOf, fontIndexAt, reflowText, shiftStyles, type TextBlock } from "../lib/textBlocks";
 import { embeddedTextWidth, type EmbeddedFont } from "../lib/embeddedFonts";
 
@@ -89,8 +89,21 @@ type Drag = {
   pointerId: number;
   start: Point;
   original: Annotation;
-  corner?: [number, number];
+  corner?: ResizeHandle;
 } | null;
+
+/** Poignées du cadre d'un texte : (-1, 0, 1) en largeur et en hauteur. */
+const TEXT_HANDLES: [number, number][] = [
+  [-1, -1], [0, -1], [1, -1],
+  [-1, 0], [1, 0],
+  [-1, 1], [0, 1], [1, 1],
+];
+
+/** Curseur d'une poignée d'après sa direction à l'écran (degrés, 0 = vers la droite). */
+export function resizeCursor(deg: number): string {
+  const d = (((Math.round(deg / 45) * 45) % 180) + 180) % 180;
+  return d === 0 ? "ew-resize" : d === 90 ? "ns-resize" : d === 45 ? "nwse-resize" : "nesw-resize";
+}
 
 const MAX_CANVAS_PIXELS = 16_777_216;
 
@@ -484,7 +497,7 @@ function PageViewImpl(props: Props) {
     setDraft(null);
   };
 
-  const startDrag = (e: React.PointerEvent, a: Annotation, mode: DragMode, corner?: [number, number]) => {
+  const startDrag = (e: React.PointerEvent, a: Annotation, mode: DragMode, corner?: ResizeHandle) => {
     if (tool !== "select") return;
     e.stopPropagation();
     e.preventDefault();
@@ -868,7 +881,7 @@ function PageViewImpl(props: Props) {
     if (el) setSel({ start: el.selectionStart, end: el.selectionEnd, focused: document.activeElement === el });
   };
   const selecting = useRef<{ pointerId: number; anchor: number } | null>(null);
-  const textHandle = useRef<{ pointerId: number; mode: "rotate" | "width"; original: TextAnnotation } | null>(null);
+  const textHandle = useRef<{ pointerId: number; mode: "rotate" | "resize"; handle?: [number, number]; original: TextAnnotation; frame: { w: number; h: number } } | null>(null);
   const lastTap = useRef<{ time: number; idx: number } | null>(null);
 
   /**
@@ -927,7 +940,15 @@ function PageViewImpl(props: Props) {
     const geo = caretGeometry(a);
     // Bloc qui s'allonge : nombre de lignes en trop par rapport au bloc d'origine.
     const overflow = a.box?.lines ? Math.max(0, geo.laid.length - a.box.lines) : 0;
-    const frame = { w: Math.max(a.box?.width ?? 0, ...geo.laid.map((l) => l.x + l.width)), h: geo.laid.length * geo.step };
+    const frame = { w: Math.max(a.box?.width ?? 0, ...geo.laid.map((l) => l.x + l.width)), h: Math.max(a.box?.height ?? 0, geo.laid.length * geo.step) };
+    const startHandle = (e: React.PointerEvent, mode: "rotate" | "resize", handle?: [number, number]) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      // Premier pivotement : autour du centre du cadre.
+      const original = mode === "rotate" && !a.angle ? { ...a, pivot: frameCenter(a, frame.w, frame.h) } : a;
+      textHandle.current = { pointerId: e.pointerId, mode, handle, original, frame };
+    };
     const handleMove = (e: React.PointerEvent, final: boolean) => {
       const h = textHandle.current;
       if (!h || h.pointerId !== e.pointerId) return;
@@ -943,13 +964,34 @@ function PageViewImpl(props: Props) {
         if (Math.abs(snap - deg) < 4) deg = snap;
         next = withAngle(o, deg, o.pivot!);
       } else {
-        // Largeur du cadre : un texte libre devient un bloc qui revient à la ligne dans cette largeur.
-        const width = Math.round(Math.max(o.fontSize * 2, alongLine(o, toPdf(vx, vy))) * 10) / 10;
-        if (o.box) next = { ...o, box: { ...o.box, width } };
-        else {
-          const { align, ...rest } = o;
-          next = { ...rest, box: { width, align: align ?? "left", lineHeight: o.fontSize * LINE_HEIGHT } };
-        }
+        // Taille du cadre (repère du texte, non tourné) : le bord ou le coin opposé reste en place.
+        // Un texte libre devient un bloc qui revient à la ligne dans la largeur du cadre.
+        const [hx, hy] = h.handle!;
+        const { right, down } = screenAxes(o.rotation);
+        const q = unrotateText(o, toPdf(vx, vy));
+        const dx = (q[0] - o.origin[0]) * right[0] + (q[1] - o.origin[1]) * right[1];
+        const dy = (q[0] - o.origin[0]) * down[0] + (q[1] - o.origin[1]) * down[1];
+        const ascent = o.fontSize * BASELINE;
+        const step = o.box?.lineHeight ?? o.fontSize * LINE_HEIGHT;
+        let [x0, y0, x1, y1] = [0, -ascent, h.frame.w, h.frame.h - ascent];
+        if (hx === 1) x1 = Math.max(x0 + o.fontSize * 2, dx);
+        if (hx === -1) x0 = Math.min(dx, x1 - o.fontSize * 2);
+        if (hy === 1) y1 = Math.max(y0 + step, dy);
+        if (hy === -1) y0 = Math.min(dy, y1 - step);
+        const round = (v: number) => Math.round(v * 10) / 10;
+        const { align, ...rest } = o;
+        const box = o.box ?? { width: h.frame.w, align: align ?? "left", lineHeight: step };
+        next = {
+          ...rest,
+          origin: addScaled(addScaled(o.origin, right, x0), down, y0 + ascent),
+          box: {
+            ...box,
+            ...(hx ? { width: round(x1 - x0) } : {}),
+            ...(hy ? { height: round(y1 - y0) } : {}),
+            // Lignes d'origine : leur position reste la même sur la page quand le bord gauche bouge.
+            ...(box.original && x0 ? { original: box.original.map((l) => ({ ...l, x: l.x - x0 })) } : {}),
+          },
+        };
       }
       props.onChange(next, final);
       if (final) textHandle.current = null;
@@ -989,27 +1031,34 @@ function PageViewImpl(props: Props) {
         >
           <Icon name="move" size={16} />
         </button>
-        {/* Poignées du cadre : pivoter (en haut) et largeur (à droite), comme pour les formes. */}
-        {(["rotate", "width"] as const).map((mode) => (
-          <button
-            key={mode}
-            className={`text-handle ${mode}`}
-            style={mode === "rotate" ? { left: (frame.w * scale) / 2, top: -26 } : { left: frame.w * scale + 10, top: (frame.h * scale) / 2 }}
-            title={mode === "rotate" ? t("Tirer pour faire pivoter") : t("Tirer pour élargir ou rétrécir le cadre")}
-            aria-label={mode === "rotate" ? t("Pivoter") : t("Largeur du cadre")}
-            onPointerDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              e.currentTarget.setPointerCapture(e.pointerId);
-              // Premier pivotement : autour du centre du cadre.
-              textHandle.current = { pointerId: e.pointerId, mode, original: a.angle ? a : { ...a, pivot: frameCenter(a, frame.w, frame.h) } };
+        {/* Cadre et poignées classiques : huit pour la taille, une au-dessus pour pivoter. */}
+        <div className="text-frame" style={{ width: frame.w * scale, height: frame.h * scale }} />
+        <div
+          className="text-rotate"
+          style={{ left: (frame.w * scale) / 2 }}
+          title={t("Tirer pour faire pivoter")}
+          onPointerDown={(e) => startHandle(e, "rotate")}
+          onPointerMove={(e) => handleMove(e, false)}
+          onPointerUp={(e) => handleMove(e, true)}
+          onPointerCancel={() => (textHandle.current = null)}
+        >
+          <Icon name="rotateR" size={13} />
+        </div>
+        {TEXT_HANDLES.map(([hx, hy]) => (
+          <div
+            key={`${hx}${hy}`}
+            className="text-handle"
+            style={{
+              left: ((hx + 1) / 2) * frame.w * scale,
+              top: ((hy + 1) / 2) * frame.h * scale,
+              cursor: resizeCursor((Math.atan2(hy * frame.h, hx * frame.w) * 180) / Math.PI + rotation - a.rotation + (a.angle ?? 0)),
             }}
+            title={t("Tirer pour redimensionner le cadre")}
+            onPointerDown={(e) => startHandle(e, "resize", [hx, hy])}
             onPointerMove={(e) => handleMove(e, false)}
             onPointerUp={(e) => handleMove(e, true)}
             onPointerCancel={() => (textHandle.current = null)}
-          >
-            <Icon name={mode === "rotate" ? "rotateR" : "swap"} size={13} />
-          </button>
+          />
         ))}
         {overflow > 0 && (
           <div className="block-overflow">
@@ -1064,7 +1113,7 @@ function PageViewImpl(props: Props) {
             color: "transparent",
             caretColor: "transparent",
             width: Math.max(a.box?.width ?? 0, ...geo.laid.map((l) => l.x + l.width)) * scale + size,
-            height: geo.laid.length * geo.step * scale + size * 0.3,
+            height: Math.max(frame.h * scale, geo.laid.length * geo.step * scale + size * 0.3),
             whiteSpace: "pre",
             overflow: "hidden",
           }}
@@ -1197,38 +1246,40 @@ function PageViewImpl(props: Props) {
     const box = hasRect(selected) ? selected.rect : selected.kind === "ink" ? pointsBox(selected.points) : null;
     if (!box) return null;
     const r = viewRect(box);
-    const corners: [number, number][] = [
-      [0, 1],
-      [2, 1],
-      [0, 3],
-      [2, 3],
-    ];
-    // Coin en bas à droite à l'écran (repère non tourné de l'élément).
-    let best = corners[0];
-    let bestScore = -Infinity;
-    for (const c of corners) {
-      const v = toView([box[c[0]], box[c[1]]]);
-      if (v[0] + v[1] > bestScore) {
-        bestScore = v[0] + v[1];
-        best = c;
-      }
-    }
-    const v = toView([box[best[0]], box[best[1]]]);
-    const [cx, cy] = toView(rectCenter(box));
+    const center = rectCenter(box);
+    const [cx, cy] = toView(center);
     const rotatable = ROTATABLE.has(selected.kind);
     const angle = rotatable ? (selected.angle ?? 0) : 0;
+    const rotIcon = iconPath("rotateR");
+    // Huit poignées classiques (coins et milieux des bords), poignée de rotation au-dessus.
     return (
       <g transform={angle ? `rotate(${angle} ${cx} ${cy})` : undefined}>
-        <rect className="selection" x={r.x - 4} y={r.y - 4} width={r.w + 8} height={r.h + 8} />
-        <circle className="handle" cx={v[0]} cy={v[1]} r={9} onPointerDown={(e) => startDrag(e, selected, "resize", best)} />
+        <rect className="selection" x={r.x} y={r.y} width={r.w} height={r.h} />
         {rotatable && (
-          <>
-            <line className="rotate-stem" x1={cx} y1={r.y - 4} x2={cx} y2={r.y - 22} />
-            <circle className="handle rotate" cx={cx} cy={r.y - 28} r={8} onPointerDown={(e) => startDrag(e, selected, "rotate")}>
-              <title>{t("Tirer pour faire pivoter")}</title>
-            </circle>
-          </>
+          <g className="rotate-handle" onPointerDown={(e) => startDrag(e, selected, "rotate")}>
+            <title>{t("Tirer pour faire pivoter")}</title>
+            <line className="rotate-stem" x1={cx} y1={r.y} x2={cx} y2={r.y - 18} />
+            <circle className="handle rotate" cx={cx} cy={r.y - 30} r={11} />
+            {rotIcon && <path d={rotIcon} transform={`translate(${cx - 7} ${r.y - 37}) scale(${14 / 24})`} className="rotate-icon" />}
+          </g>
         )}
+        {RESIZE_HANDLES.map((h) => {
+          const v = toView([h[0] === null ? center[0] : box[h[0]], h[1] === null ? center[1] : box[h[1]]]);
+          const dir = (Math.atan2(v[1] - cy, v[0] - cx) * 180) / Math.PI + angle;
+          return (
+            <rect
+              key={h.join()}
+              className="handle"
+              x={v[0] - 5}
+              y={v[1] - 5}
+              width={10}
+              height={10}
+              rx={2}
+              style={{ cursor: resizeCursor(dir) }}
+              onPointerDown={(e) => startDrag(e, selected, "resize", h)}
+            />
+          );
+        })}
       </g>
     );
   })();
@@ -1461,10 +1512,7 @@ function PageViewImpl(props: Props) {
     if (d.mode === "resize" && d.corner) {
       if (o.kind === "ink") {
         const box = pointsBox(o.points);
-        const r = [...box] as Rect;
-        r[d.corner[0]] = p[0];
-        r[d.corner[1]] = p[1];
-        const next = normalizeRect([r[0], r[1]], [r[2], r[3]]);
+        const next = moveSides(box, d.corner, p);
         if (next[2] - next[0] < 2 || next[3] - next[1] < 2) return o;
         return { ...o, points: scalePoints(o.points, box, next) };
       }

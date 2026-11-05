@@ -8,8 +8,8 @@ import type { Point, TextAnnotation } from "./types";
  * le texte s'allonge le long de son axe sans sauter.
  */
 
-/** Hauteur de la ligne de base sous le haut du cadre, en corps de police. */
-export const TEXT_ASCENT = 0.8;
+/** Hauteur de la ligne de base sous le haut du cadre, en corps de police (comme la zone de saisie). */
+export const TEXT_ASCENT = 0.925;
 
 /** Rotation d'un point autour d'un centre, sens trigonométrique (repère PDF, y vers le haut). */
 function turn(p: Point, c: Point, deg: number): Point {

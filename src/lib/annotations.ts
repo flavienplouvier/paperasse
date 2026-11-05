@@ -88,18 +88,36 @@ export function rotateAround(p: Point, c: Point, deg: number): Point {
 export const rectCenter = (r: Rect): Point => [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
 
 /**
- * Redimensionne par un coin un cadre tourné de `angle` (degrés, sens horaire à
- * l'écran) : le coin opposé reste en place à l'écran.
+ * Poignée de redimensionnement : côté du cadre déplacé en x (0 = gauche, 2 = droite)
+ * et en y (1 = bas, 3 = haut), null = ce sens ne change pas (poignée de bord).
  */
-export function resizeRotated(rect: Rect, corner: [number, number], pointer: Point, angle: number): Rect {
+export type ResizeHandle = [0 | 2 | null, 1 | 3 | null];
+
+/** Les huit poignées classiques : quatre coins et le milieu des quatre bords. */
+export const RESIZE_HANDLES: ResizeHandle[] = [
+  [0, 3], [null, 3], [2, 3],
+  [0, null], [2, null],
+  [0, 1], [null, 1], [2, 1],
+];
+
+/** Déplace les côtés d'un cadre désignés par une poignée (repère non tourné). */
+export function moveSides(rect: Rect, handle: ResizeHandle, p: Point): Rect {
+  const r = [...rect] as Rect;
+  if (handle[0] !== null) r[handle[0]] = p[0];
+  if (handle[1] !== null) r[handle[1]] = p[1];
+  return [Math.min(r[0], r[2]), Math.min(r[1], r[3]), Math.max(r[0], r[2]), Math.max(r[1], r[3])];
+}
+
+/**
+ * Redimensionne par un coin ou un bord un cadre tourné de `angle` (degrés, sens
+ * horaire à l'écran) : le coin ou le bord opposé reste en place à l'écran.
+ */
+export function resizeRotated(rect: Rect, handle: ResizeHandle, pointer: Point, angle: number): Rect {
   const c = rectCenter(rect);
   // Le pointeur, ramené dans le repère non tourné du cadre.
   const local = rotateAround(pointer, c, angle);
-  const r = [...rect] as Rect;
-  r[corner[0]] = local[0];
-  r[corner[1]] = local[1];
-  const anchor: Point = [rect[corner[0] === 0 ? 2 : 0], rect[corner[1] === 1 ? 3 : 1]];
-  const next: Rect = [Math.min(r[0], r[2]), Math.min(r[1], r[3]), Math.max(r[0], r[2]), Math.max(r[1], r[3])];
+  const next = moveSides(rect, handle, local);
+  const anchor: Point = [handle[0] === null ? c[0] : rect[handle[0] === 0 ? 2 : 0], handle[1] === null ? c[1] : rect[handle[1] === 1 ? 3 : 1]];
   if (!angle) return next;
   // Le cadre tourne autour de son centre : on le recale pour que le coin opposé ne bouge pas.
   const before = rotateAround(anchor, c, -angle);

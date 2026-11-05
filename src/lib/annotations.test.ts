@@ -44,6 +44,18 @@ describe("rotation et taille", () => {
     expect(next[3] - next[1]).toBeCloseTo(80, 6);
   });
 
+  it("une poignée de bord ne change qu'un sens ; avec rotation, le bord opposé reste en place", () => {
+    expect(resizeRotated([0, 0, 100, 50], [2, null], [130, 999], 0)).toEqual([0, 0, 130, 50]);
+    expect(resizeRotated([0, 0, 100, 50], [null, 1], [999, -20], 0)).toEqual([0, -20, 100, 50]);
+    const rect: Rect = [0, 0, 100, 50];
+    const c: [number, number] = [50, 25];
+    const leftMid = rotateAround([0, 25], c, -40);
+    const next = resizeRotated(rect, [2, null], rotateAround([160, 25], c, -40), 40);
+    const nc: [number, number] = [(next[0] + next[2]) / 2, (next[1] + next[3]) / 2];
+    near(rotateAround([next[0], (next[1] + next[3]) / 2], nc, -40), leftMid);
+    expect(next[3] - next[1]).toBeCloseTo(50, 6);
+  });
+
   it("agrandit un dessin dans un nouveau cadre", () => {
     const pts: [number, number][] = [
       [0, 0],

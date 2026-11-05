@@ -106,6 +106,8 @@ export interface TextAnnotation extends AnnotationBase {
    */
   box?: {
     width: number;
+    /** Hauteur du cadre choisie (poignées) : au moins celle du texte. */
+    height?: number;
     align: "left" | "center" | "right" | "justify";
     /** Alignement détecté dans le PDF : les lignes d'origine ne restent à l'identique que s'il est conservé. */
     from?: "left" | "center" | "right" | "justify";

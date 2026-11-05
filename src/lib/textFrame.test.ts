@@ -20,7 +20,7 @@ const close = (p: number[], q: number[]) => p.forEach((v, i) => expect(v).toBeCl
 
 describe("cadre et rotation d'un texte", () => {
   it("centre du cadre sous l'origine (ligne de base)", () => {
-    close(frameCenter(text(), 60, 25), [130, 500 - (12.5 - 8)]);
+    close(frameCenter(text(), 60, 25), [130, 500 - (12.5 - 9.25)]);
   });
 
   it("le premier pivotement se fait autour du centre, ensuite le pivot reste fixe", () => {
