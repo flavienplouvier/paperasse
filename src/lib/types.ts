@@ -65,6 +65,8 @@ export interface ShapeAnnotation extends AnnotationBase {
    * retiré du fichier, et le cache reste dessiné.
    */
   removeText?: TextLine;
+  /** Texte de remplacement auquel appartient ce cache (« Modifier le texte »). */
+  owner?: string;
 }
 
 export interface LineAnnotation extends AnnotationBase {
@@ -94,6 +96,11 @@ export interface TextAnnotation extends AnnotationBase {
   strike?: boolean;
   /** Surlignage : couleur de fond derrière chaque ligne. */
   highlight?: string;
+  /**
+   * Bloc de texte (paragraphe, titre sur plusieurs lignes) : le texte est remis en
+   * page dans cette largeur, avec cet alignement et cet interligne (points).
+   */
+  box?: { width: number; align: "left" | "center" | "right" | "justify"; lineHeight: number };
   /** Police d'origine du texte modifié (pour retrouver la vraie police plus tard). */
   originalFont?: { name: string; bold?: boolean; italic?: boolean };
   /**

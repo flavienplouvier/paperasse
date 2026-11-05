@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PDFDocument } from "pdf-lib";
 import { fontInfo, openPdf, PasswordRequired, pdfjs, type PDFDocumentProxy } from "./lib/pdfjs";
-import type { Annotation, DocState, Point, Rect, TextAnnotation, Tool } from "./lib/types";
+import type { Annotation, DocState, Point, Rect, ShapeAnnotation, TextAnnotation, Tool } from "./lib/types";
 import { newId } from "./lib/types";
 import * as ops from "./lib/pageOps";
 import { exportPdf } from "./lib/exportPdf";
@@ -665,7 +665,7 @@ export default function App() {
    * affiché et éditable, sans entrer dans le document ni dans l'historique. Il
    * n'est enregistré qu'au premier vrai changement (texte, police, taille…).
    */
-  type PendingEdit = { cover: Annotation; text: TextAnnotation; snapshot: string };
+  type PendingEdit = { covers: Annotation[]; text: TextAnnotation; snapshot: string };
   const [pendingEdit, setPendingEditState] = useState<PendingEdit | null>(null);
   const pendingRef = useRef<PendingEdit | null>(null);
   const setPendingEdit = useCallback((p: PendingEdit | null) => {
@@ -682,7 +682,7 @@ export default function App() {
 
   const annotationsByPage = useMemo(() => {
     const m = new Map<string, Annotation[]>();
-    const all = pendingEdit ? [...(doc?.annotations ?? []), pendingEdit.cover, pendingEdit.text] : (doc?.annotations ?? []);
+    const all = pendingEdit ? [...(doc?.annotations ?? []), ...pendingEdit.covers, pendingEdit.text] : (doc?.annotations ?? []);
     all.forEach((a) => {
       const l = m.get(a.pageId) ?? [];
       l.push(a);
@@ -740,7 +740,7 @@ export default function App() {
         // Premier vrai changement : le texte modifié et son cache entrent dans le
         // document, en une seule étape d'annulation avec la suite de la saisie.
         setPendingEdit(null);
-        addAnnotations(p.cover, a);
+        addAnnotations(...p.covers, a);
         if (!final) mergeNext.current = true;
         return;
       }
@@ -786,7 +786,7 @@ export default function App() {
   };
 
   const onEditText = useCallback(
-    async ({ pageId, run, page, color, background }: EditTextRequest) => {
+    async ({ pageId, run, page, color, background, block }: EditTextRequest) => {
       if (!doc) return;
       await loadLibrary(import.meta.env.BASE_URL);
       const info = fontInfo(page, run.fontName);
@@ -811,34 +811,43 @@ export default function App() {
           }
         }
       }
-      const pad = Math.max(0.6, run.fontSize * 0.06);
-      const [x1, y1, x2, y2] = run.rect;
-      const cover: Annotation = {
-        id: newId("annot"),
-        kind: "whiteout",
-        pageId,
-        rect: [x1 - pad, y1 - pad, x2 + pad, y2 + pad],
-        // Même couleur que le fond autour du texte (fond coloré d'un tableau, d'un bandeau…).
-        color: background ?? "#ffffff",
-        opacity: 1,
-        width: 0,
-        fill: true,
-        // Le texte d'origine sera réellement retiré du fichier à l'enregistrement.
-        removeText: {
-          origin: run.baseline,
-          angle: run.angle,
-          width: run.width ?? x2 - x1,
-          fontSize: run.fontSize,
-        },
+      const textId = newId("annot");
+      // Un cache par ligne d'origine : chaque ligne sera réellement retirée du fichier à l'enregistrement.
+      const coverFor = (rect: [number, number, number, number], origin: [number, number], angle: number, width: number, fontSize: number): ShapeAnnotation => {
+        const pad = Math.max(0.6, fontSize * 0.06);
+        return {
+          id: newId("annot"),
+          kind: "whiteout",
+          pageId,
+          rect: [rect[0] - pad, rect[1] - pad, rect[2] + pad, rect[3] + pad],
+          // Même couleur que le fond autour du texte (fond coloré d'un tableau, d'un bandeau…).
+          color: background ?? "#ffffff",
+          opacity: 1,
+          width: 0,
+          fill: true,
+          removeText: { origin, angle, width, fontSize },
+          owner: textId,
+        };
       };
+      // Bloc (titre, paragraphe) : toutes ses lignes deviennent un seul texte remis en page.
+      const asBlock = block && (block.lines.length > 1 || block.lines[0].pieces.length > 1) ? block : null;
+      const covers = asBlock
+        ? asBlock.lines.map((l) => coverFor([l.origin[0], l.origin[1] - l.fontSize * 0.25, l.origin[0] + l.width, l.origin[1] + l.fontSize * 0.95], l.origin, 0, l.width, l.fontSize))
+        : [coverFor(run.rect, run.baseline, run.angle, run.width ?? run.rect[2] - run.rect[0], run.fontSize)];
       const text: Annotation = {
-        id: newId("annot"),
+        id: textId,
         kind: "text",
         pageId,
-        origin: run.baseline,
-        text: run.str,
+        origin: asBlock ? [asBlock.left, asBlock.lines[0].origin[1]] : run.baseline,
+        text: asBlock ? asBlock.text : run.str,
+        ...(asBlock
+          ? {
+              // Légère marge : les mesures de l'écran et du PDF diffèrent de quelques centièmes.
+              box: { width: asBlock.width + asBlock.fontSize * 0.05, align: asBlock.align, lineHeight: Math.round(asBlock.lineHeight * 100) / 100 },
+            }
+          : {}),
         fontKey,
-        fontSize: Math.round(run.fontSize * 10) / 10,
+        fontSize: Math.round((asBlock ? asBlock.fontSize : run.fontSize) * 10) / 10,
         color: color ?? "#000000",
         opacity: 1,
         rotation: run.angle,
@@ -846,7 +855,7 @@ export default function App() {
         ...(embedded ? { embedded } : {}),
       };
       // Ouvert en édition seulement : rien n'est enregistré tant que le texte n'a pas changé.
-      setPendingEdit({ cover, text: text as TextAnnotation, snapshot: JSON.stringify(text) });
+      setPendingEdit({ covers, text: text as TextAnnotation, snapshot: JSON.stringify(text) });
       // On reste en mode « Modifier le texte » pour enchaîner les modifications.
       setSelectedId(text.id);
       if (!isMobile()) setPropsOpen(true);

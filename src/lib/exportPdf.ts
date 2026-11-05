@@ -11,7 +11,8 @@ import {
   pushGraphicsState,
 } from "pdf-lib";
 import { compatFontkit, withPreferredFont } from "./fontkitCompat";
-import { drawEmbeddedText } from "./embeddedFonts";
+import { drawEmbeddedText, embeddedTextWidth, missingChars } from "./embeddedFonts";
+import { layoutText } from "./textBlocks";
 import { createFormField } from "./formFields";
 import { removeTextInRects } from "./removeText";
 import { curvePoints, rectCenter } from "./annotations";
@@ -71,6 +72,36 @@ export function decorations(a: TextAnnotation, lineIndex: number, width: number)
     out.push([base, addScaled(base, right, width)]);
   }
   return out;
+}
+
+async function drawTextAnnotation(doc: PDFDocument, page: PDFPage, a: TextAnnotation, fonts: FontCache) {
+  // Police d'origine du PDF, lettre par lettre ; police de remplacement pour les seuls glyphes absents.
+  if (a.embedded && (await drawEmbeddedText(doc, page, { ...a, embedded: a.embedded }, () => fonts.get(a.fontKey)))) return;
+  await drawText(page, a, await fonts.get(a.fontKey));
+}
+
+/** Bloc de texte remis en page : une annotation par ligne, ou par mot sur une ligne justifiée. */
+export async function blockParts(a: TextAnnotation, fallback: PDFFont | null): Promise<TextAnnotation[]> {
+  const box = a.box!;
+  const fbWidth = (x: string) => fallback?.widthOfTextAtSize(x, a.fontSize) ?? x.length * a.fontSize * 0.5;
+  const measure = (s: string) => (a.embedded ? embeddedTextWidth(a.embedded, s, a.fontSize, fbWidth) : fbWidth(s));
+  const { right, down } = screenAxes(a.rotation);
+  const parts: TextAnnotation[] = [];
+  layoutText(a.text, box.width, box.align, measure).forEach((l, i) => {
+    if (!l.text) return;
+    const start = addScaled(addScaled(a.origin, down, i * box.lineHeight), right, l.x);
+    const base = { ...a, box: undefined };
+    if (!l.wordSpacing) {
+      parts.push({ ...base, text: l.text, origin: start });
+      return;
+    }
+    let x = 0;
+    for (const word of l.text.split(" ")) {
+      parts.push({ ...base, text: word, origin: addScaled(start, right, x) });
+      x += measure(word) + measure(" ") + l.wordSpacing;
+    }
+  });
+  return parts;
 }
 
 async function drawText(page: PDFPage, a: TextAnnotation, font: PDFFont) {
@@ -215,9 +246,15 @@ async function drawAnnotationBase(doc: PDFDocument, page: PDFPage, a: Annotation
       return;
     }
     case "text":
-      // Police d'origine du PDF, lettre par lettre ; police de remplacement pour les seuls glyphes absents.
-      if (a.embedded && (await drawEmbeddedText(doc, page, { ...a, embedded: a.embedded }, () => fonts.get(a.fontKey)))) return;
-      await drawText(page, a, await fonts.get(a.fontKey));
+      if (a.box) {
+        // Bloc : remis en page dans sa largeur, puis écrit ligne par ligne (mot par mot si justifié).
+        // Police de remplacement chargée seulement si elle sert : une police CFF (Marianne…)
+        // intégrée sans aucun caractère fait échouer l'enregistrement (fontkit).
+        const needed = !a.embedded || missingChars(a.embedded, a.text).length > 0;
+        for (const part of await blockParts(a, needed ? await fonts.get(a.fontKey) : null)) await drawTextAnnotation(doc, page, part, fonts);
+        return;
+      }
+      await drawTextAnnotation(doc, page, a, fonts);
       return;
     case "field":
       createFormField(doc, page, a);

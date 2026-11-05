@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument, StandardFonts, degrees } from "pdf-lib";
 import * as ops from "./pageOps";
-import { exportPdf, LINE_HEIGHT } from "./exportPdf";
+import { blockParts, exportPdf, LINE_HEIGHT } from "./exportPdf";
 import { fillForm, readFormFields } from "./forms";
 import { duplicateAnnotation } from "./annotations";
 import type { Annotation, FieldAnnotation, TextAnnotation } from "./types";
@@ -146,6 +146,39 @@ describe("modifier le texte (cache blanc + texte de remplacement)", () => {
     const fns = await operators(await exportPdf(await samplePdf(1), ["a"], annotations));
     // Le cache est dessiné après le texte ajouté : il le recouvre.
     expect(fns.lastIndexOf("constructPath")).toBeGreaterThan(fns.lastIndexOf("showText"));
+  });
+});
+
+describe("blocs de texte", () => {
+  it("un bloc est remis en page dans sa largeur, ligne par ligne", async () => {
+    const block = text("a", "Un paragraphe assez long pour tenir sur plusieurs lignes dans le bloc", [60, 600], {
+      fontSize: 10,
+      box: { width: 150, align: "left", lineHeight: 14 },
+    });
+    const [page] = await readPages(await exportPdf(await samplePdf(1), ["a"], [block]));
+    const mine = page.items.filter((it) => it.y > 200 && it.y < 300);
+    const ys = [...new Set(mine.map((it) => Math.round(it.y)))].sort((a, b) => a - b);
+    expect(ys.length).toBeGreaterThanOrEqual(3);
+    // Interligne demandé, même bord gauche, rien ne dépasse la largeur.
+    expect(ys[1] - ys[0]).toBeCloseTo(14, 0);
+    expect(new Set(mine.filter((it) => it.x < 70).map((it) => Math.round(it.x)))).toEqual(new Set([60]));
+    expect(page.text.replace(/\s+/g, " ")).toContain("Un paragraphe");
+  });
+
+  it("une ligne justifiée va jusqu'au bord droit", async () => {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const block = text("a", "mot mot mot mot mot mot mot mot mot mot mot mot", [60, 600], {
+      fontSize: 10,
+      box: { width: 150, align: "justify", lineHeight: 14 },
+    });
+    const parts = await blockParts(block, font);
+    const firstLine = parts.filter((p) => p.origin[1] === 600);
+    const last = firstLine[firstLine.length - 1];
+    // Le dernier mot de la première ligne finit au bord droit du bloc (60 + 150).
+    expect(last.origin[0] + font.widthOfTextAtSize(last.text, 10)).toBeCloseTo(210, 1);
+    // La dernière ligne reste alignée à gauche (pas d'écart étiré).
+    expect(parts.filter((p) => p.origin[1] === 600 - 14 * (new Set(parts.map((x) => x.origin[1])).size - 1))[0].origin[0]).toBe(60);
   });
 });
 

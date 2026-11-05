@@ -16,7 +16,7 @@ export interface Piece {
   fontName: string;
   /** Degrés ; seuls les blocs horizontaux (0) sont reconstitués. */
   angle: number;
-  width: number;
+  width?: number;
 }
 
 export type Align = "left" | "center" | "right" | "justify";
@@ -47,7 +47,7 @@ export interface TextBlock {
   text: string;
 }
 
-const right = (p: Piece) => p.baseline[0] + p.width;
+const right = (p: Piece) => p.baseline[0] + (p.width ?? 0);
 
 /** Morceaux d'une même ligne recollés ; un grand écart (colonne, case de tableau) coupe la ligne. */
 export function groupLines(pieces: Piece[]): BlockLine[] {
@@ -102,7 +102,7 @@ function detectAlign(lines: BlockLine[], tol: number): Align {
   if (lines.length < 2) return "left";
   const lefts = lines.map((l) => l.origin[0]);
   const rights = lines.map((l) => l.origin[0] + l.width);
-  const centers = lines.map((l, i) => (lefts[i] + rights[i]) / 2);
+  const centers = lefts.map((l, i) => (l + rights[i]) / 2);
   const same = (v: number[]) => Math.max(...v) - Math.min(...v) < tol;
   const maxRight = Math.max(...rights);
   if (same(lefts)) {
@@ -220,7 +220,7 @@ export function layoutText(text: string, maxWidth: number, align: Align, measure
   const out: LaidLine[] = [];
   const spaceW = measure(" ");
   for (const para of text.split(/\r?\n/)) {
-    const words = para.split(" ").filter((w, i, all) => w || all.length === 1);
+    const words = para.split(" ").filter((w, _i, all) => w || all.length === 1);
     const lines: string[][] = [];
     let cur: string[] = [];
     let curW = 0;

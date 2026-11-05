@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PageViewport } from "pdfjs-dist";
 import { pdfjs, type PDFDocumentProxy, type PDFPageProxy } from "../lib/pdfjs";
-import type { Annotation, FieldType, Point, Rect, Tool } from "../lib/types";
+import type { Annotation, FieldType, Point, Rect, TextAnnotation, Tool } from "../lib/types";
 import { newId } from "../lib/types";
 import { addScaled, arrowHead, normalizeRect, normalizeRotation, rectContains, screenAxes } from "../lib/geometry";
 import { bendControl, curveAt, hasRect, pointsBox, rectCenter, resizeRotated, scalePoints, simplifyPath, translateAnnotation } from "../lib/annotations";
@@ -12,6 +12,7 @@ import { Icon } from "./Icon";
 import { t, useLocale } from "../i18n";
 import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
+import { blockAt, blocksOf, layoutText, type TextBlock } from "../lib/textBlocks";
 
 export interface ToolStyle {
   color: string;
@@ -33,6 +34,8 @@ export interface ToolStyle {
 export interface EditTextRequest {
   pageId: string;
   run: TextRun;
+  /** Bloc (titre, paragraphe) auquel appartient le morceau touché. */
+  block?: TextBlock;
   page: PDFPageProxy;
   /** Couleur du texte d'origine, estimée d'après le rendu de la page. */
   color?: string;
@@ -120,7 +123,11 @@ function PageViewImpl(props: Props) {
   const [runs, setRuns] = useState<TextRun[] | null>(null);
   const [draft, setDraft] = useState<Draft>(null);
   const [drag, setDrag] = useState<Drag>(null);
-  const [hoverRun, setHoverRun] = useState<TextRun | null>(null);
+  const [hoverRun, setHoverRun] = useState<TextRun | TextBlock | null>(null);
+  /** Blocs de texte (titres, paragraphes) reconstitués à partir des morceaux du PDF. */
+  const blocks = useMemo(() => (runs ? blocksOf(runs) : null), [runs]);
+  /** Zone modifiable sous le pointeur : le bloc entier, sinon le morceau (texte tourné). */
+  const editableAt = (p: Point): TextRun | TextBlock | undefined => (blocks && blockAt(blocks, p)) || (runs ? runAt(runs, p) : undefined);
   const erasing = useRef<{ pointerId: number; ids: Set<string> } | null>(null);
   const [erasedPreview, setErasedPreview] = useState<Set<string>>(new Set());
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -312,16 +319,21 @@ function PageViewImpl(props: Props) {
         // Ligne déjà modifiée (sous son cache) : on rouvre le texte existant.
         const cover = annotations.find((a) => a.kind === "whiteout" && rectContains(a.rect, p));
         if (cover && cover.kind === "whiteout") {
-          const existing = annotations.find((a) => a.kind === "text" && rectContains(cover.rect, a.origin, 2));
+          const existing = annotations.find((a) => a.kind === "text" && (a.id === cover.owner || rectContains(cover.rect, a.origin, 2)));
           if (existing) {
             props.onSelect(existing.id);
             break;
           }
         }
-        const run = runs ? runAt(runs, p) : undefined;
+        const block = blocks ? blockAt(blocks, p) : undefined;
+        // Morceau représentatif : celui touché s'il est dans la police principale du bloc, sinon le premier de cette police.
+        const touched = runs ? runAt(runs, p) : undefined;
+        const run = block
+          ? ((touched && touched.fontName === block.fontName ? touched : block.lines.flatMap((l) => l.pieces).find((x) => x.fontName === block.fontName && x.str.trim())) as TextRun | undefined) ?? touched
+          : touched;
         if (run && page) {
-          const { ink, background } = sampleColors(run.rect);
-          props.onEditText({ pageId, run, page, color: ink, background });
+          const { ink, background } = sampleColors(block ? block.rect : run.rect);
+          props.onEditText({ pageId, run, page, color: ink, background, ...(block ? { block } : {}) });
         }
         break;
       }
@@ -350,7 +362,7 @@ function PageViewImpl(props: Props) {
     } else if (draft?.kind === "shape") {
       setDraft({ ...draft, end: p });
     } else if (tool === "editText" && runs && e.pointerType === "mouse") {
-      setHoverRun(runAt(runs, p) ?? null);
+      setHoverRun(editableAt(p) ?? null);
     }
   };
 
@@ -459,6 +471,25 @@ function PageViewImpl(props: Props) {
   };
 
   // ---------------------------------------------------------------- rendu SVG
+
+  /**
+   * Mise en page d'un texte à l'écran : police (incorporée d'origine ou de
+   * remplacement) et lignes — bloc remis en page dans sa largeur, sinon les
+   * lignes saisies. Partagée par le rendu et la zone de saisie.
+   */
+  const textLayout = (a: TextAnnotation) => {
+    // Police incorporée d'origine, lettre par lettre : les caractères absents du
+    // sous-ensemble s'affichent avec la police de remplacement.
+    const original = a.embedded ?? null;
+    const fallbackCss = fontCss(a.fontKey);
+    const css = original ? { fontFamily: original.cssFamily } : fallbackCss;
+    const font = `${"fontStyle" in css && css.fontStyle ? css.fontStyle : "normal"} ${"fontWeight" in css && css.fontWeight ? css.fontWeight : 400} ${a.fontSize}px ${css.fontFamily}`;
+    const measure = (str: string) => measureText(original ? displayText(original, str) : str, font);
+    const laid = a.box
+      ? layoutText(a.text, a.box.width, a.box.align, measure)
+      : a.text.split(/\r?\n/).map((line) => ({ text: line, x: 0, wordSpacing: 0, width: line ? measure(line) : 0 }));
+    return { original, fallbackCss, css, laid };
+  };
 
   /** Rendu d'un élément, tourné de son angle propre autour de son centre. */
   const renderAnnotation = (a: Annotation) => {
@@ -576,11 +607,26 @@ function PageViewImpl(props: Props) {
       case "text": {
         const [x, y] = toView(a.origin);
         const size = a.fontSize * scale;
-        // Police incorporée d'origine, lettre par lettre : les caractères absents du
-        // sous-ensemble s'affichent avec la police de remplacement.
-        const original = a.embedded ?? null;
-        const fallbackCss = fontCss(a.fontKey);
-        const css = original ? { fontFamily: original.cssFamily } : fallbackCss;
+        const { original, fallbackCss, css, laid } = textLayout(a);
+        const step = (a.box ? a.box.lineHeight : a.fontSize * LINE_HEIGHT) * scale;
+        const lineContent = (line: string) =>
+          original && line
+            ? segmentLine(original, line).map((seg, k) =>
+                seg.source === -1 || seg.source === "space" ? (
+                  <tspan key={k}>{displayText(original, seg.text)}</tspan>
+                ) : (
+                  <tspan
+                    key={k}
+                    fontFamily={fallbackCss.fontFamily}
+                    fontWeight={"fontWeight" in fallbackCss ? fallbackCss.fontWeight : undefined}
+                    fontStyle={"fontStyle" in fallbackCss ? fallbackCss.fontStyle : undefined}
+                  >
+                    {seg.text}
+                  </tspan>
+                ),
+              )
+            : line || " ";
+        const turn = `rotate(${rotation - a.rotation} ${x} ${y})`;
         const textEl = (
           <text
             key={a.id}
@@ -593,41 +639,25 @@ function PageViewImpl(props: Props) {
             fontFamily={css.fontFamily}
             fontWeight={"fontWeight" in css ? css.fontWeight : undefined}
             fontStyle={"fontStyle" in css ? css.fontStyle : undefined}
-            transform={`rotate(${rotation - a.rotation} ${x} ${y})`}
+            transform={turn}
             textDecoration={[a.underline && "underline", a.strike && "line-through"].filter(Boolean).join(" ") || undefined}
             style={{ ...common.style, whiteSpace: "pre", userSelect: "none" }}
           >
-            {a.text.split(/\r?\n/).map((line, i) => (
-              <tspan key={i} x={x} dy={i === 0 ? 0 : size * LINE_HEIGHT}>
-                {original && line
-                  ? segmentLine(original, line).map((seg, k) =>
-                      seg.source === -1 || seg.source === "space" ? (
-                        <tspan key={k}>{displayText(original, seg.text)}</tspan>
-                      ) : (
-                        <tspan
-                          key={k}
-                          fontFamily={fallbackCss.fontFamily}
-                          fontWeight={"fontWeight" in fallbackCss ? fallbackCss.fontWeight : undefined}
-                          fontStyle={"fontStyle" in fallbackCss ? fallbackCss.fontStyle : undefined}
-                        >
-                          {seg.text}
-                        </tspan>
-                      ),
-                    )
-                  : line || " "}
+            {laid.map((l, i) => (
+              <tspan key={i} x={x + l.x * scale} y={y + i * step} style={l.wordSpacing ? { wordSpacing: `${l.wordSpacing * scale}px` } : undefined}>
+                {lineContent(l.text)}
               </tspan>
             ))}
           </text>
         );
         if (!a.highlight) return textEl;
-        // Surlignage : un fond par ligne, à la largeur du texte (mesurée avec la même police).
-        const font = `${"fontStyle" in css && css.fontStyle ? css.fontStyle : "normal"} ${"fontWeight" in css && css.fontWeight ? css.fontWeight : 400} ${size}px ${css.fontFamily}`;
+        // Surlignage : un fond par ligne, à la largeur du texte.
         return (
           <g key={a.id}>
-            <g transform={`rotate(${rotation - a.rotation} ${x} ${y})`} style={{ pointerEvents: "none", mixBlendMode: "multiply" }} opacity={a.opacity}>
-              {a.text.split(/\r?\n/).map((line, i) =>
-                line ? (
-                  <rect key={i} x={x - size * 0.06} y={y + i * size * LINE_HEIGHT - size * 0.86} width={measureText(line, font) + size * 0.12} height={size * 1.12} fill={a.highlight} />
+            <g transform={turn} style={{ pointerEvents: "none", mixBlendMode: "multiply" }} opacity={a.opacity}>
+              {laid.map((l, i) =>
+                l.text ? (
+                  <rect key={i} x={x + (l.x - a.fontSize * 0.06) * scale} y={y + i * step - size * 0.86} width={(l.width + a.fontSize * 0.12) * scale} height={size * 1.12} fill={a.highlight} />
                 ) : null,
               )}
             </g>
@@ -767,11 +797,18 @@ function PageViewImpl(props: Props) {
           ref={editorRef}
           spellCheck
           value={a.text}
-          rows={lines.length}
-          cols={Math.max(2, ...lines.map((l) => l.length))}
+          rows={a.box ? textLayout(a).laid.length : lines.length}
+          cols={a.box ? undefined : Math.max(2, ...lines.map((l) => l.length))}
           // Texte de saisie transparent : le rendu visible reste celui de la page
           // (police incorporée comprise) ; seuls le curseur et la sélection s'affichent.
-          style={{ ...fontCss(a.fontKey), fontSize: size, lineHeight: LINE_HEIGHT, color: "transparent" }}
+          // Bloc : même largeur, alignement et interligne que le texte remis en page.
+          style={{
+            ...(a.embedded ? { fontFamily: a.embedded.cssFamily } : fontCss(a.fontKey)),
+            fontSize: size,
+            lineHeight: a.box ? `${a.box.lineHeight * scale}px` : LINE_HEIGHT,
+            color: "transparent",
+            ...(a.box ? { width: a.box.width * scale, whiteSpace: "pre-wrap", textAlign: a.box.align, overflow: "hidden" } : {}),
+          }}
           onFocus={(e) => (editStart.current = e.target.value)}
           onChange={(e) => props.onChange({ ...a, text: e.target.value }, false)}
           onBlur={(e) => {
@@ -970,9 +1007,9 @@ function PageViewImpl(props: Props) {
           return <rect ref={activeHitRef} className="hit active" x={r.x - 2} y={r.y - 2} width={r.w + 4} height={r.h + 4} />;
         })()}
         {tool === "editText" &&
-          runs?.map((run, i) => {
-            const r = viewRect(run.rect);
-            return <rect key={i} className={`run ${run === hoverRun ? "hover" : ""}`} x={r.x} y={r.y} width={r.w} height={r.h} />;
+          [...(blocks ?? []), ...(runs ?? []).filter((r) => r.angle !== 0)].map((z, i) => {
+            const r = viewRect(z.rect);
+            return <rect key={i} className={`run ${z === hoverRun ? "hover" : ""}`} x={r.x} y={r.y} width={r.w} height={r.h} />;
           })}
         {/* Caches de « Modifier le texte » dessous ; le reste dans l'ordre de création (un cache blanc masque ce qui est derrière lui). */}
         {annotations.filter(isTextCover).map(renderAnnotation)}

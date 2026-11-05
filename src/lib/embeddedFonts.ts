@@ -262,6 +262,23 @@ export function segmentLine(font: EmbeddedFont, line: string): { source: GlyphSo
   return out;
 }
 
+/**
+ * Largeur d'un texte écrit avec la police d'origine (mêmes règles que
+ * `drawEmbeddedText`) ; `fallback` mesure les caractères absents de toute la police.
+ */
+export function embeddedTextWidth(font: EmbeddedFont, text: string, size: number, fallback: (s: string) => number): number {
+  let w = 0;
+  for (const seg of segmentLine(font, text)) {
+    if (seg.source === "space") w += [...seg.text].length * font.spaceWidth;
+    else if (seg.source === "fallback") w += (fallback(seg.text) * 1000) / size;
+    else {
+      const glyphs = seg.source === -1 ? font.glyphs : font.alternates![seg.source].glyphs;
+      for (const ch of seg.text) w += glyphs[ch]?.width ?? (ch === " " ? font.spaceWidth : 500);
+    }
+  }
+  return (w * size) / 1000;
+}
+
 /** Texte à afficher à l'écran avec la police incorporée (caractères internes de pdf.js). */
 export function displayText(font: EmbeddedFont, line: string): string {
   return [...line].map((ch) => font.glyphs[ch]?.display ?? ch).join("");
