@@ -2362,6 +2362,7 @@ kbd {
 }
 .initials-preview {
   position: relative;
+  overflow: hidden;
   align-self: center;
   line-height: 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
@@ -2503,4 +2504,10 @@ kbd {
 .stamp-name {
   flex: 1;
   min-width: 0;
+}
+
+/* Moitié basse de la page seulement : le canevas remonte de la moitié de sa hauteur. */
+.initials-preview.half canvas {
+  display: block;
+  transform: translateY(-50%);
 }

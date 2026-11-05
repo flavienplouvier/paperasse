@@ -512,7 +512,8 @@ function InitialsPreview({
     (async () => {
       const p = await pdf.getPage(page + 1);
       const base = p.getViewport({ scale: 1 });
-      const s = Math.min(260 / base.width, 340 / base.height);
+      // Seule la moitié basse de la page est montrée, plus grande : c'est là que se posent les paraphes.
+      const s = Math.min(340 / base.width, 300 / (base.height / 2));
       const vp = p.getViewport({ scale: s * (window.devicePixelRatio || 1) });
       const c = canvas.current;
       if (!alive || !c) return;
@@ -551,22 +552,22 @@ function InitialsPreview({
       <div className="seg" role="radiogroup" aria-label={t("Position")}>
         {(["left", "right"] as const).map((side) => (
           <button key={side} role="radio" aria-checked={near(side)} className={near(side) ? "active" : ""} onClick={() => preset(side)}>
-            {side === "left" ? t("En bas à gauche") : t("En bas à droite")}
+            {side === "left" ? t("À gauche") : t("À droite")}
           </button>
         ))}
       </div>
       <p className="hint">{t("Faites glisser la paraphe dans l'aperçu pour choisir sa place : elle sera au même endroit sur chaque page, à côté des éléments déjà posés.")}</p>
-      <div className="initials-preview">
+      <div className="initials-preview half" style={view ? { width: view.width * view.s, height: (view.height / 2) * view.s } : undefined}>
         <canvas ref={canvas} />
         {view &&
           view.placed.map(({ a, box: b }, n) => {
-            const style = { left: b[0] * view.s, top: b[1] * view.s, width: (b[2] - b[0]) * view.s, height: (b[3] - b[1]) * view.s };
+            const style = { left: b[0] * view.s, top: (b[1] - view.height / 2) * view.s, width: (b[2] - b[0]) * view.s, height: (b[3] - b[1]) * view.s };
             return a.kind === "image" ? <img key={n} className="initials-existing" src={a.dataUrl} alt="" style={style} /> : <span key={n} className="initials-existing box" style={style} />;
           })}
         {view && box && (
           <div
             className={`initials-group ${dragPos ? "dragging" : ""}`}
-            style={{ left: box[0] * view.s, top: box[1] * view.s, width: w * view.s, height: h * view.s, gap: 6 * view.s }}
+            style={{ left: box[0] * view.s, top: (box[1] - view.height / 2) * view.s, width: w * view.s, height: h * view.s, gap: 6 * view.s }}
             onPointerDown={(e) => {
               e.preventDefault();
               e.currentTarget.setPointerCapture(e.pointerId);
@@ -574,7 +575,9 @@ function InitialsPreview({
             }}
             onPointerMove={(e) => {
               if (!drag) return;
-              setDragPos({ fx: drag.pos.fx + (e.clientX - drag.x) / (view.s * view.width), fy: drag.pos.fy + (e.clientY - drag.y) / (view.s * view.height) });
+              // Reste dans la moitié basse affichée.
+              const fy = drag.pos.fy + (e.clientY - drag.y) / (view.s * view.height);
+              setDragPos({ fx: drag.pos.fx + (e.clientX - drag.x) / (view.s * view.width), fy: Math.max(0.5 + h / 2 / view.height, fy) });
             }}
             onPointerUp={() => {
               if (dragPos) {
