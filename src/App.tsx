@@ -1746,6 +1746,7 @@ export default function App() {
       )}
       {signing && (
         <SignDialog
+          fileFonts={fileFonts}
           onClose={() => setSigning(false)}
           onError={(m) => notify(m, true)}
           onInfo={(m) => notify(m, false, 6000)}

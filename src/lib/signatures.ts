@@ -23,6 +23,8 @@ export interface SignItem {
   dataUrl?: string;
   /** Texte (mention écrite, nom de l'identité). */
   text?: string;
+  /** Identité : police choisie (sinon celle du document où on la pose). */
+  fontKey?: string;
   /** Identité : ville de la ligne « Fait à …, le … ». */
   city?: string;
   /** Identité : ajoute la ligne « Fait à …, le {date} ». */

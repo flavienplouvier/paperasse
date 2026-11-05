@@ -30,7 +30,6 @@
   "Accès aux polices refusé. Autorisez-le via l'icône à gauche de l'adresse (Paramètres du site → Polices), puis réessayez.": "Acesso aos tipos de letra recusado. Autorize-o através do ícone à esquerda do endereço (Definições do site → Tipos de letra) e tente novamente.",
   "Ajout du texte reconnu…": "A adicionar o texto reconhecido…",
   "Ajouter": "Adicionar",
-  "Ajouter « Fait à …, le {date} »": "Adicionar «…, {date}»",
   "Ajouter des PDF à la fin (fusion)": "Adicionar PDF no fim (combinar)",
   "Ajouter du texte": "Adicionar texto",
   "Ajouter la date du jour": "Adicionar a data de hoje",
@@ -501,5 +500,7 @@
   "Autre couleur": "Outra cor",
   "Date de signature": "Data da assinatura",
   "Nom (facultatif), ex. Pro": "Nome (opcional), ex. Trabalho",
-  "Nom de l'élément": "Nome do elemento"
+  "Nom de l'élément": "Nome do elemento",
+  "Ajouter « Fait à …, le »": "Adicionar «…, a»",
+  "Choisir une police": "Escolher tipo de letra"
 }

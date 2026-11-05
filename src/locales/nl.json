@@ -30,7 +30,6 @@
   "Accès aux polices refusé. Autorisez-le via l'icône à gauche de l'adresse (Paramètres du site → Polices), puis réessayez.": "Toegang tot lettertypen geweigerd. Sta deze toe via het pictogram links van het adres (Site-instellingen → Lettertypen) en probeer het opnieuw.",
   "Ajout du texte reconnu…": "Herkende tekst toevoegen…",
   "Ajouter": "Toevoegen",
-  "Ajouter « Fait à …, le {date} »": "„Getekend te …, op {date}” toevoegen",
   "Ajouter des PDF à la fin (fusion)": "Pdf's aan het einde toevoegen (samenvoegen)",
   "Ajouter du texte": "Tekst toevoegen",
   "Ajouter la date du jour": "Datum van vandaag toevoegen",
@@ -501,5 +500,7 @@
   "Autre couleur": "Andere kleur",
   "Date de signature": "Datum van ondertekening",
   "Nom (facultatif), ex. Pro": "Naam (optioneel), bv. Werk",
-  "Nom de l'élément": "Naam van het item"
+  "Nom de l'élément": "Naam van het item",
+  "Ajouter « Fait à …, le »": "„Getekend te …, op” toevoegen",
+  "Choisir une police": "Lettertype kiezen"
 }

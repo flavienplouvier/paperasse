@@ -2256,3 +2256,53 @@ kbd {
 .sign-date input[type="date"] {
   min-height: 38px;
 }
+.font-select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.font-select.open {
+  grid-column: 1 / -1;
+}
+.font-select-btn {
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  width: 100%;
+  background: #fff;
+  color: #1b1d22;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.script-fonts .font-select-btn {
+  min-height: 64px;
+}
+.font-select.active .font-select-btn {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.font-select-sample {
+  font-size: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.script-fonts .font-select-sample {
+  font-size: 30px;
+}
+.font-select-name {
+  flex: none;
+  font-size: 11px;
+  color: #666;
+}
+.font-select-pop {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  background: var(--surface);
+}
+.font-select-pop .font-list {
+  max-height: 240px;
+}

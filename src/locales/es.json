@@ -30,7 +30,6 @@
   "Accès aux polices refusé. Autorisez-le via l'icône à gauche de l'adresse (Paramètres du site → Polices), puis réessayez.": "Acceso a las fuentes denegado. Permítalo con el icono a la izquierda de la dirección (Configuración del sitio → Fuentes) y vuelva a intentarlo.",
   "Ajout du texte reconnu…": "Añadiendo el texto reconocido…",
   "Ajouter": "Añadir",
-  "Ajouter « Fait à …, le {date} »": "Añadir «En …, a {date}»",
   "Ajouter des PDF à la fin (fusion)": "Añadir PDF al final (combinar)",
   "Ajouter du texte": "Añadir texto",
   "Ajouter la date du jour": "Añadir la fecha de hoy",
@@ -501,5 +500,7 @@
   "Autre couleur": "Otro color",
   "Date de signature": "Fecha de firma",
   "Nom (facultatif), ex. Pro": "Nombre (opcional), p. ej. Trabajo",
-  "Nom de l'élément": "Nombre del elemento"
+  "Nom de l'élément": "Nombre del elemento",
+  "Ajouter « Fait à …, le »": "Añadir «En …, a»",
+  "Choisir une police": "Elegir una fuente"
 }

@@ -30,7 +30,6 @@
   "Accès aux polices refusé. Autorisez-le via l'icône à gauche de l'adresse (Paramètres du site → Polices), puis réessayez.": "字体访问被拒绝。请通过地址栏左侧的图标授权（网站设置 → 字体），然后重试。",
   "Ajout du texte reconnu…": "正在添加识别的文本…",
   "Ajouter": "添加",
-  "Ajouter « Fait à …, le {date} »": "添加“签于……，{date}”",
   "Ajouter des PDF à la fin (fusion)": "在末尾添加 PDF（合并）",
   "Ajouter du texte": "添加文本",
   "Ajouter la date du jour": "添加今天的日期",
@@ -501,5 +500,7 @@
   "Autre couleur": "其他颜色",
   "Date de signature": "签署日期",
   "Nom (facultatif), ex. Pro": "名称（可选），如：工作",
-  "Nom de l'élément": "项目名称"
+  "Nom de l'élément": "项目名称",
+  "Ajouter « Fait à …, le »": "添加“签于……，日期”",
+  "Choisir une police": "选择字体"
 }

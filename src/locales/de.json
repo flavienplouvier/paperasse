@@ -30,7 +30,6 @@
   "Accès aux polices refusé. Autorisez-le via l'icône à gauche de l'adresse (Paramètres du site → Polices), puis réessayez.": "Zugriff auf Schriften verweigert. Erlauben Sie ihn über das Symbol links neben der Adresse (Website-Einstellungen → Schriftarten) und versuchen Sie es erneut.",
   "Ajout du texte reconnu…": "Erkannter Text wird hinzugefügt…",
   "Ajouter": "Hinzufügen",
-  "Ajouter « Fait à …, le {date} »": "„…, den {date}“ hinzufügen",
   "Ajouter des PDF à la fin (fusion)": "PDFs am Ende anhängen (Zusammenführen)",
   "Ajouter du texte": "Text hinzufügen",
   "Ajouter la date du jour": "Heutiges Datum hinzufügen",
@@ -501,5 +500,7 @@
   "Autre couleur": "Andere Farbe",
   "Date de signature": "Datum der Unterschrift",
   "Nom (facultatif), ex. Pro": "Name (optional), z. B. Beruflich",
-  "Nom de l'élément": "Name des Elements"
+  "Nom de l'élément": "Name des Elements",
+  "Ajouter « Fait à …, le »": "„…, den“ hinzufügen",
+  "Choisir une police": "Schrift wählen"
 }

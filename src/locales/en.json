@@ -30,7 +30,6 @@
   "Accès aux polices refusé. Autorisez-le via l'icône à gauche de l'adresse (Paramètres du site → Polices), puis réessayez.": "Font access denied. Allow it via the icon to the left of the address bar (Site settings → Fonts), then try again.",
   "Ajout du texte reconnu…": "Adding recognized text…",
   "Ajouter": "Add",
-  "Ajouter « Fait à …, le {date} »": "Add “Signed in …, on {date}”",
   "Ajouter des PDF à la fin (fusion)": "Append PDFs (merge)",
   "Ajouter du texte": "Add text",
   "Ajouter la date du jour": "Add today's date",
@@ -501,5 +500,7 @@
   "Autre couleur": "Other color",
   "Date de signature": "Signing date",
   "Nom (facultatif), ex. Pro": "Name (optional), e.g. Work",
-  "Nom de l'élément": "Item name"
+  "Nom de l'élément": "Item name",
+  "Ajouter « Fait à …, le »": "Add “Signed in …, on”",
+  "Choisir une police": "Choose a font"
 }

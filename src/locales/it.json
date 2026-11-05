@@ -30,7 +30,6 @@
   "Accès aux polices refusé. Autorisez-le via l'icône à gauche de l'adresse (Paramètres du site → Polices), puis réessayez.": "Accesso ai font negato. Consentilo tramite l'icona a sinistra dell'indirizzo (Impostazioni sito → Font), poi riprova.",
   "Ajout du texte reconnu…": "Aggiunta del testo riconosciuto…",
   "Ajouter": "Aggiungi",
-  "Ajouter « Fait à …, le {date} »": "Aggiungi «…, lì {date}»",
   "Ajouter des PDF à la fin (fusion)": "Aggiungi PDF alla fine (unisci)",
   "Ajouter du texte": "Aggiungi testo",
   "Ajouter la date du jour": "Aggiungi la data di oggi",
@@ -501,5 +500,7 @@
   "Autre couleur": "Altro colore",
   "Date de signature": "Data di firma",
   "Nom (facultatif), ex. Pro": "Nome (facoltativo), es. Lavoro",
-  "Nom de l'élément": "Nome dell'elemento"
+  "Nom de l'élément": "Nome dell'elemento",
+  "Ajouter « Fait à …, le »": "Aggiungi «…, lì»",
+  "Choisir une police": "Scegli un font"
 }

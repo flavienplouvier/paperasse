@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { DrawPad, clearPad, importSignature, renderScript, trimToPng } from "./DrawPad";
 import { currentLocale, msg, t, tn, useLocale } from "../i18n";
-import { ensureCssFont, getFont } from "../lib/fonts";
+import { DEFAULT_FONT_KEY, ensureCssFont, getFont } from "../lib/fonts";
+import type { FileFont } from "../lib/fileFonts";
+import { FontSelect } from "./FontSelect";
 import { renderStamp } from "../lib/stamp";
 import { newId } from "../lib/types";
 import { addPickedColor, loadPickedColors, toHex } from "../lib/pickedColors";
@@ -68,12 +70,16 @@ export function identityText(item: SignItem, date = isoToday()): string {
 }
 
 /** Élément enregistré → élément à poser (image ou texte). */
-export async function toPart(item: SignItem, date?: string): Promise<PlacePart> {
+export async function toPart(item: SignItem, date?: string, docFont = DEFAULT_FONT_KEY): Promise<PlacePart> {
   if (item.kind === "mention" && item.text) {
     await ensureCssFont(MENTION_FONT).catch(() => undefined);
     return { type: "text", text: item.text, fontKey: MENTION_FONT, fontSize: 16, color: item.color ?? INK[0] };
   }
-  if (item.kind === "identity") return { type: "text", text: identityText(item, date), fontKey: "std:Helvetica", fontSize: 11, color: item.color ?? "#000000" };
+  if (item.kind === "identity") {
+    const fontKey = item.fontKey ?? docFont;
+    await ensureCssFont(fontKey).catch(() => undefined);
+    return { type: "text", text: identityText(item, date), fontKey, fontSize: 11, color: item.color ?? "#000000" };
+  }
   const dataUrl = item.stamp ? renderStamp(item.stamp.label, item.stamp.color, item.stamp.withDate) : item.dataUrl!;
   const { w, h } = await imageSize(dataUrl);
   const width = WIDTH[item.kind];
@@ -81,6 +87,8 @@ export async function toPart(item: SignItem, date?: string): Promise<PlacePart> 
 }
 
 interface Props {
+  /** Polices du document ouvert : la première sert de police par défaut à l'identité. */
+  fileFonts: FileFont[];
   onPlace: (parts: PlacePart[]) => void;
   /** Paraphe posée en bas à droite de chaque page. */
   onInitialsEverywhere: (part: PlacePart) => void;
@@ -89,7 +97,8 @@ interface Props {
   onInfo: (msg: string) => void;
 }
 
-export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, onInfo }: Props) {
+export function SignDialog({ fileFonts, onPlace, onInitialsEverywhere, onClose, onError, onInfo }: Props) {
+  const docFont = fileFonts[0]?.key ?? DEFAULT_FONT_KEY;
   useLocale();
   const [items, setItems] = useState<SignItem[]>([]);
   const [tab, setTab] = useState<SignKind>("signature");
@@ -143,7 +152,7 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
 
   const place = async () => {
     try {
-      onPlace(await Promise.all(selection.map((i) => toPart(i, signDate))));
+      onPlace(await Promise.all(selection.map((i) => toPart(i, signDate, docFont))));
     } catch (e) {
       onError((e as Error).message);
     }
@@ -151,7 +160,7 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
 
   const initialsEverywhere = async () => {
     const item = items.find((i) => i.kind === "initials" && chosen.initials === i.id);
-    if (item) onInitialsEverywhere(await toPart(item));
+    if (item) onInitialsEverywhere(await toPart(item, signDate, docFont));
   };
 
   const download = () => {
@@ -225,7 +234,7 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
 
         <div className="sign-body">
           {editing ? (
-            <Editor key={tab} kind={tab} date={signDate} onDate={setSignDate} onSave={add} onCancel={ofTab.length ? () => setEditing(false) : undefined} onError={onError} />
+            <Editor key={tab} kind={tab} date={signDate} onDate={setSignDate} fileFonts={fileFonts} docFont={docFont} onSave={add} onCancel={ofTab.length ? () => setEditing(false) : undefined} onError={onError} />
           ) : (
             <>
               <div className="sign-list">
@@ -233,7 +242,7 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
                   <div key={item.id} className={`sign-card ${chosen[item.kind] === item.id ? "chosen" : ""}`}>
                     <label>
                       <input type="checkbox" checked={chosen[item.kind] === item.id} onChange={() => toggle(item)} />
-                      <Preview item={item} date={signDate} />
+                      <Preview item={item} date={signDate} docFont={docFont} />
                     </label>
                     <button className="icon-btn" title={t("Supprimer")} onClick={() => remove(item)}>
                       <Icon name="trash" size={16} />
@@ -271,16 +280,16 @@ export function SignDialog({ onPlace, onInitialsEverywhere, onClose, onError, on
 
 // ------------------------------------------------------------------ aperçu
 
-function Preview({ item, date }: { item: SignItem; date: string }) {
+function Preview({ item, date, docFont }: { item: SignItem; date: string; docFont: string }) {
   return (
     <span className="sign-preview">
-      <PreviewBody item={item} date={date} />
+      <PreviewBody item={item} date={date} docFont={docFont} />
       {item.name && <small className="sign-name">{item.name}</small>}
     </span>
   );
 }
 
-function PreviewBody({ item, date }: { item: SignItem; date: string }) {
+function PreviewBody({ item, date, docFont }: { item: SignItem; date: string; docFont: string }) {
   const stampUrl = useMemo(() => (item.stamp ? renderStamp(item.stamp.label, item.stamp.color, item.stamp.withDate) : null), [item.stamp]);
   const [mentionFont, setMentionFont] = useState<string | undefined>();
   useEffect(() => {
@@ -291,7 +300,11 @@ function PreviewBody({ item, date }: { item: SignItem; date: string }) {
   }, [item.kind, item.text]);
   if (stampUrl || item.dataUrl) return <img className="sign-thumb" src={stampUrl ?? item.dataUrl} alt="" />;
   if (item.kind === "mention") return <span className="sign-text mention" style={{ fontFamily: mentionFont, color: item.color }}>{item.text}</span>;
-  return <span className="sign-text">{identityText(item, date)}</span>;
+  return (
+    <span className="sign-text" style={{ fontFamily: getFont(item.fontKey ?? docFont).cssFamily, color: item.color }}>
+      {identityText(item, date)}
+    </span>
+  );
 }
 
 function DateField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -354,6 +367,8 @@ function Editor({
   kind,
   date,
   onDate,
+  fileFonts,
+  docFont,
   onSave,
   onCancel,
   onError,
@@ -361,6 +376,8 @@ function Editor({
   kind: SignKind;
   date: string;
   onDate: (d: string) => void;
+  fileFonts: FileFont[];
+  docFont: string;
   onSave: (item: SignItem, remember: boolean) => void;
   onCancel?: () => void;
   onError: (m: string) => void;
@@ -379,6 +396,10 @@ function Editor({
   const [removeBackground, setRemoveBackground] = useState(true);
   const [remember, setRemember] = useState(true);
   const [name, setName] = useState("");
+  /** Identité : police choisie explicitement (sinon celle du document). */
+  const [identityFont, setIdentityFont] = useState<string | null>(null);
+  /** Signature / paraphe écrite : police choisie dans la liste complète (6e case). */
+  const [otherFont, setOtherFont] = useState<string | null>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -408,7 +429,7 @@ function Editor({
       if (mode === "import") return imported && onSave({ ...base, dataUrl: imported }, remember);
       if (!text.trim()) return;
       if (kind === "mention") return onSave({ ...base, text: text.trim(), color }, remember);
-      if (kind === "identity") return onSave({ ...base, text: text.trim(), city: city.trim(), withDate, color }, remember);
+      if (kind === "identity") return onSave({ ...base, text: text.trim(), city: city.trim(), withDate, color, ...(identityFont ? { fontKey: identityFont } : {}) }, remember);
       if (kind === "stamp") return onSave({ ...base, stamp: { label: text.trim(), color, withDate } }, remember);
       const png = await renderScript(text.trim(), font, color);
       if (png) onSave({ ...base, dataUrl: png, color }, remember);
@@ -489,20 +510,28 @@ function Editor({
             <span>{t("Prénom et nom")}</span>
             <input autoFocus value={text} placeholder={t("Ex. Léa Martin")} onChange={(e) => setText(e.target.value)} />
           </label>
-          <label className="check">
-            <input type="checkbox" checked={withDate} onChange={(e) => setWithDate(e.target.checked)} />
-            {t("Ajouter « Fait à …, le {date} »", { date: showDate(date) })}
-          </label>
+          <div className="modal-row">
+            <label className="check">
+              <input type="checkbox" checked={withDate} onChange={(e) => setWithDate(e.target.checked)} />
+              {t("Ajouter « Fait à …, le »")}
+            </label>
+            <input type="date" value={date} disabled={!withDate} aria-label={t("Date de signature")} onChange={(e) => e.target.value && onDate(e.target.value)} />
+          </div>
           {withDate && (
-            <>
-              <label className="field">
-                <span>{t("Ville (facultatif)")}</span>
-                <input value={city} placeholder={t("Ex. Lyon")} onChange={(e) => setCity(e.target.value)} />
-              </label>
-              <DateField value={date} onChange={onDate} />
-            </>
+            <label className="field">
+              <span>{t("Ville (facultatif)")}</span>
+              <input value={city} placeholder={t("Ex. Lyon")} onChange={(e) => setCity(e.target.value)} />
+            </label>
           )}
-          {text.trim() && <pre className="sign-text">{identityText({ ...base, text, city, withDate }, date)}</pre>}
+          <div className="field">
+            <span>{t("Police")}</span>
+            <FontSelect value={identityFont ?? docFont} onChange={setIdentityFont} onError={onError} fileFonts={fileFonts} />
+          </div>
+          {text.trim() && (
+            <pre className="sign-text" style={{ fontFamily: getFont(identityFont ?? docFont).cssFamily, color }}>
+              {identityText({ ...base, text, city, withDate }, date)}
+            </pre>
+          )}
         </>
       )}
 
@@ -526,6 +555,18 @@ function Editor({
                 {text.trim() || (kind === "initials" ? "L.M." : "Léa Martin")}
               </button>
             ))}
+            <FontSelect
+              value={otherFont ?? docFont}
+              active={!!otherFont && font === otherFont}
+              color={color}
+              sample={text.trim() || (kind === "initials" ? "L.M." : "Léa Martin")}
+              fileFonts={fileFonts}
+              onError={onError}
+              onChange={(k) => {
+                setOtherFont(k);
+                setFont(k);
+              }}
+            />
           </div>
         </>
       )}
@@ -551,7 +592,7 @@ function Editor({
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           {t("Mémoriser sur cet appareil")}
         </label>
-        <input className="sign-name-input" value={name} maxLength={40} placeholder={t("Nom (facultatif), ex. Pro")} aria-label={t("Nom de l'élément")} onChange={(e) => setName(e.target.value)} />
+        <input className="sign-name-input" value={name} maxLength={64} placeholder={t("Nom (facultatif), ex. Pro")} aria-label={t("Nom de l'élément")} onChange={(e) => setName(e.target.value)} />
         {onCancel && <button onClick={onCancel}>{t("Annuler")}</button>}
         <button className="primary" disabled={!ready} onClick={save}>
           {t("Enregistrer")}
