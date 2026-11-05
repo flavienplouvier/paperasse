@@ -178,7 +178,26 @@ export default function App() {
     doubleArrow: false,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [panel, setPanel] = useState<Panel | null>(() => (isMobile() ? null : "pages"));
+  // Panneau de gauche : ouvert par défaut sur ordinateur (pages), repliable par une flèche (choix retenu).
+  const [panel, setPanel] = useState<Panel | null>(() => {
+    if (isMobile()) return null;
+    try {
+      const saved = localStorage.getItem("paperasse-panneau");
+      return saved === "replié" ? null : ((saved as Panel | null) ?? "pages");
+    } catch {
+      return "pages";
+    }
+  });
+  const lastPanel = useRef<Panel>("pages");
+  useEffect(() => {
+    if (panel) lastPanel.current = panel;
+    if (isMobile()) return;
+    try {
+      localStorage.setItem("paperasse-panneau", panel ?? "replié");
+    } catch {
+      /* navigation privée */
+    }
+  }, [panel]);
   const [propsOpen, setPropsOpen] = useState(() => !isMobile());
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [activeHit, setActiveHit] = useState(-1);
@@ -1288,7 +1307,7 @@ export default function App() {
         <button
           className="icon-btn"
           title={t("Menu")}
-          onClick={() => (isMobile() ? setMobileMenu(true) : setPanel((p) => (p ? null : "pages")))}
+          onClick={() => setMobileMenu(true)}
         >
           <Icon name="menu" />
         </button>
@@ -1321,7 +1340,7 @@ export default function App() {
             <Icon name="zoomIn" />
           </button>
           <span className="sep desktop-only" />
-          <button className="icon-btn desktop-only" title={t("Rechercher (Ctrl+F)")} onClick={() => setPanel((p) => (p === "search" ? null : "search"))}>
+          <button className="icon-btn desktop-only" title={t("Rechercher (Ctrl+F)")} onClick={() => setPanel("search")}>
             <Icon name="search" />
           </button>
           {pdf && (
@@ -1462,7 +1481,7 @@ export default function App() {
       />
 
       {mobileMenu && (
-        <div className="mdrawer-wrap mobile-only" onClick={() => setMobileMenu(false)}>
+        <div className="mdrawer-wrap" onClick={() => setMobileMenu(false)}>
           <aside className="mdrawer" aria-label={t("Menu")} onClick={(e) => e.stopPropagation()}>
             <div className="mdrawer-head">
               <span className="mdrawer-logo">P</span>
@@ -1510,6 +1529,23 @@ export default function App() {
       )}
 
       {panel && <div className="backdrop mobile-only" onClick={() => setPanel(null)} />}
+      {!panel && (
+        <nav className="side-rail desktop-only" aria-label={t("Panneau")}>
+          <button className="icon-btn" title={t("Afficher le panneau")} onClick={() => setPanel(lastPanel.current)}>
+            <Icon name="expand" size={18} />
+          </button>
+          <hr />
+          <button className="icon-btn" title={t("Pages")} onClick={() => setPanel("pages")}>
+            <Icon name="pages" size={18} />
+          </button>
+          <button className="icon-btn" title={t("Recherche")} onClick={() => setPanel("search")}>
+            <Icon name="search" size={18} />
+          </button>
+          <button className="icon-btn" title={t("Formulaire")} onClick={() => setPanel("forms")}>
+            <Icon name="form" size={18} />
+          </button>
+        </nav>
+      )}
       <aside className={`side-panel ${panel ? "open" : ""}`}>
         <div className="tabs" role="tablist">
           <button className={panel === "pages" ? "active" : ""} onClick={() => setPanel("pages")}>
@@ -1521,8 +1557,11 @@ export default function App() {
           <button className={panel === "forms" ? "active" : ""} onClick={() => setPanel("forms")}>
             <Icon name="form" size={16} /> {t("Formulaire")}
           </button>
-          <button className="icon-btn close" onClick={() => setPanel(null)} title={t("Fermer")}>
+          <button className="icon-btn close mobile-only" onClick={() => setPanel(null)} title={t("Fermer")}>
             <Icon name="close" size={18} />
+          </button>
+          <button className="icon-btn close desktop-only" onClick={() => setPanel(null)} title={t("Réduire le panneau")}>
+            <Icon name="collapse" size={18} />
           </button>
         </div>
         {pdf && panel === "pages" && (

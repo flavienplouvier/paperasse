@@ -493,5 +493,8 @@
   "Zone de texte": "文本框",
   "Zoom": "缩放",
   "Zoom arrière": "缩小",
-  "Zoom avant": "放大"
+  "Zoom avant": "放大",
+  "Réduire le panneau": "收起面板",
+  "Afficher le panneau": "展开面板",
+  "Panneau": "面板"
 }

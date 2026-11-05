@@ -1336,77 +1336,6 @@ kbd {
   .banner-actions button {
     min-height: 40px;
   }
-  /* Tiroir du menu (☰). */
-  .mdrawer-wrap {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    display: flex !important;
-    background: rgba(20, 24, 33, 0.35);
-  }
-  .mdrawer {
-    width: min(82vw, 320px);
-    height: 100%;
-    overflow-y: auto;
-    background: var(--surface);
-    box-shadow: var(--shadow);
-    padding: calc(12px + env(safe-area-inset-top)) 10px 16px;
-    box-sizing: border-box;
-  }
-  .mdrawer hr {
-    border: 0;
-    border-top: 1px solid var(--border);
-    margin: 6px 8px;
-  }
-  .mdrawer-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 4px 8px 12px;
-  }
-  .mdrawer-logo {
-    flex: none;
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    background: var(--accent);
-    color: var(--accent-text);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-  }
-  .mdrawer-name {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-  .mdrawer-name strong {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .mdrawer-name small {
-    color: var(--muted);
-  }
-  .mdrawer-item {
-    width: 100%;
-    height: 46px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 14px;
-    padding: 0 10px;
-    border: 0;
-    border-radius: 10px;
-    background: transparent;
-    color: var(--text);
-    font-size: 15px;
-    text-align: left;
-  }
-  .mdrawer-item:disabled {
-    opacity: 0.4;
-  }
   .tool {
     min-width: 62px;
   }
@@ -2048,6 +1977,9 @@ kbd {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Marge pour que le contour de la couleur choisie ne soit pas rogné par le défilement. */
+  padding: 4px;
+  margin: 0 -4px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -2202,4 +2134,103 @@ kbd {
     min-width: 64px;
     font-size: 11px;
   }
+}
+
+/* ----------------------------------------------------------------- menu ☰ (ordinateur et téléphone) */
+
+.mdrawer-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  background: rgba(20, 24, 33, 0.35);
+}
+.mdrawer {
+  width: min(82vw, 320px);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: calc(12px + env(safe-area-inset-top)) 10px 16px;
+  box-sizing: border-box;
+}
+.mdrawer hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 6px 8px;
+}
+.mdrawer-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 12px;
+}
+.mdrawer-logo {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--accent-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+.mdrawer-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.mdrawer-name strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mdrawer-name small {
+  color: var(--muted);
+}
+.mdrawer-item {
+  width: 100%;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  text-align: left;
+}
+.mdrawer-item:disabled {
+  opacity: 0.4;
+}
+.mdrawer-item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+/* Panneau de gauche replié (ordinateur) : barre fine avec la flèche et les onglets. */
+.side-rail {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 48px;
+  padding: 6px 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+.side-rail .icon-btn.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.side-rail hr {
+  width: 28px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 2px 0;
 }

@@ -493,5 +493,8 @@
   "Zone de texte": "Text box",
   "Zoom": "Zoom",
   "Zoom arrière": "Zoom out",
-  "Zoom avant": "Zoom in"
+  "Zoom avant": "Zoom in",
+  "Réduire le panneau": "Collapse panel",
+  "Afficher le panneau": "Show panel",
+  "Panneau": "Panel"
 }
