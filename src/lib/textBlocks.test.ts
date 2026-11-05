@@ -74,6 +74,11 @@ describe("blocs de texte", () => {
     expect(blocksOf([...a, ...b, ...c])).toHaveLength(3);
   });
 
+  it("une espace très large (tabulation) sépare deux colonnes", () => {
+    const row = [piece("PAIEMENT :", 20.6, 338.7, 68.2, 12), piece(" ", 88.8, 338.7, 321.9, 12), piece("TOTAL H.T.", 410.7, 340.9, 64, 12)];
+    expect(blocksOf(row).map((b) => b.text).sort()).toEqual(["PAIEMENT :", "TOTAL H.T."]);
+  });
+
   it("trouve le bloc sous le pointeur", () => {
     const blocks = blocksOf(title);
     expect(blockAt(blocks, [300, 690])).toBe(blocks[0]);

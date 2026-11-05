@@ -103,7 +103,13 @@ export function groupLines(pieces: Piece[]): BlockLine[] {
       cur = [];
     };
     for (const p of row) {
-      const prev = cur[cur.length - 1];
+      // Blanc très large (tabulation placée comme une espace) : séparation de colonnes.
+      if (!p.str.trim() && (p.width ?? 0) > 1.2 * p.fontSize) {
+        flush();
+        continue;
+      }
+      // Écart mesuré depuis le dernier mot (pas depuis une espace).
+      const prev = [...cur].reverse().find((x) => x.str.trim());
       if (prev && p.baseline[0] - right(prev) > 1.2 * p.fontSize) flush();
       cur.push(p);
     }
