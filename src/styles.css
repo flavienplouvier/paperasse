@@ -1976,3 +1976,12 @@ kbd {
 .drawer-lang {
   margin-left: auto;
 }
+@media (max-width: 899px) {
+  /* Téléphone : drapeau seul, le nom de la langue reste visible dans la liste. */
+  .welcome-lang {
+    margin: -22px -8px 0;
+  }
+  .welcome-lang .lang-btn > span {
+    display: none;
+  }
+}
