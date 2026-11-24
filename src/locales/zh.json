@@ -580,6 +580,5 @@
   "Pages invalides : le document a {n} pages.": "页码无效：文档共有 {n} 页。",
   "Enregistrement du fichier": "保存文件",
   "{n} fichiers": "{n} 个文件",
-  "Partager (WhatsApp, e-mail, Drive…)": "分享（WhatsApp、电子邮件、云端硬盘…）",
-  "Ce navigateur ne sait pas partager un fichier : il a été enregistré dans vos téléchargements, partagez-le depuis là (ou utilisez Chrome).": "此浏览器无法分享文件：文件已保存到下载内容中，请从那里分享（或使用 Chrome）。"
+  "Partager (WhatsApp, e-mail, Drive…)": "分享（WhatsApp、电子邮件、云端硬盘…）"
 }

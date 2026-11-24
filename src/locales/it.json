@@ -580,6 +580,5 @@
   "Pages invalides : le document a {n} pages.": "Pagine non valide: il documento ha {n} pagine.",
   "Enregistrement du fichier": "Salvataggio del file",
   "{n} fichiers": "{n} file",
-  "Partager (WhatsApp, e-mail, Drive…)": "Condividi (WhatsApp, e-mail, Drive…)",
-  "Ce navigateur ne sait pas partager un fichier : il a été enregistré dans vos téléchargements, partagez-le depuis là (ou utilisez Chrome).": "Questo browser non sa condividere file: è stato salvato nei download, condividilo da lì (o usa Chrome)."
+  "Partager (WhatsApp, e-mail, Drive…)": "Condividi (WhatsApp, e-mail, Drive…)"
 }

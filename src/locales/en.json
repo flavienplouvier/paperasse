@@ -580,6 +580,5 @@
   "Pages invalides : le document a {n} pages.": "Invalid pages: the document has {n} pages.",
   "Enregistrement du fichier": "Save file",
   "{n} fichiers": "{n} files",
-  "Partager (WhatsApp, e-mail, Drive…)": "Share (WhatsApp, email, Drive…)",
-  "Ce navigateur ne sait pas partager un fichier : il a été enregistré dans vos téléchargements, partagez-le depuis là (ou utilisez Chrome).": "This browser can't share files: it was saved to your downloads, share it from there (or use Chrome)."
+  "Partager (WhatsApp, e-mail, Drive…)": "Share (WhatsApp, email, Drive…)"
 }

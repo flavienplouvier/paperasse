@@ -4,34 +4,19 @@ import { t, useLocale } from "../i18n";
 interface Props {
   /** Fichiers prêts à partager (le PDF, ou une image par page). */
   files: File[];
-  /** Le navigateur refuse les fichiers : ils sont enregistrés à la place. */
-  onFallback: (files: File[]) => void;
   onError: (e: unknown) => void;
   onClose: () => void;
 }
 
 /**
- * Le navigateur a-t-il un menu de partage ? Oui sur téléphone, Windows et Mac ;
- * non avec Chrome ou Firefox sous Linux. Certains (Firefox sur Android) ne
- * partagent pas les fichiers : voir `shareFiles`.
+ * L'appareil sait-il partager des fichiers (menu de partage du système) ?
+ * Oui sur téléphone, Windows et Mac ; non avec Chrome ou Firefox sous Linux.
  */
-export function canShare(): boolean {
-  return typeof navigator.share === "function";
-}
-
-/**
- * Ouvre le menu de partage avec les fichiers. Renvoie false si le navigateur
- * refuse les fichiers (Firefox sur Android) : l'appelant les enregistre alors.
- * Un partage annulé par l'utilisateur est rejeté (AbortError).
- */
-export async function shareFiles(files: File[]): Promise<boolean> {
+export function canShareFiles(): boolean {
   try {
-    await navigator.share({ files, title: files[0]?.name });
-    return true;
-  } catch (e) {
-    const name = (e as Error).name;
-    // Annulé, ou clic trop ancien (NotAllowedError) : l'appelant décide.
-    if (name === "AbortError" || name === "NotAllowedError") throw e;
+    const probe = new File([new Uint8Array(1)], "test.pdf", { type: "application/pdf" });
+    return typeof navigator.share === "function" && !!navigator.canShare?.({ files: [probe] });
+  } catch {
     return false;
   }
 }
@@ -40,11 +25,11 @@ export async function shareFiles(files: File[]): Promise<boolean> {
  * Partage après une préparation longue : le navigateur n'ouvre le menu de
  * partage qu'après un clic récent, on le redemande donc ici.
  */
-export function ShareDialog({ files, onFallback, onError, onClose }: Props) {
+export function ShareDialog({ files, onError, onClose }: Props) {
   useLocale();
   const share = async () => {
     try {
-      if (!(await shareFiles(files))) onFallback(files);
+      await navigator.share({ files, title: files[0]?.name });
       onClose();
     } catch (e) {
       // Partage annulé : la fenêtre reste ouverte.

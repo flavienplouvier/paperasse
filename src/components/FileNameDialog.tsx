@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
-import { canShare } from "./ShareDialog";
+import { canShareFiles } from "./ShareDialog";
 import { t, useLocale } from "../i18n";
 import { SAVE_FORMATS, canSave, formatInfo, type SaveFormat } from "../lib/imageExport";
 import { parsePageRanges } from "../lib/pageRanges";
@@ -26,8 +26,8 @@ interface Props {
 /** Choix du nom du fichier à l'enregistrement, avec une date facultative. */
 export function FileNameDialog({ base, date, onConfirm, onClose, formats, pageCount = 1 }: Props) {
   useLocale();
-  // Partage proposé si le navigateur a un menu de partage (pas Chrome ni Firefox sous Linux).
-  const [shareable] = useState(canShare);
+  // Partage proposé seulement si l'appareil sait partager des fichiers (pas Chrome ni Firefox sous Linux).
+  const [shareable] = useState(canShareFiles);
   const [format, setFormat] = useState<SaveFormat>("pdf");
   const [supported, setSupported] = useState<Partial<Record<SaveFormat, boolean>>>({});
   useEffect(() => {
