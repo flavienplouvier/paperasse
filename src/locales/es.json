@@ -575,5 +575,18 @@
   "La zone à découper est trop petite.": "La zona a recortar es demasiado pequeña.",
   "Tracez la zone : elle deviendra une nouvelle page": "Dibuje la zona: se convertirá en una página nueva",
   "Tracez la zone à découper": "Dibuje la zona a recortar",
-  "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "Dibuje un rectángulo en la página, ajústelo con los tiradores y pulse «Crear página»: la zona se convierte en una página nueva justo después de la original, que queda intacta. «Como imagen» elimina de verdad lo que queda fuera del marco; si no, el texto sigue nítido y seleccionable."
+  "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "Dibuje un rectángulo en la página, ajústelo con los tiradores y pulse «Crear página»: la zona se convierte en una página nueva justo después de la original, que queda intacta. «Como imagen» elimina de verdad lo que queda fuera del marco; si no, el texto sigue nítido y seleccionable.",
+  "{n} page : {list}": "{n} página: {list}",
+  "{n} pages : {list}": "{n} páginas: {list}",
+  "Choisir les pages": "Elegir las páginas",
+  "Comme pour imprimer : séparez les pages par des virgules et indiquez une suite de pages avec un tiret.": "Como al imprimir: separe las páginas con comas e indique un intervalo con un guion.",
+  "de la page 4 jusqu'à la fin": "de la página 4 hasta el final",
+  "Ex. 1-3, 5": "Ej. 1-3, 5",
+  "pages 1 à 3": "páginas 1 a 3",
+  "pages 1 à 3, puis la page 6": "páginas 1 a 3 y después la página 6",
+  "pages 1 et 3": "páginas 1 y 3",
+  "Pages à enregistrer": "Páginas que guardar",
+  "Pages choisies": "Páginas elegidas",
+  "Pages invalides : le document a {n} pages.": "Páginas no válidas: el documento tiene {n} páginas.",
+  "Toutes ({n})": "Todas ({n})"
 }

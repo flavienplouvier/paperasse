@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
-import { t, useLocale } from "../i18n";
+import { t, tn, useLocale } from "../i18n";
 import { SAVE_FORMATS, canSave, formatInfo, type SaveFormat } from "../lib/imageExport";
+import { parsePageRanges } from "../lib/pageRanges";
 import { buildFileName, findDate, formatDate, isoDate, loadNamePrefs, saveNamePrefs, type NamePrefs } from "../lib/fileName";
 
 interface Props {
@@ -11,20 +12,20 @@ interface Props {
   date: string | null;
   /** Libellé du bouton : « Enregistrer », « Partager »… */
   action: string;
-  onConfirm: (fileName: string, base: string, date: string | null, format: SaveFormat) => void;
+  /** `pages` : numéros des pages choisies (à partir de 1), null pour toutes. */
+  onConfirm: (fileName: string, base: string, date: string | null, format: SaveFormat, pages: number[] | null) => void;
   onClose: () => void;
-  /** Document numérisé : choix du format (PDF ou image), avec le nombre de pages. */
-  formats?: { pages: number };
+  /** Choix du format (PDF ou image) : document numérisé ou fait d'images. */
+  formats?: boolean;
+  /** Nombre de pages du document : choix des pages à enregistrer (comme à l'impression). */
+  pageCount?: number;
 }
 
 /** Choix du nom du fichier à l'enregistrement, avec une date facultative. */
-export function FileNameDialog({ base, date, action, onConfirm, onClose, formats }: Props) {
+export function FileNameDialog({ base, date, action, onConfirm, onClose, formats, pageCount = 1 }: Props) {
   useLocale();
   const [format, setFormat] = useState<SaveFormat>("pdf");
   const [supported, setSupported] = useState<Partial<Record<SaveFormat, boolean>>>({});
-  const [help, setHelp] = useState(false);
-  /** Survol à la souris (ordinateur) : l'aide s'affiche en bulle sous l'icône. */
-  const [hover, setHover] = useState(false);
   useEffect(() => {
     if (!formats) return;
     let alive = true;
@@ -34,6 +35,12 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose, formats
     };
   }, [formats]);
   const ext = formatInfo(format).ext;
+  // Pages : toutes, ou une saisie comme à l'impression (« 1,3 », « 1-3 »).
+  const [allPages, setAllPages] = useState(true);
+  const [range, setRange] = useState("");
+  const chosen = allPages ? null : parsePageRanges(range, pageCount);
+  const invalid = !allPages && !chosen;
+  const count = chosen?.length ?? pageCount;
   const [name, setName] = useState(base);
   const [withDate, setWithDate] = useState(date !== null);
   const [day, setDay] = useState(date ?? isoDate());
@@ -86,7 +93,8 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose, formats
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
-          onConfirm(fileName, name.trim(), chosenDate, format);
+          if (invalid) return;
+          onConfirm(fileName, name.trim(), chosenDate, format, chosen && chosen.length < pageCount ? chosen : null);
         }}
       >
         <header>
@@ -121,73 +129,87 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose, formats
           {t("Remplacer les espaces par « _ »")}
         </label>
         {formats && (
-          <div className="save-format">
-            <div className="save-format-head">
-              <span>{t("Format")}</span>
-              {/* Aide : au survol sur ordinateur, au toucher sur téléphone. */}
-              <button
-                type="button"
-                className={`format-info ${help ? "open" : hover ? "hover" : ""}`}
-                title={t("Les formats expliqués")}
-                aria-label={t("Les formats expliqués")}
-                aria-expanded={help}
-                onPointerEnter={(e) => e.pointerType === "mouse" && setHover(true)}
-                onPointerLeave={() => setHover(false)}
-                // Au toucher (téléphone) : fenêtre d'aide. À la souris, la bulle suffit.
-                onClick={(e) => {
-                  if ((e.nativeEvent as PointerEvent).pointerType === "mouse") return;
-                  setHelp((h) => !h);
-                }}
-              >
-                <Icon name="info" size={16} />
-              </button>
-              <div className="format-help" role="tooltip" onClick={() => setHelp(false)}>
-                <div className="format-help-card" onClick={(e) => e.stopPropagation()}>
-                  <header>
-                    <strong>{t("Quel format choisir ?")}</strong>
-                    <button type="button" className="icon-btn" title={t("Fermer")} onClick={() => setHelp(false)}>
-                      <Icon name="close" size={16} />
-                    </button>
-                  </header>
-                  <dl>
-                    {SAVE_FORMATS.map((f) => (
-                      <div key={f.id}>
-                        <dt>{f.label}</dt>
-                        <dd>
-                          {t(f.help)}
-                          {supported[f.id] === false && <em> {t("Non pris en charge par ce navigateur.")}</em>}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                  {formats.pages > 1 && <p className="hint">{t("En image, chaque page devient un fichier séparé.")}</p>}
-                </div>
-              </div>
-            </div>
-            <div className="format-chips" role="radiogroup" aria-label={t("Format")}>
+          <div className="save-format-head">
+            <span>{t("Format")}</span>
+            <InfoTip label={t("Les formats expliqués")} title={t("Quel format choisir ?")} wide>
+              <dl>
+                {SAVE_FORMATS.map((f) => (
+                  <div key={f.id}>
+                    <dt>{f.label}</dt>
+                    <dd>
+                      {t(f.help)}
+                      {supported[f.id] === false && <em> {t("Non pris en charge par ce navigateur.")}</em>}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              {pageCount > 1 && <p className="hint">{t("En image, chaque page devient un fichier séparé.")}</p>}
+            </InfoTip>
+            <select value={format} aria-label={t("Format")} onChange={(e) => setFormat(e.target.value as SaveFormat)}>
               {SAVE_FORMATS.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={format === f.id}
-                  className={format === f.id ? "on" : ""}
-                  disabled={supported[f.id] === false}
-                  title={supported[f.id] === false ? t("Non pris en charge par ce navigateur.") : t(f.help)}
-                  onClick={() => setFormat(f.id)}
-                >
+                <option key={f.id} value={f.id} disabled={supported[f.id] === false}>
                   {f.label}
-                </button>
+                  {supported[f.id] === false ? ` — ${t("Non pris en charge par ce navigateur.")}` : ""}
+                </option>
               ))}
-            </div>
+            </select>
           </div>
+        )}
+        {pageCount > 1 && (
+          <fieldset className="save-pages" aria-label={t("Pages")}>
+            <div className="save-format-head">
+              <span>{t("Pages")}</span>
+              <InfoTip label={t("Choisir les pages")} title={t("Choisir les pages")}>
+                <p>{t("Comme pour imprimer : séparez les pages par des virgules et indiquez une suite de pages avec un tiret.")}</p>
+                <dl>
+                  <div>
+                    <dt>1,3</dt>
+                    <dd>{t("pages 1 et 3")}</dd>
+                  </div>
+                  <div>
+                    <dt>1-3</dt>
+                    <dd>{t("pages 1 à 3")}</dd>
+                  </div>
+                  <div>
+                    <dt>1-3, 6</dt>
+                    <dd>{t("pages 1 à 3, puis la page 6")}</dd>
+                  </div>
+                  <div>
+                    <dt>4-</dt>
+                    <dd>{t("de la page 4 jusqu'à la fin")}</dd>
+                  </div>
+                </dl>
+              </InfoTip>
+            </div>
+            <label className="check">
+              <input type="radio" name="save-pages" checked={allPages} onChange={() => setAllPages(true)} />
+              {t("Toutes ({n})", { n: pageCount })}
+            </label>
+            <label className="check save-pages-custom">
+              <input type="radio" name="save-pages" checked={!allPages} onChange={() => setAllPages(false)} aria-label={t("Pages choisies")} />
+              <input
+                type="text"
+                value={range}
+                placeholder={t("Ex. 1-3, 5")}
+                aria-label={t("Pages à enregistrer")}
+                aria-invalid={invalid && range.trim() !== ""}
+                onFocus={() => setAllPages(false)}
+                onChange={(e) => {
+                  setAllPages(false);
+                  setRange(e.target.value);
+                }}
+              />
+            </label>
+            {invalid && range.trim() !== "" && <p className="hint error">{t("Pages invalides : le document a {n} pages.", { n: pageCount })}</p>}
+            {!allPages && chosen && <p className="hint">{tn("{n} page : {list}", "{n} pages : {list}", chosen.length, { list: chosen.join(", ") })}</p>}
+          </fieldset>
         )}
         <p className="file-name-preview" aria-live="polite">
           <Icon name="pages" size={16} />{" "}
           <span>
             {fileName.slice(0, -4)}
             <span className="nowrap">
-              {formats && format !== "pdf" && formats.pages > 1 ? "-1" : ""}.{ext}
+              {format !== "pdf" && count > 1 ? `-${chosen?.[0] ?? 1}` : ""}.{ext}
             </span>
           </span>
         </p>
@@ -196,11 +218,51 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose, formats
           <button type="button" onClick={onClose}>
             {t("Annuler")}
           </button>
-          <button type="submit" className="primary">
+          <button type="submit" className="primary" disabled={invalid}>
             {action}
           </button>
         </div>
       </form>
     </div>
+  );
+}
+
+/**
+ * Petite icône d'aide bleue : au survol sur ordinateur, une bulle ; au toucher
+ * sur téléphone, une fenêtre au centre de l'écran.
+ */
+function InfoTip({ label, title, wide, children }: { label: string; title: string; wide?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className={`format-info ${open ? "open" : hover ? "hover" : ""}`}
+        title={label}
+        aria-label={label}
+        aria-expanded={open}
+        onPointerEnter={(e) => e.pointerType === "mouse" && setHover(true)}
+        onPointerLeave={() => setHover(false)}
+        // À la souris, la bulle suffit ; au toucher, fenêtre d'aide.
+        onClick={(e) => {
+          if ((e.nativeEvent as PointerEvent).pointerType === "mouse") return;
+          setOpen((o) => !o);
+        }}
+      >
+        <Icon name="info" size={18} />
+      </button>
+      <div className={`format-help ${wide ? "wide" : ""}`} role="tooltip" onClick={() => setOpen(false)}>
+        <div className="format-help-card" onClick={(e) => e.stopPropagation()}>
+          <header>
+            <strong>{title}</strong>
+            <button type="button" className="icon-btn" title={t("Fermer")} onClick={() => setOpen(false)}>
+              <Icon name="close" size={16} />
+            </button>
+          </header>
+          {children}
+        </div>
+      </div>
+    </>
   );
 }

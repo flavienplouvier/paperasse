@@ -63,11 +63,14 @@ async function encode(canvas: HTMLCanvasElement, format: SaveFormat): Promise<Bl
   throw new Error(t("Ce navigateur ne sait pas enregistrer au format {format}.", { format: formatInfo(format).label }));
 }
 
-/** Nom de chaque image : « Scan.jpg », ou « Scan-1.jpg », « Scan-2.jpg »… */
-export function imageNames(fileName: string, count: number, format: SaveFormat): string[] {
+/**
+ * Nom de chaque image : « Scan.jpg », ou « Scan-1.jpg », « Scan-2.jpg »…
+ * `numbers` : numéros des pages enregistrées (pages choisies : « Scan-1.jpg », « Scan-3.jpg »).
+ */
+export function imageNames(fileName: string, count: number, format: SaveFormat, numbers?: number[]): string[] {
   const base = fileName.replace(/\.pdf$/i, "");
   const { ext } = formatInfo(format);
-  return count === 1 ? [`${base}.${ext}`] : Array.from({ length: count }, (_, i) => `${base}-${i + 1}.${ext}`);
+  return count === 1 ? [`${base}.${ext}`] : Array.from({ length: count }, (_, i) => `${base}-${numbers?.[i] ?? i + 1}.${ext}`);
 }
 
 /** Rend chaque page du PDF (grand côté ≈ 2200 px, comme la numérisation) et l'encode. */

@@ -2792,10 +2792,6 @@ kbd {
 }
 
 /* Format d'enregistrement d'un scan : PDF ou image, avec l'aide des formats. */
-.save-format {
-  display: grid;
-  gap: 6px;
-}
 .save-format-head {
   position: relative;
   display: flex;
@@ -2804,36 +2800,56 @@ kbd {
   font-size: 0.9rem;
   color: var(--muted);
 }
+.save-format-head select {
+  /* Largeur prise sur la ligne, pas sur le libellé le plus long de la liste. */
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  margin-left: 4px;
+  color: var(--text);
+}
+/* Simple « i » bleu, sans cadre ni cercle. */
 .format-info {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 0;
   padding: 0;
-  border-radius: 50%;
+  border: 0;
+  background: none;
+  box-shadow: none;
   color: var(--focus);
 }
-.format-chips {
+.format-info:hover,
+.format-info:hover:not(:disabled),
+.format-info:active {
+  background: none;
+  border: 0;
+}
+.format-help:not(.wide) dl > div {
   display: flex;
-  flex-wrap: wrap;
+  gap: 12px;
+}
+.format-help:not(.wide) dt {
+  min-width: 56px;
+}
+.save-pages {
+  display: grid;
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
 }
-.format-chips button {
-  min-width: 58px;
-  padding: 6px 10px;
-  border-radius: 999px;
+.save-pages-custom input[type="text"] {
+  flex: 1;
+  min-width: 0;
 }
-.format-chips button.on {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+.save-pages .hint.error {
   color: var(--accent);
-  font-weight: 600;
-}
-.format-chips button:disabled {
-  opacity: 0.45;
-  text-decoration: line-through;
 }
 .format-help {
   display: none;
@@ -2885,10 +2901,10 @@ kbd {
 .format-info.hover + .format-help header .icon-btn {
   display: none;
 }
-.format-info.hover + .format-help .format-help-card {
+.format-info.hover + .format-help.wide .format-help-card {
   width: min(600px, calc(100vw - 32px));
 }
-.format-info.hover + .format-help dl {
+.format-info.hover + .format-help.wide dl {
   grid-template-columns: 1fr 1fr;
   column-gap: 16px;
 }

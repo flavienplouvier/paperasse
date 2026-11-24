@@ -1082,12 +1082,14 @@ export default function App() {
     }
   };
 
-  const saveAs = (name: string, format: SaveFormat = "pdf") =>
-    withExport(t("Enregistrement…"), async (b) => {
+  /** `pages` : numéros des pages à garder (à partir de 1), null pour toutes. */
+  const saveAs = (name: string, format: SaveFormat = "pdf", pages: number[] | null = null) =>
+    withExport(t("Enregistrement…"), async (all) => {
+      const b = pages ? await ops.extractPages(all, pages.map((p) => p - 1)) : all;
       if (format === "pdf") return download(b, name.replace(/\.pdf$/i, "") + ".pdf");
       // Scan enregistré en images : une image par page.
       const images = await pdfToImages(b, format, (n, total) => setBusy(t("Image {n}/{total}…", { n, total })));
-      const names = imageNames(name, images.length, format);
+      const names = imageNames(name, images.length, format, pages ?? undefined);
       for (const [i, img] of images.entries()) {
         download(img, names[i]);
         // Laisse le navigateur traiter chaque téléchargement.
@@ -1106,12 +1108,12 @@ export default function App() {
   const save = () => setAskName("save");
   const share = () => setAskName("share");
 
-  const confirmName = (fileName: string, base: string, date: string | null, format: SaveFormat) => {
+  const confirmName = (fileName: string, base: string, date: string | null, format: SaveFormat, pages: number[] | null) => {
     const kind = askName;
     setAskName(null);
     setDoc((d) => (d ? { ...d, name: fileName, fileBase: base, fileDate: date } : d));
     if (kind === "share") shareAs(fileName);
-    else saveAs(fileName, format);
+    else saveAs(fileName, format, pages);
   };
 
   const finishScan = async (bytes: Uint8Array, pages: number) => {
@@ -1807,7 +1809,8 @@ export default function App() {
           date={doc.fileBase !== undefined ? (doc.fileDate ?? null) : doc.scan ? isoDate() : null}
           action={askName === "share" ? t("Partager") : t("Enregistrer")}
           // Document numérisé : enregistrement en PDF (par défaut) ou en images.
-          formats={askName === "save" && (doc.scan || doc.images || scanned) ? { pages: doc.pageIds.length } : undefined}
+          formats={askName === "save" && (doc.scan || doc.images || scanned)}
+          pageCount={askName === "save" ? doc.pageIds.length : undefined}
           onConfirm={confirmName}
           onClose={() => setAskName(null)}
         />
