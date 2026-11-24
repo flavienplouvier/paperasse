@@ -580,5 +580,6 @@
   "Pages invalides : le document a {n} pages.": "Páginas no válidas: el documento tiene {n} páginas.",
   "Enregistrement du fichier": "Guardar el archivo",
   "{n} fichiers": "{n} archivos",
-  "Partager (WhatsApp, e-mail, Drive…)": "Compartir (WhatsApp, correo, Drive…)"
+  "Partager (WhatsApp, e-mail, Drive…)": "Compartir (WhatsApp, correo, Drive…)",
+  "Ce navigateur ne sait pas partager un fichier : il a été enregistré dans vos téléchargements, partagez-le depuis là (ou utilisez Chrome).": "Este navegador no puede compartir archivos: se ha guardado en sus descargas, compártalo desde allí (o use Chrome)."
 }

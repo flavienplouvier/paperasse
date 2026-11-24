@@ -47,7 +47,7 @@ import { suggestFieldName } from "./lib/formFields";
 import type { ShapeId } from "./lib/shapes";
 import { Icon } from "./components/Icon";
 import { FileNameDialog } from "./components/FileNameDialog";
-import { ShareDialog } from "./components/ShareDialog";
+import { ShareDialog, shareFiles } from "./components/ShareDialog";
 import { LanguagePicker } from "./components/LanguagePicker";
 import { initialLanguage } from "./lib/language";
 import { msg, setLocale, t, tn, useLocale, type Locale } from "./i18n";
@@ -1097,30 +1097,39 @@ export default function App() {
   const saveAs = (name: string, format: SaveFormat = "pdf", pages: number[] | null = null) =>
     withExport(t("Enregistrement…"), async (all) => {
       const files = await buildFiles(all, name, format, pages);
-      for (const [i, f] of files.entries()) {
-        download(f, f.name);
-        // Laisse le navigateur traiter chaque téléchargement.
-        if (i < files.length - 1) await new Promise((r) => setTimeout(r, 400));
-      }
+      await downloadFiles(files);
     });
 
   /**
    * Partage (menu de partage du système : WhatsApp, e-mail, Drive…). Le menu exige
    * un clic récent : si la préparation a été longue, une fenêtre demande un clic.
    */
-  const [shareFiles, setShareFiles] = useState<File[] | null>(null);
+  const [toShare, setToShare] = useState<File[] | null>(null);
+  /** Enregistre les fichiers (un téléchargement par fichier). */
+  const downloadFiles = async (files: File[]) => {
+    for (const [i, f] of files.entries()) {
+      download(f, f.name);
+      // Laisse le navigateur traiter chaque téléchargement.
+      if (i < files.length - 1) await new Promise((r) => setTimeout(r, 400));
+    }
+  };
+  /** Navigateur qui ne partage pas les fichiers (Firefox sur Android) : enregistrés à la place. */
+  const shareFallback = (files: File[]) => {
+    void downloadFiles(files);
+    notify(t("Ce navigateur ne sait pas partager un fichier : il a été enregistré dans vos téléchargements, partagez-le depuis là (ou utilisez Chrome)."), false, 8000);
+  };
   const shareAs = (name: string, format: SaveFormat, pages: number[] | null) =>
     withExport(t("Préparation du partage…"), async (all) => {
       const files = await buildFiles(all, name, format, pages);
-      if (navigator.userActivation?.isActive) {
+      if (navigator.userActivation?.isActive !== false) {
         try {
-          await navigator.share({ files, title: files[0].name });
+          if (!(await shareFiles(files))) shareFallback(files);
           return;
         } catch (e) {
           if ((e as Error).name === "AbortError") return;
         }
       }
-      setShareFiles(files);
+      setToShare(files);
     });
 
   // Le nom du fichier est choisi à chaque enregistrement (ou partage).
@@ -1808,7 +1817,7 @@ export default function App() {
         <DocumentTools bytes={doc.bytes} initialTab={docTools} onApply={applyToDocument} onClose={() => setDocTools(null)} />
       )}
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
-      {shareFiles && <ShareDialog files={shareFiles} onError={fail} onClose={() => setShareFiles(null)} />}
+      {toShare && <ShareDialog files={toShare} onFallback={shareFallback} onError={fail} onClose={() => setToShare(null)} />}
       {askName && doc && (
         <FileNameDialog
           base={doc.fileBase ?? doc.name.replace(/\.pdf$/i, "")}

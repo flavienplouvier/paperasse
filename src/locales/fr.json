@@ -98,6 +98,7 @@
   "Ce fichier n'est pas une sauvegarde de signatures Paperasse.": "Ce fichier n'est pas une sauvegarde de signatures Paperasse.",
   "Ce navigateur ne donne pas accès aux polices installées (disponible sur Chrome et Edge pour ordinateur). Importez un fichier TTF/OTF à la place.": "Ce navigateur ne donne pas accès aux polices installées (disponible sur Chrome et Edge pour ordinateur). Importez un fichier TTF/OTF à la place.",
   "Ce navigateur ne sait pas enregistrer au format {format}.": "Ce navigateur ne sait pas enregistrer au format {format}.",
+  "Ce navigateur ne sait pas partager un fichier : il a été enregistré dans vos téléchargements, partagez-le depuis là (ou utilisez Chrome).": "Ce navigateur ne sait pas partager un fichier : il a été enregistré dans vos téléchargements, partagez-le depuis là (ou utilisez Chrome).",
   "Ce PDF est déjà bien compressé : taille inchangée ({size}).": "Ce PDF est déjà bien compressé : taille inchangée ({size}).",
   "Ce PDF est protégé par un mot de passe.": "Ce PDF est protégé par un mot de passe.",
   "Ce PDF ne contient pas de champs de formulaire. Utilisez l'outil Texte pour écrire n'importe où sur la page.": "Ce PDF ne contient pas de champs de formulaire. Utilisez l'outil Texte pour écrire n'importe où sur la page.",
