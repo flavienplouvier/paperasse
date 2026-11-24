@@ -553,5 +553,17 @@
   "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "El archivo se ha descargado: adjúntelo al mensaje que se acaba de abrir.",
   "Partager…": "Compartir…",
   "Télécharger": "Descargar",
-  "Supprimer l'image": "Eliminar imagen"
+  "Supprimer l'image": "Eliminar imagen",
+  "Ce navigateur ne sait pas enregistrer au format {format}.": "Este navegador no puede guardar en formato {format}.",
+  "En image, chaque page devient un fichier séparé.": "Como imagen, cada página se convierte en un archivo separado.",
+  "Image {n}/{total}…": "Imagen {n}/{total}…",
+  "Image légère conçue pour le web, bien reconnue aujourd'hui. Un bon compromis entre poids et compatibilité.": "Imagen ligera pensada para la web, hoy bien reconocida. Un buen equilibrio entre peso y compatibilidad.",
+  "Image moderne très légère, de bonne qualité. Lue par les navigateurs et appareils récents, pas toujours par les anciens logiciels.": "Imagen moderna muy ligera y de buena calidad. La leen los navegadores y dispositivos recientes, no siempre los programas antiguos.",
+  "Image sans aucune perte de qualité : texte bien net, mais fichier lourd.": "Imagen sin ninguna pérdida de calidad: texto muy nítido, pero archivo pesado.",
+  "La photo classique, lue par tous les appareils et logiciels. Fichier de taille moyenne.": "La foto clásica, la leen todos los dispositivos y programas. Tamaño de archivo medio.",
+  "Le format des documents : toutes les pages dans un seul fichier, lisible partout. Le meilleur choix pour envoyer ou archiver.": "El formato de los documentos: todas las páginas en un solo archivo, legible en todas partes. La mejor opción para enviar o archivar.",
+  "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "El formato de foto del iPhone, muy ligero. Práctico sobre todo en el mundo Apple; en otros sitios a veces hay que convertirlo.",
+  "Les formats expliqués": "Los formatos explicados",
+  "Non pris en charge par ce navigateur.": "No compatible con este navegador.",
+  "Quel format choisir ?": "¿Qué formato elegir?"
 }

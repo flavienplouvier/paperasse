@@ -6,6 +6,7 @@ import { newId } from "./lib/types";
 import * as ops from "./lib/pageOps";
 import { exportPdf } from "./lib/exportPdf";
 import { rasterExport } from "./lib/rasterExport";
+import { imageNames, pdfToImages, type SaveFormat } from "./lib/imageExport";
 import { fillForm, type FormValues } from "./lib/forms";
 import {
   DEFAULT_FONT_KEY,
@@ -96,8 +97,8 @@ type PendingKind = "image" | "signature" | "stamp";
 
 const isMobile = () => window.matchMedia("(max-width: 899px)").matches;
 
-function download(bytes: Uint8Array, name: string) {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
+function download(bytes: Uint8Array | Blob, name: string) {
+  const url = URL.createObjectURL(bytes instanceof Blob ? bytes : new Blob([bytes as BlobPart], { type: "application/pdf" }));
   const a = document.createElement("a");
   a.href = url;
   a.download = name;
@@ -1045,7 +1046,18 @@ export default function App() {
     }
   };
 
-  const saveAs = (name: string) => withExport(t("Enregistrement…"), (b) => download(b, name.replace(/\.pdf$/i, "") + ".pdf"));
+  const saveAs = (name: string, format: SaveFormat = "pdf") =>
+    withExport(t("Enregistrement…"), async (b) => {
+      if (format === "pdf") return download(b, name.replace(/\.pdf$/i, "") + ".pdf");
+      // Scan enregistré en images : une image par page.
+      const images = await pdfToImages(b, format, (n, total) => setBusy(t("Image {n}/{total}…", { n, total })));
+      const names = imageNames(name, images.length, format);
+      for (const [i, img] of images.entries()) {
+        download(img, names[i]);
+        // Laisse le navigateur traiter chaque téléchargement.
+        if (i < images.length - 1) await new Promise((r) => setTimeout(r, 400));
+      }
+    });
 
   // Le PDF est préparé, puis partagé depuis une fenêtre (le menu de partage exige un clic récent).
   const [shareFile, setShareFile] = useState<File | null>(null);
@@ -1058,12 +1070,12 @@ export default function App() {
   const save = () => setAskName("save");
   const share = () => setAskName("share");
 
-  const confirmName = (fileName: string, base: string, date: string | null) => {
+  const confirmName = (fileName: string, base: string, date: string | null, format: SaveFormat) => {
     const kind = askName;
     setAskName(null);
     setDoc((d) => (d ? { ...d, name: fileName, fileBase: base, fileDate: date } : d));
     if (kind === "share") shareAs(fileName);
-    else saveAs(fileName);
+    else saveAs(fileName, format);
   };
 
   const finishScan = async (bytes: Uint8Array, pages: number) => {
@@ -1757,6 +1769,8 @@ export default function App() {
           base={doc.fileBase ?? doc.name.replace(/\.pdf$/i, "")}
           date={doc.fileBase !== undefined ? (doc.fileDate ?? null) : doc.scan ? isoDate() : null}
           action={askName === "share" ? t("Partager") : t("Enregistrer")}
+          // Document numérisé : enregistrement en PDF (par défaut) ou en images.
+          formats={askName === "save" && doc.scan ? { pages: doc.pageIds.length } : undefined}
           onConfirm={confirmName}
           onClose={() => setAskName(null)}
         />

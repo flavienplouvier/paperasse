@@ -553,5 +553,17 @@
   "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "Die Datei wurde heruntergeladen: Hängen Sie sie an die gerade geöffnete Nachricht an.",
   "Partager…": "Teilen…",
   "Télécharger": "Herunterladen",
-  "Supprimer l'image": "Bild löschen"
+  "Supprimer l'image": "Bild löschen",
+  "Ce navigateur ne sait pas enregistrer au format {format}.": "Dieser Browser kann nicht im Format {format} speichern.",
+  "En image, chaque page devient un fichier séparé.": "Als Bild wird jede Seite zu einer eigenen Datei.",
+  "Image {n}/{total}…": "Bild {n}/{total}…",
+  "Image légère conçue pour le web, bien reconnue aujourd'hui. Un bon compromis entre poids et compatibilité.": "Leichtes Bildformat für das Web, heute weit verbreitet. Ein guter Kompromiss zwischen Größe und Kompatibilität.",
+  "Image moderne très légère, de bonne qualité. Lue par les navigateurs et appareils récents, pas toujours par les anciens logiciels.": "Modernes, sehr leichtes Bild in guter Qualität. Von neueren Browsern und Geräten gelesen, nicht immer von älterer Software.",
+  "Image sans aucune perte de qualité : texte bien net, mais fichier lourd.": "Bild ganz ohne Qualitätsverlust: gestochen scharfer Text, aber große Datei.",
+  "La photo classique, lue par tous les appareils et logiciels. Fichier de taille moyenne.": "Das klassische Fotoformat, von allen Geräten und Programmen gelesen. Mittlere Dateigröße.",
+  "Le format des documents : toutes les pages dans un seul fichier, lisible partout. Le meilleur choix pour envoyer ou archiver.": "Das Dokumentformat: alle Seiten in einer Datei, überall lesbar. Die beste Wahl zum Versenden oder Archivieren.",
+  "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "Das Fotoformat des iPhone, sehr leicht. Vor allem in der Apple-Welt praktisch; anderswo muss es manchmal umgewandelt werden.",
+  "Les formats expliqués": "Die Formate erklärt",
+  "Non pris en charge par ce navigateur.": "Von diesem Browser nicht unterstützt.",
+  "Quel format choisir ?": "Welches Format wählen?"
 }

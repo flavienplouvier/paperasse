@@ -2705,3 +2705,116 @@ kbd {
 .share-dialog .hint {
   margin: 0;
 }
+
+/* Format d'enregistrement d'un scan : PDF ou image, avec l'aide des formats. */
+.save-format {
+  display: grid;
+  gap: 6px;
+}
+.save-format-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.format-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--focus);
+}
+.format-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.format-chips button {
+  min-width: 58px;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+.format-chips button.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.format-chips button:disabled {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.format-help {
+  display: none;
+}
+.format-help-card {
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.format-help-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.format-help-card dl {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.format-help-card dt {
+  font-weight: 700;
+}
+.format-help-card dd {
+  margin: 0;
+  color: var(--muted);
+}
+.format-help-card em {
+  color: var(--accent);
+  font-style: normal;
+}
+/* Ordinateur : l'aide s'affiche au survol de l'icône. */
+.format-info.hover + .format-help {
+  display: block;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.format-info.hover + .format-help header .icon-btn {
+  display: none;
+}
+.format-info.hover + .format-help .format-help-card {
+  width: min(600px, calc(100vw - 32px));
+}
+.format-info.hover + .format-help dl {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 16px;
+}
+/* Téléphone : fenêtre au centre de l'écran. */
+.format-info.open + .format-help {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}

@@ -553,5 +553,17 @@
   "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "The file has been downloaded: attach it to the message that just opened.",
   "Partager…": "Share…",
   "Télécharger": "Download",
-  "Supprimer l'image": "Delete image"
+  "Supprimer l'image": "Delete image",
+  "Ce navigateur ne sait pas enregistrer au format {format}.": "This browser cannot save in {format} format.",
+  "En image, chaque page devient un fichier séparé.": "As images, each page becomes a separate file.",
+  "Image {n}/{total}…": "Image {n}/{total}…",
+  "Image légère conçue pour le web, bien reconnue aujourd'hui. Un bon compromis entre poids et compatibilité.": "Lightweight image designed for the web, widely supported today. A good balance between size and compatibility.",
+  "Image moderne très légère, de bonne qualité. Lue par les navigateurs et appareils récents, pas toujours par les anciens logiciels.": "Modern, very light image with good quality. Opened by recent browsers and devices, not always by older software.",
+  "Image sans aucune perte de qualité : texte bien net, mais fichier lourd.": "Image with no quality loss at all: very sharp text, but a heavy file.",
+  "La photo classique, lue par tous les appareils et logiciels. Fichier de taille moyenne.": "The classic photo format, opened by every device and program. Medium file size.",
+  "Le format des documents : toutes les pages dans un seul fichier, lisible partout. Le meilleur choix pour envoyer ou archiver.": "The document format: all pages in a single file, readable everywhere. The best choice for sending or archiving.",
+  "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "The iPhone photo format, very light. Mostly handy in the Apple world; elsewhere it sometimes needs converting.",
+  "Les formats expliqués": "Formats explained",
+  "Non pris en charge par ce navigateur.": "Not supported by this browser.",
+  "Quel format choisir ?": "Which format should I choose?"
 }

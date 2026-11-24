@@ -553,5 +553,17 @@
   "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "Het bestand is gedownload: voeg het toe aan het bericht dat net is geopend.",
   "Partager…": "Delen…",
   "Télécharger": "Downloaden",
-  "Supprimer l'image": "Afbeelding verwijderen"
+  "Supprimer l'image": "Afbeelding verwijderen",
+  "Ce navigateur ne sait pas enregistrer au format {format}.": "Deze browser kan niet opslaan in {format}-formaat.",
+  "En image, chaque page devient un fichier séparé.": "Als afbeelding wordt elke pagina een apart bestand.",
+  "Image {n}/{total}…": "Afbeelding {n}/{total}…",
+  "Image légère conçue pour le web, bien reconnue aujourd'hui. Un bon compromis entre poids et compatibilité.": "Lichte afbeelding gemaakt voor het web, tegenwoordig breed ondersteund. Een goed compromis tussen grootte en compatibiliteit.",
+  "Image moderne très légère, de bonne qualité. Lue par les navigateurs et appareils récents, pas toujours par les anciens logiciels.": "Modern, zeer licht beeldformaat van goede kwaliteit. Gelezen door recente browsers en apparaten, niet altijd door oudere software.",
+  "Image sans aucune perte de qualité : texte bien net, mais fichier lourd.": "Afbeelding zonder enig kwaliteitsverlies: haarscherpe tekst, maar een groot bestand.",
+  "La photo classique, lue par tous les appareils et logiciels. Fichier de taille moyenne.": "De klassieke foto, gelezen door alle apparaten en programma's. Gemiddelde bestandsgrootte.",
+  "Le format des documents : toutes les pages dans un seul fichier, lisible partout. Le meilleur choix pour envoyer ou archiver.": "Het documentformaat: alle pagina's in één bestand, overal leesbaar. De beste keuze om te versturen of te archiveren.",
+  "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "Het fotoformaat van de iPhone, zeer licht. Vooral handig binnen Apple; elders moet het soms worden omgezet.",
+  "Les formats expliqués": "De formaten uitgelegd",
+  "Non pris en charge par ce navigateur.": "Niet ondersteund door deze browser.",
+  "Quel format choisir ?": "Welk formaat kiezen?"
 }

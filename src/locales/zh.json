@@ -553,5 +553,17 @@
   "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "文件已下载：请将其附加到刚打开的邮件中。",
   "Partager…": "分享…",
   "Télécharger": "下载",
-  "Supprimer l'image": "删除图片"
+  "Supprimer l'image": "删除图片",
+  "Ce navigateur ne sait pas enregistrer au format {format}.": "此浏览器无法保存为 {format} 格式。",
+  "En image, chaque page devient un fichier séparé.": "保存为图片时，每一页都是一个单独的文件。",
+  "Image {n}/{total}…": "图片 {n}/{total}…",
+  "Image légère conçue pour le web, bien reconnue aujourd'hui. Un bon compromis entre poids et compatibilité.": "为网页设计的轻量图片，如今支持广泛。在大小和兼容性之间取得良好平衡。",
+  "Image moderne très légère, de bonne qualité. Lue par les navigateurs et appareils récents, pas toujours par les anciens logiciels.": "现代的超轻量图片，质量好。新版浏览器和设备可以打开，旧软件不一定支持。",
+  "Image sans aucune perte de qualité : texte bien net, mais fichier lourd.": "完全无损的图片：文字非常清晰，但文件较大。",
+  "La photo classique, lue par tous les appareils et logiciels. Fichier de taille moyenne.": "经典照片格式，所有设备和软件都能打开。文件大小适中。",
+  "Le format des documents : toutes les pages dans un seul fichier, lisible partout. Le meilleur choix pour envoyer ou archiver.": "文档格式：所有页面在一个文件中，到处都能打开。发送或存档的最佳选择。",
+  "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "iPhone 的照片格式，非常轻巧。主要在苹果设备上方便使用；在其他地方有时需要转换。",
+  "Les formats expliqués": "格式说明",
+  "Non pris en charge par ce navigateur.": "此浏览器不支持。",
+  "Quel format choisir ?": "选择哪种格式？"
 }

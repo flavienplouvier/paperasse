@@ -553,5 +553,17 @@
   "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "Il file è stato scaricato: allegalo al messaggio appena aperto.",
   "Partager…": "Condividi…",
   "Télécharger": "Scarica",
-  "Supprimer l'image": "Elimina immagine"
+  "Supprimer l'image": "Elimina immagine",
+  "Ce navigateur ne sait pas enregistrer au format {format}.": "Questo browser non può salvare nel formato {format}.",
+  "En image, chaque page devient un fichier séparé.": "Come immagine, ogni pagina diventa un file separato.",
+  "Image {n}/{total}…": "Immagine {n}/{total}…",
+  "Image légère conçue pour le web, bien reconnue aujourd'hui. Un bon compromis entre poids et compatibilité.": "Immagine leggera pensata per il web, oggi ben supportata. Un buon compromesso tra peso e compatibilità.",
+  "Image moderne très légère, de bonne qualité. Lue par les navigateurs et appareils récents, pas toujours par les anciens logiciels.": "Immagine moderna molto leggera e di buona qualità. Letta dai browser e dispositivi recenti, non sempre dai vecchi programmi.",
+  "Image sans aucune perte de qualité : texte bien net, mais fichier lourd.": "Immagine senza alcuna perdita di qualità: testo nitido, ma file pesante.",
+  "La photo classique, lue par tous les appareils et logiciels. Fichier de taille moyenne.": "La foto classica, letta da tutti i dispositivi e programmi. File di dimensioni medie.",
+  "Le format des documents : toutes les pages dans un seul fichier, lisible partout. Le meilleur choix pour envoyer ou archiver.": "Il formato dei documenti: tutte le pagine in un unico file, leggibile ovunque. La scelta migliore per inviare o archiviare.",
+  "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "Il formato foto degli iPhone, molto leggero. Pratico soprattutto nel mondo Apple; altrove a volte va convertito.",
+  "Les formats expliqués": "I formati spiegati",
+  "Non pris en charge par ce navigateur.": "Non supportato da questo browser.",
+  "Quel format choisir ?": "Quale formato scegliere?"
 }
