@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
+import { canShareFiles } from "./ShareDialog";
 import { t, useLocale } from "../i18n";
 import { SAVE_FORMATS, canSave, formatInfo, type SaveFormat } from "../lib/imageExport";
 import { parsePageRanges } from "../lib/pageRanges";
@@ -10,12 +11,11 @@ interface Props {
   base: string;
   /** Date proposée (AAAA-MM-JJ), null pour ne pas en mettre par défaut. */
   date: string | null;
-  /** Libellé du bouton : « Enregistrer », « Partager »… */
-  action: string;
-  /** Titre de la fenêtre : « Enregistrement du fichier »… */
-  title: string;
-  /** `pages` : numéros des pages choisies (à partir de 1), null pour toutes. */
-  onConfirm: (fileName: string, base: string, date: string | null, format: SaveFormat, pages: number[] | null) => void;
+  /**
+   * `pages` : numéros des pages choisies (à partir de 1), null pour toutes ;
+   * `share` : partager (menu de partage du système) au lieu d'enregistrer.
+   */
+  onConfirm: (fileName: string, base: string, date: string | null, format: SaveFormat, pages: number[] | null, share: boolean) => void;
   onClose: () => void;
   /** Choix du format (PDF ou image) : document numérisé ou fait d'images. */
   formats?: boolean;
@@ -24,8 +24,10 @@ interface Props {
 }
 
 /** Choix du nom du fichier à l'enregistrement, avec une date facultative. */
-export function FileNameDialog({ base, date, action, title, onConfirm, onClose, formats, pageCount = 1 }: Props) {
+export function FileNameDialog({ base, date, onConfirm, onClose, formats, pageCount = 1 }: Props) {
   useLocale();
+  // Partage proposé seulement si l'appareil sait partager des fichiers (pas Chrome ni Firefox sous Linux).
+  const [shareable] = useState(canShareFiles);
   const [format, setFormat] = useState<SaveFormat>("pdf");
   const [supported, setSupported] = useState<Partial<Record<SaveFormat, boolean>>>({});
   useEffect(() => {
@@ -85,21 +87,25 @@ export function FileNameDialog({ base, date, action, title, onConfirm, onClose, 
     saveNamePrefs(next);
   };
 
+  const confirm = (share: boolean) => {
+    if (invalid) return;
+    onConfirm(fileName, name.trim(), chosenDate, format, chosen && chosen.length < pageCount ? chosen : null, share);
+  };
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <form
         className="modal file-name"
         role="dialog"
-        aria-label={title}
+        aria-label={t("Enregistrement du fichier")}
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
-          if (invalid) return;
-          onConfirm(fileName, name.trim(), chosenDate, format, chosen && chosen.length < pageCount ? chosen : null);
+          confirm(false);
         }}
       >
         <header>
-          <h2>{title}</h2>
+          <h2>{t("Enregistrement du fichier")}</h2>
           <button type="button" className="icon-btn" title={t("Fermer")} onClick={onClose}>
             <Icon name="close" size={18} />
           </button>
@@ -207,9 +213,17 @@ export function FileNameDialog({ base, date, action, title, onConfirm, onClose, 
           <button type="button" onClick={onClose}>
             {t("Annuler")}
           </button>
-          <button type="submit" className="primary" disabled={invalid}>
-            {action}
-          </button>
+          {/* Enregistrer et, à côté, partager : une seule ligne, même sur téléphone. */}
+          <span className="save-buttons">
+            {shareable && (
+              <button type="button" className="share-btn" title={t("Partager (WhatsApp, e-mail, Drive…)")} aria-label={t("Partager")} disabled={invalid} onClick={() => confirm(true)}>
+                <Icon name="share" size={20} />
+              </button>
+            )}
+            <button type="submit" className="primary" disabled={invalid}>
+              {t("Enregistrer")}
+            </button>
+          </span>
         </div>
       </form>
     </div>

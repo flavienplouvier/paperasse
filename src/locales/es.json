@@ -546,12 +546,7 @@
   "Tirer pour redimensionner le cadre": "Arrastre para cambiar el tamaño del marco",
   "Fond opaque (masque ce qui est dessous)": "Fondo opaco (oculta lo que hay debajo)",
   "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Sin fondo, solo se oculta el texto original: el texto cercano sigue visible.",
-  "Bonjour,\n\nVeuillez trouver ci-joint le document « {name} ».\n": "Hola:\n\nAdjunto el documento «{name}».\n",
-  "Ce navigateur ne sait pas partager un fichier directement (c'est le cas de Chrome et Firefox sous Linux).": "Este navegador no puede compartir un archivo directamente (es el caso de Chrome y Firefox en Linux).",
-  "Envoyer par e-mail": "Enviar por correo",
-  "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "El archivo se ha descargado: adjúntelo al mensaje que se acaba de abrir.",
   "Partager…": "Compartir…",
-  "Télécharger": "Descargar",
   "Supprimer l'image": "Eliminar imagen",
   "Ce navigateur ne sait pas enregistrer au format {format}.": "Este navegador no puede guardar en formato {format}.",
   "En image, chaque page devient un fichier séparé.": "Como imagen, cada página se convierte en un archivo separado.",
@@ -584,5 +579,6 @@
   "Pages à enregistrer": "Páginas que guardar",
   "Pages invalides : le document a {n} pages.": "Páginas no válidas: el documento tiene {n} páginas.",
   "Enregistrement du fichier": "Guardar el archivo",
-  "Partage du fichier": "Compartir el archivo"
+  "{n} fichiers": "{n} archivos",
+  "Partager (WhatsApp, e-mail, Drive…)": "Compartir (WhatsApp, correo, Drive…)"
 }

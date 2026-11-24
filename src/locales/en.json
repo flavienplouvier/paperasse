@@ -546,12 +546,7 @@
   "Tirer pour redimensionner le cadre": "Drag to resize the frame",
   "Fond opaque (masque ce qui est dessous)": "Opaque background (hides what is underneath)",
   "Sans fond, seul le texte d'origine est masqué : les textes voisins restent visibles.": "Without a background, only the original text is hidden: nearby text stays visible.",
-  "Bonjour,\n\nVeuillez trouver ci-joint le document « {name} ».\n": "Hello,\n\nPlease find attached the document “{name}”.\n",
-  "Ce navigateur ne sait pas partager un fichier directement (c'est le cas de Chrome et Firefox sous Linux).": "This browser cannot share a file directly (this is the case for Chrome and Firefox on Linux).",
-  "Envoyer par e-mail": "Send by email",
-  "Le fichier a été téléchargé : joignez-le au message qui vient de s'ouvrir.": "The file has been downloaded: attach it to the message that just opened.",
   "Partager…": "Share…",
-  "Télécharger": "Download",
   "Supprimer l'image": "Delete image",
   "Ce navigateur ne sait pas enregistrer au format {format}.": "This browser cannot save in {format} format.",
   "En image, chaque page devient un fichier séparé.": "As images, each page becomes a separate file.",
@@ -584,5 +579,6 @@
   "Pages à enregistrer": "Pages to save",
   "Pages invalides : le document a {n} pages.": "Invalid pages: the document has {n} pages.",
   "Enregistrement du fichier": "Save file",
-  "Partage du fichier": "Share file"
+  "{n} fichiers": "{n} files",
+  "Partager (WhatsApp, e-mail, Drive…)": "Share (WhatsApp, email, Drive…)"
 }

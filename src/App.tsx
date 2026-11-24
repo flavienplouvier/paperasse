@@ -231,7 +231,7 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, []);
   /** Nom demandé avant d'enregistrer ou de partager un document numérisé. */
-  const [askName, setAskName] = useState<"save" | "share" | null>(null);
+  const [askName, setAskName] = useState<"save" | null>(null);
   /** Document qui semble être un scan (pas de texte) : l'OCR est proposé. */
   const [scanned, setScanned] = useState(false);
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
@@ -1082,37 +1082,54 @@ export default function App() {
     }
   };
 
-  /** `pages` : numéros des pages à garder (à partir de 1), null pour toutes. */
+  /**
+   * Fichiers à enregistrer ou à partager : le PDF, ou une image par page.
+   * `pages` : numéros des pages à garder (à partir de 1), null pour toutes.
+   */
+  const buildFiles = async (all: Uint8Array, name: string, format: SaveFormat, pages: number[] | null): Promise<File[]> => {
+    const b = pages ? await ops.extractPages(all, pages.map((p) => p - 1)) : all;
+    if (format === "pdf") return [new File([b as BlobPart], name.replace(/\.pdf$/i, "") + ".pdf", { type: "application/pdf" })];
+    const images = await pdfToImages(b, format, (n, total) => setBusy(t("Image {n}/{total}…", { n, total })));
+    const names = imageNames(name, images.length, format, pages ?? undefined);
+    return images.map((img, i) => new File([img], names[i], { type: img.type }));
+  };
+
   const saveAs = (name: string, format: SaveFormat = "pdf", pages: number[] | null = null) =>
     withExport(t("Enregistrement…"), async (all) => {
-      const b = pages ? await ops.extractPages(all, pages.map((p) => p - 1)) : all;
-      if (format === "pdf") return download(b, name.replace(/\.pdf$/i, "") + ".pdf");
-      // Scan enregistré en images : une image par page.
-      const images = await pdfToImages(b, format, (n, total) => setBusy(t("Image {n}/{total}…", { n, total })));
-      const names = imageNames(name, images.length, format, pages ?? undefined);
-      for (const [i, img] of images.entries()) {
-        download(img, names[i]);
+      const files = await buildFiles(all, name, format, pages);
+      for (const [i, f] of files.entries()) {
+        download(f, f.name);
         // Laisse le navigateur traiter chaque téléchargement.
-        if (i < images.length - 1) await new Promise((r) => setTimeout(r, 400));
+        if (i < files.length - 1) await new Promise((r) => setTimeout(r, 400));
       }
     });
 
-  // Le PDF est préparé, puis partagé depuis une fenêtre (le menu de partage exige un clic récent).
-  const [shareFile, setShareFile] = useState<File | null>(null);
-  const shareAs = (name: string) =>
-    withExport(t("Préparation du partage…"), (b) => {
-      setShareFile(new File([b as BlobPart], name, { type: "application/pdf" }));
+  /**
+   * Partage (menu de partage du système : WhatsApp, e-mail, Drive…). Le menu exige
+   * un clic récent : si la préparation a été longue, une fenêtre demande un clic.
+   */
+  const [shareFiles, setShareFiles] = useState<File[] | null>(null);
+  const shareAs = (name: string, format: SaveFormat, pages: number[] | null) =>
+    withExport(t("Préparation du partage…"), async (all) => {
+      const files = await buildFiles(all, name, format, pages);
+      if (navigator.userActivation?.isActive) {
+        try {
+          await navigator.share({ files, title: files[0].name });
+          return;
+        } catch (e) {
+          if ((e as Error).name === "AbortError") return;
+        }
+      }
+      setShareFiles(files);
     });
 
-  // Le nom du fichier est choisi à chaque enregistrement ou partage.
+  // Le nom du fichier est choisi à chaque enregistrement (ou partage).
   const save = () => setAskName("save");
-  const share = () => setAskName("share");
 
-  const confirmName = (fileName: string, base: string, date: string | null, format: SaveFormat, pages: number[] | null) => {
-    const kind = askName;
+  const confirmName = (fileName: string, base: string, date: string | null, format: SaveFormat, pages: number[] | null, share: boolean) => {
     setAskName(null);
     setDoc((d) => (d ? { ...d, name: fileName, fileBase: base, fileDate: date } : d));
-    if (kind === "share") shareAs(fileName);
+    if (share) shareAs(fileName, format, pages);
     else saveAs(fileName, format, pages);
   };
 
@@ -1477,9 +1494,6 @@ export default function App() {
           <button className="icon-btn desktop-only" title={t("Imprimer")} onClick={print}>
             <Icon name="print" />
           </button>
-          <button className="icon-btn desktop-only" title={t("Partager")} onClick={share}>
-            <Icon name="share" />
-          </button>
           <button className="primary save-btn" title={t("Enregistrer (Ctrl+S)")} onClick={save}>
             <Icon name="save" /> <span className="desktop-only">{t("Enregistrer")}</span>
           </button>
@@ -1583,8 +1597,7 @@ export default function App() {
               { icon: "stamp", label: t("Filigrane"), run: () => setDocTools("watermark"), off: !editable },
               { icon: "compress", label: t("Compresser le PDF"), run: () => setDocTools("compress"), off: !editable || !doc.rewritable },
               { icon: "search", label: t("Reconnaissance de texte (OCR)"), run: () => setOcrOpen(true), off: !editable || !doc.rewritable },
-              { icon: "share", label: t("Partager"), run: share, sep: true },
-              { icon: "image", label: t("Exporter la page en image"), run: exportPageImage },
+              { icon: "image", label: t("Exporter la page en image"), run: exportPageImage, sep: true },
               { icon: "print", label: t("Imprimer"), run: print },
               { icon: "info", label: t("Propriétés du document"), run: () => setDocTools("properties"), off: !editable },
               { icon: "keyboard", label: t("Raccourcis clavier"), run: () => setShowShortcuts(true), sep: true, desktop: true },
@@ -1795,23 +1808,14 @@ export default function App() {
         <DocumentTools bytes={doc.bytes} initialTab={docTools} onApply={applyToDocument} onClose={() => setDocTools(null)} />
       )}
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
-      {shareFile && (
-        <ShareDialog
-          file={shareFile}
-          onDownload={() => shareFile.arrayBuffer().then((b) => download(new Uint8Array(b), shareFile.name))}
-          onError={fail}
-          onClose={() => setShareFile(null)}
-        />
-      )}
+      {shareFiles && <ShareDialog files={shareFiles} onError={fail} onClose={() => setShareFiles(null)} />}
       {askName && doc && (
         <FileNameDialog
           base={doc.fileBase ?? doc.name.replace(/\.pdf$/i, "")}
           date={doc.fileBase !== undefined ? (doc.fileDate ?? null) : doc.scan ? isoDate() : null}
-          action={askName === "share" ? t("Partager") : t("Enregistrer")}
-          title={askName === "share" ? t("Partage du fichier") : t("Enregistrement du fichier")}
           // Document numérisé : enregistrement en PDF (par défaut) ou en images.
-          formats={askName === "save" && (doc.scan || doc.images || scanned)}
-          pageCount={askName === "save" ? doc.pageIds.length : undefined}
+          formats={doc.scan || doc.images || scanned}
+          pageCount={doc.pageIds.length}
           onConfirm={confirmName}
           onClose={() => setAskName(null)}
         />

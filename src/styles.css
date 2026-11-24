@@ -2772,6 +2772,23 @@ kbd {
 .overlay .rotate-stem {
   stroke: var(--focus);
 }
+/* Enregistrer et partager côte à côte. */
+.save-buttons {
+  display: flex;
+  gap: 8px;
+}
+.save-buttons .primary {
+  flex: 1;
+}
+.save-buttons .share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px !important;
+  padding: 0;
+  color: var(--focus);
+}
 /* Fenêtre de partage. */
 .share-dialog {
   display: flex;
