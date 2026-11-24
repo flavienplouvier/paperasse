@@ -14,6 +14,7 @@ export interface Draft {
   rewritable: boolean;
   /** Document numérisé (nom demandé à l'enregistrement). */
   scan?: boolean;
+  images?: boolean;
   fileBase?: string;
   fileDate?: string | null;
   savedAt: number;

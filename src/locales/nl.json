@@ -565,5 +565,15 @@
   "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "Het fotoformaat van de iPhone, zeer licht. Vooral handig binnen Apple; elders moet het soms worden omgezet.",
   "Les formats expliqués": "De formaten uitgelegd",
   "Non pris en charge par ce navigateur.": "Niet ondersteund door deze browser.",
-  "Quel format choisir ?": "Welk formaat kiezen?"
+  "Quel format choisir ?": "Welk formaat kiezen?",
+  "Créer la page": "Pagina maken",
+  "Découpe ajoutée en page {n}.": "Uitsnede toegevoegd als pagina {n}.",
+  "Découpe…": "Bijsnijden…",
+  "Découper": "Bijsnijden",
+  "En image": "Als afbeelding",
+  "En image, ce qui est hors du cadre est vraiment supprimé. En PDF, le texte reste net et sélectionnable, mais le reste de la page est seulement masqué.": "Als afbeelding wordt alles buiten het kader echt verwijderd. Als pdf blijft tekst scherp en selecteerbaar, maar de rest van de pagina is alleen verborgen.",
+  "La zone à découper est trop petite.": "Het gebied is te klein.",
+  "Tracez la zone : elle deviendra une nouvelle page": "Teken het gebied: het wordt een nieuwe pagina",
+  "Tracez la zone à découper": "Teken het gebied om bij te snijden",
+  "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "Teken een rechthoek op de pagina, pas hem aan met de grepen en kies „Pagina maken”: het gebied wordt een nieuwe pagina direct na het origineel, dat intact blijft. „Als afbeelding” verwijdert echt alles buiten het kader; anders blijft tekst scherp en selecteerbaar."
 }

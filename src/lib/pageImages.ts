@@ -31,8 +31,13 @@ export interface ImageOpCodes {
 
 /** Images dessinées d'après la liste d'opérations pdf.js (images placées dans des sous-dessins comprises). */
 export function imagesFromOps(fnArray: ArrayLike<number>, argsArray: unknown[], ops: ImageOpCodes): Rect[] {
+  return imageDetailsFromOps(fnArray, argsArray, ops).map((d) => d.rect);
+}
+
+/** Images dessinées, avec leur taille en pixels quand pdf.js la donne. */
+export function imageDetailsFromOps(fnArray: ArrayLike<number>, argsArray: unknown[], ops: ImageOpCodes): { rect: Rect; width?: number; height?: number }[] {
   const paints = new Set([ops.paintImageXObject, ops.paintInlineImageXObject, ops.paintImageMaskXObject]);
-  const out: Rect[] = [];
+  const out: { rect: Rect; width?: number; height?: number }[] = [];
   let ctm: Matrix = IDENTITY;
   const stack: Matrix[] = [];
   for (let i = 0; i < fnArray.length; i++) {
@@ -46,7 +51,11 @@ export function imagesFromOps(fnArray: ArrayLike<number>, argsArray: unknown[], 
       const m = args[0] as Matrix | null;
       if (m) ctm = mul(m, ctm);
     } else if (fn === ops.paintFormXObjectEnd) ctm = stack.pop() ?? ctm;
-    else if (paints.has(fn)) out.push(imageRect(ctm));
+    else if (paints.has(fn)) {
+      // XObject : [id, largeur, hauteur] ; image en ligne ou masque : [{ width, height, … }].
+      const size = fn === ops.paintImageXObject && args && typeof args[1] === "number" ? { width: args[1] as number, height: args[2] as number } : args?.[0] && typeof args[0] === "object" ? { width: (args[0] as { width?: number }).width, height: (args[0] as { height?: number }).height } : {};
+      out.push({ rect: imageRect(ctm), ...size });
+    }
   }
   return out;
 }

@@ -565,5 +565,15 @@
   "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "Il formato foto degli iPhone, molto leggero. Pratico soprattutto nel mondo Apple; altrove a volte va convertito.",
   "Les formats expliqués": "I formati spiegati",
   "Non pris en charge par ce navigateur.": "Non supportato da questo browser.",
-  "Quel format choisir ?": "Quale formato scegliere?"
+  "Quel format choisir ?": "Quale formato scegliere?",
+  "Créer la page": "Crea pagina",
+  "Découpe ajoutée en page {n}.": "Ritaglio aggiunto come pagina {n}.",
+  "Découpe…": "Ritaglio…",
+  "Découper": "Ritaglia",
+  "En image": "Come immagine",
+  "En image, ce qui est hors du cadre est vraiment supprimé. En PDF, le texte reste net et sélectionnable, mais le reste de la page est seulement masqué.": "Come immagine, ciò che è fuori dalla cornice viene davvero eliminato. In PDF il testo resta nitido e selezionabile, ma il resto della pagina è solo nascosto.",
+  "La zone à découper est trop petite.": "L'area da ritagliare è troppo piccola.",
+  "Tracez la zone : elle deviendra une nouvelle page": "Traccia l'area: diventerà una nuova pagina",
+  "Tracez la zone à découper": "Traccia l'area da ritagliare",
+  "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "Traccia un rettangolo sulla pagina, regolalo con le maniglie, poi «Crea pagina»: l'area diventa una nuova pagina subito dopo l'originale, che resta intatta. «Come immagine» elimina davvero ciò che è fuori dalla cornice; altrimenti il testo resta nitido e selezionabile."
 }

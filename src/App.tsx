@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PDFDocument } from "pdf-lib";
 import { fontInfo, openPdf, PasswordRequired, pdfjs, type PDFDocumentProxy } from "./lib/pdfjs";
+import { cropAnnotations, cropPage, renderCrop } from "./lib/cropPage";
 import type { Annotation, DocState, Point, Rect, ShapeAnnotation, TextAnnotation, Tool } from "./lib/types";
 import { newId } from "./lib/types";
 import * as ops from "./lib/pageOps";
@@ -29,7 +30,7 @@ import { documentFontFor, restoreDocumentFont } from "./lib/documentFonts";
 import { fileFonts as listFileFonts, type FileFont } from "./lib/fileFonts";
 import { addPickedColor, loadPickedColors, toHex } from "./lib/pickedColors";
 import type { SearchHit } from "./lib/text";
-import { PageView, type EditTextRequest, type ToolStyle } from "./components/PageView";
+import { PageView, type CropRequest, type EditTextRequest, type ToolStyle } from "./components/PageView";
 import { Thumbnails } from "./components/Thumbnails";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SearchPanel } from "./components/SearchPanel";
@@ -74,6 +75,7 @@ const BUTTONS: { id: string; label: string; icon: string; key?: string; tools: T
   { id: "whiteout", label: msg("Cache blanc"), icon: "whiteout", key: "W", tools: ["whiteout"] },
   { id: "stamp", label: msg("Tampon"), icon: "stamp", key: "P", tools: ["stamp"] },
   { id: "field", label: msg("Champ de formulaire"), icon: "form", key: "F", tools: ["field"] },
+  { id: "crop", label: msg("Découper"), icon: "crop", key: "C", tools: ["crop"] },
 ];
 
 /** Raccourcis clavier : outil et éventuel réglage associé. */
@@ -91,6 +93,7 @@ const KEYS: Record<string, { tool: Tool; shape?: ShapeId; doubleArrow?: boolean 
   g: { tool: "eraser" },
   p: { tool: "stamp" },
   f: { tool: "field" },
+  c: { tool: "crop" },
 };
 
 type PendingKind = "image" | "signature" | "stamp";
@@ -401,7 +404,7 @@ export default function App() {
   }, [doc, fail]);
 
   const loadDocument = useCallback(
-    async (bytes: Uint8Array, name: string, extra: { scan?: boolean } = {}) => {
+    async (bytes: Uint8Array, name: string, extra: { scan?: boolean; images?: boolean } = {}) => {
       let password: string | undefined;
       for (;;) {
         try {
@@ -417,7 +420,7 @@ export default function App() {
           setHits([]);
           setCurrentPage(0);
           setFitWidth(true);
-          setDoc({ name, bytes, pageIds: ops.freshPageIds(count), annotations: [], rewritable, password, ...(extra.scan ? { scan: true, fileBase: "Scan", fileDate: isoDate() } : {}) });
+          setDoc({ name, bytes, pageIds: ops.freshPageIds(count), annotations: [], rewritable, password, ...(extra.scan ? { scan: true, fileBase: "Scan", fileDate: isoDate() } : {}), ...(extra.images ? { images: true } : {}) });
           if (!rewritable) {
             notify(t("PDF protégé ou atypique : l'annotation reste possible, l'export se fera page par page en image."));
           }
@@ -459,7 +462,7 @@ export default function App() {
               return { bytes: bin, type: url.slice(5, url.indexOf(";")) };
             }),
           );
-          await loadDocument(await ops.imagesToPdf(list), `${images[0].name.replace(/\.[^.]+$/, "")}.pdf`);
+          await loadDocument(await ops.imagesToPdf(list), `${images[0].name.replace(/\.[^.]+$/, "")}.pdf`, { images: true });
         } else {
           notify(t("Formats acceptés : PDF, PNG, JPEG, WebP."), true);
         }
@@ -499,6 +502,7 @@ export default function App() {
           annotations: doc.annotations,
           rewritable: doc.rewritable,
           scan: doc.scan,
+          images: doc.images,
           fileBase: doc.fileBase,
           fileDate: doc.fileDate,
           savedAt: Date.now(),
@@ -528,7 +532,7 @@ export default function App() {
       setHits([]);
       setCurrentPage(0);
       setFitWidth(true);
-      setDoc({ name: d.name, bytes: d.bytes, pageIds: d.pageIds, annotations: d.annotations, rewritable: d.rewritable, ...(d.scan ? { scan: true } : {}), ...(d.fileBase !== undefined ? { fileBase: d.fileBase, fileDate: d.fileDate ?? null } : {}) });
+      setDoc({ name: d.name, bytes: d.bytes, pageIds: d.pageIds, annotations: d.annotations, rewritable: d.rewritable, ...(d.scan ? { scan: true } : {}), ...(d.images ? { images: true } : {}), ...(d.fileBase !== undefined ? { fileBase: d.fileBase, fileDate: d.fileDate ?? null } : {}) });
     } catch (e) {
       fail(e);
     } finally {
@@ -1017,12 +1021,44 @@ export default function App() {
       const annotations = fixAnnotations ? fixAnnotations(doc, r) : doc.annotations.filter((a) => keep.has(a.pageId));
       commit({ bytes: r.bytes, pageIds: r.pageIds, annotations });
       setSelectedPages((s) => new Set([...s].filter((id) => keep.has(id))));
+      return true;
     } catch (e) {
       fail(e);
+      return false;
     } finally {
       setBusy(null);
     }
   };
+
+  /** Page à afficher dès que le document modifié est rechargé (nouvelle page découpée). */
+  const gotoAfterLoad = useRef<number | null>(null);
+  useEffect(() => {
+    const i = gotoAfterLoad.current;
+    if (i === null || !pdf) return;
+    gotoAfterLoad.current = null;
+    // Le temps que les pages prennent leur vraie taille.
+    const timer = window.setTimeout(() => gotoPage(i), 250);
+    return () => window.clearTimeout(timer);
+  }, [pdf, gotoPage]);
+
+  /** « Découper » : la zone choisie devient une nouvelle page, juste après l'originale. */
+  const cropRef = useRef<(req: CropRequest) => void>(() => undefined);
+  cropRef.current = (req) => {
+      const at = doc?.pageIds.indexOf(req.pageId) ?? -1;
+      if (at < 0) return;
+      void pageOp(
+        t("Découpe…"),
+        async (d) => cropPage(d.bytes, d.pageIds, at, req.rect, req.asImage ? await renderCrop(req.page, req.rect, !req.imagePage) : undefined),
+        (d, r) => [...d.annotations, ...cropAnnotations(d.annotations, req.pageId, r.pageIds[at + 1], req.rect)],
+      ).then((ok) => {
+        if (!ok) return;
+        gotoAfterLoad.current = at + 1;
+        setTool("select");
+        notify(t("Découpe ajoutée en page {n}.", { n: at + 2 }));
+      });
+  };
+  // Fonction stable : les pages ne sont pas redessinées à chaque modification.
+  const onCrop = useCallback((req: CropRequest) => cropRef.current(req), []);
 
   const targetPages = () => (selectedPages.size ? selectedPages : new Set(doc ? [doc.pageIds[currentPage]] : []));
 
@@ -1707,6 +1743,7 @@ export default function App() {
                 onFocusText={() => !isMobile() && setPropsOpen(true)}
                 registerElement={registerElement}
                 onPickColor={picking ? finishPick : undefined}
+                onCrop={onCrop}
               />
             ))}
         </div>
@@ -1770,7 +1807,7 @@ export default function App() {
           date={doc.fileBase !== undefined ? (doc.fileDate ?? null) : doc.scan ? isoDate() : null}
           action={askName === "share" ? t("Partager") : t("Enregistrer")}
           // Document numérisé : enregistrement en PDF (par défaut) ou en images.
-          formats={askName === "save" && doc.scan ? { pages: doc.pageIds.length } : undefined}
+          formats={askName === "save" && (doc.scan || doc.images || scanned) ? { pages: doc.pageIds.length } : undefined}
           onConfirm={confirmName}
           onClose={() => setAskName(null)}
         />

@@ -85,6 +85,12 @@ export const CATEGORIES: Category[] = [
       { id: "field", label: msg("Créer"), icon: "plus", tool: "field", hint: msg("Tracez la zone du nouveau champ") },
     ],
   },
+  {
+    id: "decouper",
+    label: msg("Découper"),
+    icon: "crop",
+    tools: [{ id: "crop", label: msg("Découper"), icon: "crop", tool: "crop", hint: msg("Tracez la zone : elle deviendra une nouvelle page") }],
+  },
 ];
 
 const KIND_ICON: Partial<Record<Annotation["kind"], string>> = {
@@ -227,7 +233,7 @@ export function MobileBar(props: Props) {
   } else if (level === "tool") {
     back = () => {
       setSheet(null);
-      if (owner) setCat(owner.id);
+      if (owner && owner.tools.length > 1) setCat(owner.id);
       onTool("select");
     };
     items = [
@@ -253,7 +259,8 @@ export function MobileBar(props: Props) {
       },
     }));
   } else {
-    items = CATEGORIES.map((c) => ({ key: c.id, label: t(c.label), icon: c.icon, disabled: !editable, onClick: () => setCat(c.id) }));
+    // Une catégorie d'un seul outil l'active directement.
+    items = CATEGORIES.map((c) => ({ key: c.id, label: t(c.label), icon: c.icon, disabled: !editable, onClick: () => (c.tools.length === 1 && c.tools[0].tool ? onTool(c.tools[0].tool) : setCat(c.id)) }));
   }
   const hint = level === "tool" && !sheet ? (props.placing ? t("Touchez la page pour placer l'élément") : def?.hint && t(def.hint)) : undefined;
 

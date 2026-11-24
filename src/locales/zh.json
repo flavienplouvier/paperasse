@@ -565,5 +565,15 @@
   "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "iPhone 的照片格式，非常轻巧。主要在苹果设备上方便使用；在其他地方有时需要转换。",
   "Les formats expliqués": "格式说明",
   "Non pris en charge par ce navigateur.": "此浏览器不支持。",
-  "Quel format choisir ?": "选择哪种格式？"
+  "Quel format choisir ?": "选择哪种格式？",
+  "Créer la page": "创建页面",
+  "Découpe ajoutée en page {n}.": "裁剪内容已添加为第 {n} 页。",
+  "Découpe…": "正在裁剪…",
+  "Découper": "裁剪",
+  "En image": "保存为图片",
+  "En image, ce qui est hors du cadre est vraiment supprimé. En PDF, le texte reste net et sélectionnable, mais le reste de la page est seulement masqué.": "保存为图片时，框外内容会被真正删除。保存为 PDF 时，文字保持清晰且可选，但页面其余部分只是被隐藏。",
+  "La zone à découper est trop petite.": "裁剪区域太小。",
+  "Tracez la zone : elle deviendra une nouvelle page": "绘制区域：它将成为新页面",
+  "Tracez la zone à découper": "绘制要裁剪的区域",
+  "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "在页面上绘制矩形，用控制点调整后点击“创建页面”：该区域将成为紧接原页面之后的新页面，原页面保持不变。“保存为图片”会真正删除框外内容；否则文字保持清晰且可选。"
 }

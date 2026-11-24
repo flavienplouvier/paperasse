@@ -22,7 +22,8 @@ export type Tool =
   | "field"
   | "shape"
   | "eraser"
-  | "image";
+  | "image"
+  | "crop";
 
 export type FieldType = "text" | "checkbox" | "dropdown";
 
@@ -199,6 +200,8 @@ export interface DocState {
   password?: string;
   /** Document créé par la numérisation (date proposée dans le nom par défaut). */
   scan?: boolean;
+  /** Document créé à partir d'images ouvertes : il peut être réenregistré en images. */
+  images?: boolean;
   /** Dernier nom choisi à l'enregistrement (sans date) et sa date. */
   fileBase?: string;
   fileDate?: string | null;

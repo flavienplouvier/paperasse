@@ -191,7 +191,7 @@ export function PropertiesPanel({
   const boldKey = styleVariant(v.fontKey, !currentFont.bold, !!currentFont.italic);
   const italicKey = styleVariant(v.fontKey, !!currentFont.bold, !currentFont.italic);
 
-  const showColor = !["image", "whiteout", "select", "editText", "stamp", "field", "eraser"].includes(kind);
+  const showColor = !["image", "whiteout", "select", "editText", "stamp", "field", "eraser", "crop"].includes(kind);
   const field = selected?.kind === "field" ? selected : null;
   const updateField = (patch: Partial<FieldAnnotation>, commit = true) => field && onUpdate({ ...field, ...patch }, commit);
   const showWidth = ["ink", "line", "arrow", "rect", "ellipse", "shape"].includes(kind);
@@ -518,7 +518,15 @@ export function PropertiesPanel({
         </p>
       )}
 
-      {!["select", "editText", "whiteout", "stamp", "field", "eraser"].includes(kind) && (
+      {tool === "crop" && !selected && (
+        <p className="hint">
+          {t(
+            "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.",
+          )}
+        </p>
+      )}
+
+      {!["select", "editText", "whiteout", "stamp", "field", "eraser", "crop"].includes(kind) && (
         <label className="field">
           {t("Opacité : {n} %", { n: Math.round(v.opacity * 100) })}
           <input type="range" min={0.1} max={1} step={0.05} value={v.opacity} onChange={(e) => set({ opacity: +e.target.value }, false)} onPointerUp={() => set({}, true)} />

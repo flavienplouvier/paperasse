@@ -565,5 +565,15 @@
   "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "O formato de fotografia do iPhone, muito leve. Prático sobretudo no universo Apple; noutros sítios por vezes é preciso convertê-lo.",
   "Les formats expliqués": "Os formatos explicados",
   "Non pris en charge par ce navigateur.": "Não suportado por este navegador.",
-  "Quel format choisir ?": "Que formato escolher?"
+  "Quel format choisir ?": "Que formato escolher?",
+  "Créer la page": "Criar página",
+  "Découpe ajoutée en page {n}.": "Recorte adicionado como página {n}.",
+  "Découpe…": "A recortar…",
+  "Découper": "Recortar",
+  "En image": "Como imagem",
+  "En image, ce qui est hors du cadre est vraiment supprimé. En PDF, le texte reste net et sélectionnable, mais le reste de la page est seulement masqué.": "Como imagem, o que fica fora da moldura é mesmo eliminado. Em PDF, o texto continua nítido e selecionável, mas o resto da página fica apenas oculto.",
+  "La zone à découper est trop petite.": "A zona a recortar é demasiado pequena.",
+  "Tracez la zone : elle deviendra une nouvelle page": "Desenhe a zona: ela tornar-se-á uma nova página",
+  "Tracez la zone à découper": "Desenhe a zona a recortar",
+  "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "Desenhe um retângulo na página, ajuste-o com as pegas e depois «Criar página»: a zona torna-se uma nova página logo a seguir à original, que fica intacta. «Como imagem» elimina mesmo o que fica fora da moldura; caso contrário, o texto continua nítido e selecionável."
 }

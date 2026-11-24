@@ -565,5 +565,15 @@
   "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "The iPhone photo format, very light. Mostly handy in the Apple world; elsewhere it sometimes needs converting.",
   "Les formats expliqués": "Formats explained",
   "Non pris en charge par ce navigateur.": "Not supported by this browser.",
-  "Quel format choisir ?": "Which format should I choose?"
+  "Quel format choisir ?": "Which format should I choose?",
+  "Créer la page": "Create page",
+  "Découpe ajoutée en page {n}.": "Crop added as page {n}.",
+  "Découpe…": "Cropping…",
+  "Découper": "Crop",
+  "En image": "As image",
+  "En image, ce qui est hors du cadre est vraiment supprimé. En PDF, le texte reste net et sélectionnable, mais le reste de la page est seulement masqué.": "As an image, everything outside the frame is truly removed. As PDF, text stays sharp and selectable, but the rest of the page is only hidden.",
+  "La zone à découper est trop petite.": "The area to crop is too small.",
+  "Tracez la zone : elle deviendra une nouvelle page": "Draw the area: it will become a new page",
+  "Tracez la zone à découper": "Draw the area to crop",
+  "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "Draw a rectangle on the page, adjust it with the handles, then “Create page”: the area becomes a new page right after the original, which stays intact. “As image” truly removes everything outside the frame; otherwise text stays sharp and selectable."
 }

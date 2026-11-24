@@ -14,6 +14,8 @@ import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
 import { extractRules, type Rule } from "../lib/rules";
 import { extractImages } from "../lib/pageImages";
+import { isImagePage, pageImagesDetailed } from "../lib/cropPage";
+import { CropOverlay } from "./CropOverlay";
 import { frameCenter, unrotateText, withAngle } from "../lib/textFrame";
 import { layoutFor, blockAt, blocksOf, fontIndexAt, reflowText, shiftStyles, type TextBlock } from "../lib/textBlocks";
 import { embeddedTextWidth, type EmbeddedFont } from "../lib/embeddedFonts";
@@ -35,6 +37,15 @@ export interface ToolStyle {
   shape: ShapeId;
   /** Outil « Flèche » : pointes aux deux extrémités. */
   doubleArrow: boolean;
+}
+
+export interface CropRequest {
+  pageId: string;
+  page: PDFPageProxy;
+  rect: Rect;
+  asImage: boolean;
+  /** Page surtout faite d'une image (photo) : découpe en JPEG plutôt qu'en PNG. */
+  imagePage: boolean;
 }
 
 export interface EditTextRequest {
@@ -73,6 +84,8 @@ interface Props {
   registerElement: (index: number, el: HTMLElement | null) => void;
   /** Mode pipette : le prochain appui sur la page renvoie la couleur du pixel touché. */
   onPickColor?: (hex: string) => void;
+  /** Outil « Découper » : la zone choisie devient une nouvelle page. */
+  onCrop?: (req: CropRequest) => void;
 }
 
 type Draft =
@@ -263,6 +276,18 @@ function PageViewImpl(props: Props) {
       alive = false;
     };
   }, [page, runs, visible, tool, props.hits.length, annotations]);
+
+  // Outil « Découper » : une page surtout faite d'une image se découpe en image par défaut.
+  const [imageCheck, setImageCheck] = useState<{ page: PDFPageProxy; image: boolean } | null>(null);
+  const imagePage = imageCheck?.page === page && imageCheck.image;
+  useEffect(() => {
+    if (tool !== "crop" || !page || imageCheck?.page === page) return;
+    let alive = true;
+    pageImagesDetailed(page).then((images) => alive && setImageCheck({ page, image: isImagePage(images, page.view as Rect) }));
+    return () => {
+      alive = false;
+    };
+  }, [tool, page, imageCheck]);
 
   // Amène le résultat de recherche actif au centre de l'écran.
   const activeHitRef = useRef<SVGRectElement>(null);
@@ -1491,6 +1516,14 @@ function PageViewImpl(props: Props) {
         {draftEl}
       </svg>
       {inlineEditor}
+      {tool === "crop" && viewport && page && props.onCrop && (
+        <CropOverlay
+          viewport={viewport}
+          canvas={canvasRef.current}
+          imageByDefault={!!imagePage}
+          onCrop={(rect, asImage) => props.onCrop!({ pageId, page, rect, asImage, imagePage: !!imagePage })}
+        />
+      )}
       {pickedImage && tool === "editText" && (() => {
         const r = viewRect(pickedImage);
         return (

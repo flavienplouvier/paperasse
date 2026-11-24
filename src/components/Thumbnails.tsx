@@ -16,7 +16,8 @@ function Thumb({ pdf, index, onClick }: { pdf: PDFDocumentProxy; index: number; 
   }, []);
 
   useEffect(() => {
-    if (!visible) return;
+    // Juste après l'ajout d'une page, la liste est à jour avant le document rechargé.
+    if (!visible || index >= pdf.numPages) return;
     let task: { cancel(): void } | null = null;
     let alive = true;
     pdf.getPage(index + 1).then((page) => {
@@ -29,7 +30,7 @@ function Thumb({ pdf, index, onClick }: { pdf: PDFDocumentProxy; index: number; 
       const render = page.render({ canvas, viewport });
       task = render;
       render.promise.catch(() => undefined);
-    });
+    }, () => undefined);
     return () => {
       alive = false;
       task?.cancel();

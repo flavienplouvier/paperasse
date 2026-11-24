@@ -565,5 +565,15 @@
   "Le format photo des iPhone, très léger. Surtout pratique dans l'univers Apple ; ailleurs il faut parfois le convertir.": "Das Fotoformat des iPhone, sehr leicht. Vor allem in der Apple-Welt praktisch; anderswo muss es manchmal umgewandelt werden.",
   "Les formats expliqués": "Die Formate erklärt",
   "Non pris en charge par ce navigateur.": "Von diesem Browser nicht unterstützt.",
-  "Quel format choisir ?": "Welches Format wählen?"
+  "Quel format choisir ?": "Welches Format wählen?",
+  "Créer la page": "Seite erstellen",
+  "Découpe ajoutée en page {n}.": "Ausschnitt als Seite {n} hinzugefügt.",
+  "Découpe…": "Zuschneiden…",
+  "Découper": "Zuschneiden",
+  "En image": "Als Bild",
+  "En image, ce qui est hors du cadre est vraiment supprimé. En PDF, le texte reste net et sélectionnable, mais le reste de la page est seulement masqué.": "Als Bild wird alles außerhalb des Rahmens wirklich entfernt. Als PDF bleibt der Text scharf und auswählbar, der Rest der Seite wird aber nur ausgeblendet.",
+  "La zone à découper est trop petite.": "Der Bereich ist zu klein.",
+  "Tracez la zone : elle deviendra une nouvelle page": "Bereich aufziehen: Er wird zu einer neuen Seite",
+  "Tracez la zone à découper": "Bereich zum Zuschneiden aufziehen",
+  "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "Ziehen Sie ein Rechteck auf der Seite auf, passen Sie es mit den Griffen an und wählen Sie „Seite erstellen“: Der Bereich wird zu einer neuen Seite direkt nach dem Original, das unverändert bleibt. „Als Bild“ entfernt wirklich alles außerhalb des Rahmens; sonst bleibt der Text scharf und auswählbar."
 }
