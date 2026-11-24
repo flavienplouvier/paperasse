@@ -283,7 +283,6 @@
   "Noir et blanc": "黑白",
   "Nom": "名称",
   "Nom du champ": "字段名称",
-  "Nom du fichier": "文件名",
   "Nouveau": "新建",
   "Nouveau PDF vierge": "新建空白 PDF",
   "Numérisation": "扫描",
@@ -576,17 +575,14 @@
   "Tracez la zone : elle deviendra une nouvelle page": "绘制区域：它将成为新页面",
   "Tracez la zone à découper": "绘制要裁剪的区域",
   "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "在页面上绘制矩形，用控制点调整后点击“创建页面”：该区域将成为紧接原页面之后的新页面，原页面保持不变。“保存为图片”会真正删除框外内容；否则文字保持清晰且可选。",
-  "{n} page : {list}": "{n} 页：{list}",
-  "{n} pages : {list}": "{n} 页：{list}",
   "Choisir les pages": "选择页面",
   "Comme pour imprimer : séparez les pages par des virgules et indiquez une suite de pages avec un tiret.": "与打印相同：用逗号分隔页码，用连字符表示连续页面。",
   "de la page 4 jusqu'à la fin": "从第 4 页到最后",
-  "Ex. 1-3, 5": "例如 1-3, 5",
   "pages 1 à 3": "第 1 至 3 页",
   "pages 1 à 3, puis la page 6": "第 1 至 3 页，然后第 6 页",
   "pages 1 et 3": "第 1 页和第 3 页",
   "Pages à enregistrer": "要保存的页面",
-  "Pages choisies": "所选页面",
   "Pages invalides : le document a {n} pages.": "页码无效：文档共有 {n} 页。",
-  "Toutes ({n})": "全部（{n}）"
+  "Enregistrement du fichier": "保存文件",
+  "Partage du fichier": "分享文件"
 }

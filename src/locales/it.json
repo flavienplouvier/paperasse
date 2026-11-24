@@ -283,7 +283,6 @@
   "Noir et blanc": "Bianco e nero",
   "Nom": "Nome",
   "Nom du champ": "Nome del campo",
-  "Nom du fichier": "Nome del file",
   "Nouveau": "Nuovo",
   "Nouveau PDF vierge": "Nuovo PDF vuoto",
   "Numérisation": "Scansione",
@@ -576,17 +575,14 @@
   "Tracez la zone : elle deviendra une nouvelle page": "Traccia l'area: diventerà una nuova pagina",
   "Tracez la zone à découper": "Traccia l'area da ritagliare",
   "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "Traccia un rettangolo sulla pagina, regolalo con le maniglie, poi «Crea pagina»: l'area diventa una nuova pagina subito dopo l'originale, che resta intatta. «Come immagine» elimina davvero ciò che è fuori dalla cornice; altrimenti il testo resta nitido e selezionabile.",
-  "{n} page : {list}": "{n} pagina: {list}",
-  "{n} pages : {list}": "{n} pagine: {list}",
   "Choisir les pages": "Scegliere le pagine",
   "Comme pour imprimer : séparez les pages par des virgules et indiquez une suite de pages avec un tiret.": "Come per la stampa: separa le pagine con virgole e indica un intervallo con un trattino.",
   "de la page 4 jusqu'à la fin": "dalla pagina 4 fino alla fine",
-  "Ex. 1-3, 5": "Es. 1-3, 5",
   "pages 1 à 3": "pagine da 1 a 3",
   "pages 1 à 3, puis la page 6": "pagine da 1 a 3, poi la pagina 6",
   "pages 1 et 3": "pagine 1 e 3",
   "Pages à enregistrer": "Pagine da salvare",
-  "Pages choisies": "Pagine scelte",
   "Pages invalides : le document a {n} pages.": "Pagine non valide: il documento ha {n} pagine.",
-  "Toutes ({n})": "Tutte ({n})"
+  "Enregistrement du fichier": "Salvataggio del file",
+  "Partage du fichier": "Condivisione del file"
 }

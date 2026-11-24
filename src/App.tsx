@@ -1808,6 +1808,7 @@ export default function App() {
           base={doc.fileBase ?? doc.name.replace(/\.pdf$/i, "")}
           date={doc.fileBase !== undefined ? (doc.fileDate ?? null) : doc.scan ? isoDate() : null}
           action={askName === "share" ? t("Partager") : t("Enregistrer")}
+          title={askName === "share" ? t("Partage du fichier") : t("Enregistrement du fichier")}
           // Document numérisé : enregistrement en PDF (par défaut) ou en images.
           formats={askName === "save" && (doc.scan || doc.images || scanned)}
           pageCount={askName === "save" ? doc.pageIds.length : undefined}

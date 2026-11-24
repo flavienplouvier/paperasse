@@ -2800,7 +2800,12 @@ kbd {
   font-size: 0.9rem;
   color: var(--muted);
 }
-.save-format-head select {
+/* Format et Pages : champs alignés l'un sous l'autre. */
+.save-format-head > span:first-child {
+  min-width: 4.2em;
+}
+.save-format-head select,
+.save-format-head input[type="text"] {
   /* Largeur prise sur la ligne, pas sur le libellé le plus long de la liste. */
   flex: 1 1 0;
   width: 0;
@@ -2842,10 +2847,6 @@ kbd {
   margin: 0;
   padding: 0;
   border: 0;
-  min-width: 0;
-}
-.save-pages-custom input[type="text"] {
-  flex: 1;
   min-width: 0;
 }
 .save-pages .hint.error {

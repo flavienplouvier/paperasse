@@ -283,7 +283,6 @@
   "Noir et blanc": "Schwarzweiß",
   "Nom": "Name",
   "Nom du champ": "Feldname",
-  "Nom du fichier": "Dateiname",
   "Nouveau": "Neu",
   "Nouveau PDF vierge": "Neues leeres PDF",
   "Numérisation": "Scannen",
@@ -576,17 +575,14 @@
   "Tracez la zone : elle deviendra une nouvelle page": "Bereich aufziehen: Er wird zu einer neuen Seite",
   "Tracez la zone à découper": "Bereich zum Zuschneiden aufziehen",
   "Tracez un rectangle sur la page, ajustez-le avec les poignées, puis « Créer la page » : la zone devient une nouvelle page juste après l'originale, qui reste intacte. « En image » supprime vraiment ce qui est hors du cadre ; sinon le texte reste net et sélectionnable.": "Ziehen Sie ein Rechteck auf der Seite auf, passen Sie es mit den Griffen an und wählen Sie „Seite erstellen“: Der Bereich wird zu einer neuen Seite direkt nach dem Original, das unverändert bleibt. „Als Bild“ entfernt wirklich alles außerhalb des Rahmens; sonst bleibt der Text scharf und auswählbar.",
-  "{n} page : {list}": "{n} Seite: {list}",
-  "{n} pages : {list}": "{n} Seiten: {list}",
   "Choisir les pages": "Seiten auswählen",
   "Comme pour imprimer : séparez les pages par des virgules et indiquez une suite de pages avec un tiret.": "Wie beim Drucken: Seiten durch Kommas trennen, Seitenbereiche mit Bindestrich angeben.",
   "de la page 4 jusqu'à la fin": "ab Seite 4 bis zum Ende",
-  "Ex. 1-3, 5": "z. B. 1-3, 5",
   "pages 1 à 3": "Seiten 1 bis 3",
   "pages 1 à 3, puis la page 6": "Seiten 1 bis 3, dann Seite 6",
   "pages 1 et 3": "Seiten 1 und 3",
   "Pages à enregistrer": "Zu speichernde Seiten",
-  "Pages choisies": "Ausgewählte Seiten",
   "Pages invalides : le document a {n} pages.": "Ungültige Seiten: Das Dokument hat {n} Seiten.",
-  "Toutes ({n})": "Alle ({n})"
+  "Enregistrement du fichier": "Datei speichern",
+  "Partage du fichier": "Datei teilen"
 }

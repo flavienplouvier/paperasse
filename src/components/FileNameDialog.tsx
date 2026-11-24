@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
-import { t, tn, useLocale } from "../i18n";
+import { t, useLocale } from "../i18n";
 import { SAVE_FORMATS, canSave, formatInfo, type SaveFormat } from "../lib/imageExport";
 import { parsePageRanges } from "../lib/pageRanges";
 import { buildFileName, findDate, formatDate, isoDate, loadNamePrefs, saveNamePrefs, type NamePrefs } from "../lib/fileName";
@@ -12,6 +12,8 @@ interface Props {
   date: string | null;
   /** Libellé du bouton : « Enregistrer », « Partager »… */
   action: string;
+  /** Titre de la fenêtre : « Enregistrement du fichier »… */
+  title: string;
   /** `pages` : numéros des pages choisies (à partir de 1), null pour toutes. */
   onConfirm: (fileName: string, base: string, date: string | null, format: SaveFormat, pages: number[] | null) => void;
   onClose: () => void;
@@ -22,7 +24,7 @@ interface Props {
 }
 
 /** Choix du nom du fichier à l'enregistrement, avec une date facultative. */
-export function FileNameDialog({ base, date, action, onConfirm, onClose, formats, pageCount = 1 }: Props) {
+export function FileNameDialog({ base, date, action, title, onConfirm, onClose, formats, pageCount = 1 }: Props) {
   useLocale();
   const [format, setFormat] = useState<SaveFormat>("pdf");
   const [supported, setSupported] = useState<Partial<Record<SaveFormat, boolean>>>({});
@@ -36,10 +38,9 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose, formats
   }, [formats]);
   const ext = formatInfo(format).ext;
   // Pages : toutes, ou une saisie comme à l'impression (« 1,3 », « 1-3 »).
-  const [allPages, setAllPages] = useState(true);
-  const [range, setRange] = useState("");
-  const chosen = allPages ? null : parsePageRanges(range, pageCount);
-  const invalid = !allPages && !chosen;
+  const [range, setRange] = useState(`1-${pageCount}`);
+  const chosen = parsePageRanges(range, pageCount);
+  const invalid = pageCount > 1 && !chosen;
   const count = chosen?.length ?? pageCount;
   const [name, setName] = useState(base);
   const [withDate, setWithDate] = useState(date !== null);
@@ -89,7 +90,7 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose, formats
       <form
         className="modal file-name"
         role="dialog"
-        aria-label={t("Nom du fichier")}
+        aria-label={title}
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
@@ -98,7 +99,7 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose, formats
         }}
       >
         <header>
-          <h2>{t("Nom du fichier")}</h2>
+          <h2>{title}</h2>
           <button type="button" className="icon-btn" title={t("Fermer")} onClick={onClose}>
             <Icon name="close" size={18} />
           </button>
@@ -180,28 +181,16 @@ export function FileNameDialog({ base, date, action, onConfirm, onClose, formats
                   </div>
                 </dl>
               </InfoTip>
-            </div>
-            <label className="check">
-              <input type="radio" name="save-pages" checked={allPages} onChange={() => setAllPages(true)} />
-              {t("Toutes ({n})", { n: pageCount })}
-            </label>
-            <label className="check save-pages-custom">
-              <input type="radio" name="save-pages" checked={!allPages} onChange={() => setAllPages(false)} aria-label={t("Pages choisies")} />
               <input
                 type="text"
                 value={range}
-                placeholder={t("Ex. 1-3, 5")}
+                placeholder={`1-${pageCount}`}
                 aria-label={t("Pages à enregistrer")}
-                aria-invalid={invalid && range.trim() !== ""}
-                onFocus={() => setAllPages(false)}
-                onChange={(e) => {
-                  setAllPages(false);
-                  setRange(e.target.value);
-                }}
+                aria-invalid={invalid}
+                onChange={(e) => setRange(e.target.value)}
               />
-            </label>
-            {invalid && range.trim() !== "" && <p className="hint error">{t("Pages invalides : le document a {n} pages.", { n: pageCount })}</p>}
-            {!allPages && chosen && <p className="hint">{tn("{n} page : {list}", "{n} pages : {list}", chosen.length, { list: chosen.join(", ") })}</p>}
+            </div>
+            {invalid && <p className="hint error">{t("Pages invalides : le document a {n} pages.", { n: pageCount })}</p>}
           </fieldset>
         )}
         <p className="file-name-preview" aria-live="polite">
