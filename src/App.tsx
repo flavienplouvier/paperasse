@@ -683,6 +683,24 @@ export default function App() {
     if (!selectedId) mergeNext.current = false;
   }, [selectedId, setPendingEdit]);
 
+  // Texte ajouté puis quitté sans rien écrire : la zone disparaît.
+  const lastSelected = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = lastSelected.current;
+    lastSelected.current = selectedId;
+    if (!prev || prev === selectedId) return;
+    const a = doc?.annotations.find((x) => x.id === prev);
+    // Seulement un texte ajouté (un texte du PDF vidé reste : il efface l'original).
+    if (!doc || a?.kind !== "text" || a.text.trim() || a.coverOpaque !== undefined || a.box?.original) return;
+    const before = past.current.at(-1);
+    if (before && before.bytes === doc.bytes && !future.current.length && before.annotations.length === doc.annotations.length - 1 && !before.annotations.some((x) => x.id === prev)) {
+      // Rien d'autre depuis l'ajout : on efface aussi l'étape d'historique (Annuler ne la fait pas revenir).
+      past.current.pop();
+      setDoc({ ...doc, ...before });
+      forceHistory((n) => n + 1);
+    } else commit((d) => ({ annotations: d.annotations.filter((x) => x.id !== prev) }));
+  }, [selectedId, doc, commit]);
+
   const annotationsByPage = useMemo(() => {
     const m = new Map<string, Annotation[]>();
     const all = pendingEdit ? [...(doc?.annotations ?? []), ...pendingEdit.covers, pendingEdit.text] : (doc?.annotations ?? []);
@@ -720,13 +738,17 @@ export default function App() {
         setPropsOpen(true);
         return;
       }
-      addAnnotations(a);
       // Le texte ajouté s'édite tout de suite sur la page ; l'outil reste actif
       // pour enchaîner les ajouts (on en sort avec un autre outil ou Échap).
+      // Zone encore vide : hors du document et de l'historique jusqu'à la première frappe ;
+      // quittée sans rien écrire, elle disparaît sans laisser de trace.
       if (a.kind === "text") {
+        setPendingEdit({ covers: [], text: a, snapshot: JSON.stringify(a) });
         setSelectedId(a.id);
         if (!isMobile()) setPropsOpen(true);
+        return;
       }
+      addAnnotations(a);
       // Forme, trait ou flèche qu'on vient de dessiner : sélectionnée tout de suite avec ses
       // poignées (taille, rotation, extrémités), comme dans les logiciels de dessin.
       if (a.kind === "shape" || a.kind === "rect" || a.kind === "ellipse" || a.kind === "line") {
@@ -734,7 +756,7 @@ export default function App() {
         setSelectedId(a.id);
       }
     },
-    [addAnnotations, commit],
+    [addAnnotations, commit, setPendingEdit],
   );
 
   const onChange = useCallback(

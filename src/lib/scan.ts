@@ -182,16 +182,89 @@ function bestQuad(hull: Point[]): Quad | null {
 
 // ------------------------------------------------------------------ détection
 
-/**
- * Cherche la feuille dans la photo : on sépare la zone claire et peu colorée
- * (le papier) du fond, on garde la plus grande région, puis on l'approche par
- * un quadrilatère. Renvoie des coordonnées dans l'image fournie, ou null si
- * rien ne ressemble à une feuille.
- */
-export function detectDocument(img: Pixels, work = 256): Quad | null {
-  const small = downscale(img, work);
+/** Composantes (4-connexité) d'un masque ; renvoie la meilleure, en privilégiant celle qui couvre le centre. */
+function mainRegion(mask: Uint8Array, w: number, h: number): number[] | null {
+  const label = new Int32Array(w * h).fill(-1);
+  const stack: number[] = [];
+  const center = Math.floor(h / 2) * w + Math.floor(w / 2);
+  let best: number[] | null = null;
+  let bestScore = 0;
+  for (let s = 0; s < w * h; s++) {
+    if (!mask[s] || label[s] >= 0) continue;
+    const id = s;
+    const pixels: number[] = [];
+    label[s] = id;
+    stack.push(s);
+    while (stack.length) {
+      const p = stack.pop()!;
+      pixels.push(p);
+      const x = p % w;
+      if (x > 0 && mask[p - 1] && label[p - 1] < 0) (label[p - 1] = id), stack.push(p - 1);
+      if (x < w - 1 && mask[p + 1] && label[p + 1] < 0) (label[p + 1] = id), stack.push(p + 1);
+      if (p >= w && mask[p - w] && label[p - w] < 0) (label[p - w] = id), stack.push(p - w);
+      if (p < w * (h - 1) && mask[p + w] && label[p + w] < 0) (label[p + w] = id), stack.push(p + w);
+    }
+    const score = pixels.length * (label[center] === id ? 1.5 : 1);
+    if (score > bestScore) (bestScore = score), (best = pixels);
+  }
+  return best;
+}
+
+/** Région sans ses trous (texte, images sombres à l'intérieur de la feuille). */
+function fillHoles(region: number[], w: number, h: number): Uint8Array {
+  const inside = new Uint8Array(w * h);
+  for (const p of region) inside[p] = 1;
+  // Ce qui n'est pas la région et touche le bord de la photo est l'extérieur ; le reste, des trous.
+  const outside = new Uint8Array(w * h);
+  const stack: number[] = [];
+  const seed = (p: number) => {
+    if (!inside[p] && !outside[p]) (outside[p] = 1), stack.push(p);
+  };
+  for (let x = 0; x < w; x++) seed(x), seed((h - 1) * w + x);
+  for (let y = 0; y < h; y++) seed(y * w), seed(y * w + w - 1);
+  while (stack.length) {
+    const p = stack.pop()!;
+    const x = p % w;
+    if (x > 0) seed(p - 1);
+    if (x < w - 1) seed(p + 1);
+    if (p >= w) seed(p - w);
+    if (p < w * (h - 1)) seed(p + w);
+  }
+  for (let p = 0; p < w * h; p++) outside[p] = outside[p] ? 0 : 1;
+  return outside;
+}
+
+interface Candidate {
+  quad: Quad;
+  /** Part de la photo couverte par le quadrilatère. */
+  area: number;
+  /** Part du quadrilatère réellement couverte par la région (1 = vraie forme de feuille). */
+  fit: number;
+}
+
+/** Quadrilatère qui approche la région (sans trous), dans le repère de l'image réduite. */
+function quadOf(mask: Uint8Array, w: number, h: number): Candidate | null {
+  let count = 0;
+  const boundary: Point[] = [];
+  for (let p = 0; p < w * h; p++) {
+    if (!mask[p]) continue;
+    count++;
+    const x = p % w, y = (p - x) / w;
+    if (x === 0 || y === 0 || x === w - 1 || y === h - 1 || !mask[p - 1] || !mask[p + 1] || !mask[p - w] || !mask[p + w]) {
+      boundary.push({ x: x + 0.5, y: y + 0.5 });
+    }
+  }
+  if (count < w * h * 0.12) return null;
+  const quad = bestQuad(convexHull(boundary));
+  if (!quad) return null;
+  const quadArea = polygonArea(quad);
+  if (quadArea < w * h * 0.12) return null;
+  return { quad, area: quadArea / (w * h), fit: Math.min(1, count / quadArea) };
+}
+
+/** Méthode 1 : la feuille est la zone claire et peu colorée (fond sombre ou coloré). */
+function byPaper(small: Pixels): Candidate | null {
   const { width: w, height: h } = small;
-  // « Papier » : lumineux et peu saturé.
   const paper = new Float32Array(w * h);
   for (let i = 0, p = 0; p < w * h; p++, i += 4) {
     const r = small.data[i], g = small.data[i + 1], b = small.data[i + 2];
@@ -212,52 +285,126 @@ export function detectDocument(img: Pixels, work = 256): Quad | null {
   if (!nlo || !nhi || hi / nhi - lo / nlo < 25) return null;
   const mask = new Uint8Array(w * h);
   for (let p = 0; p < w * h; p++) mask[p] = blurred[p] > t ? 1 : 0;
+  const region = mainRegion(mask, w, h);
+  return region ? quadOf(fillHoles(region, w, h), w, h) : null;
+}
 
-  // Plus grande région claire (4-connexité), en privilégiant celle qui couvre le centre.
-  const label = new Int32Array(w * h).fill(-1);
-  const stack: number[] = [];
-  let bestRegion = -1, bestScore = 0;
-  const regions: number[][] = [];
-  for (let s = 0; s < w * h; s++) {
-    if (!mask[s] || label[s] >= 0) continue;
-    const id = regions.length;
-    const pixels: number[] = [];
-    label[s] = id;
-    stack.push(s);
-    while (stack.length) {
-      const p = stack.pop()!;
-      pixels.push(p);
-      const x = p % w, y = (p - x) / w;
-      if (x > 0 && mask[p - 1] && label[p - 1] < 0) (label[p - 1] = id), stack.push(p - 1);
-      if (x < w - 1 && mask[p + 1] && label[p + 1] < 0) (label[p + 1] = id), stack.push(p + 1);
-      if (y > 0 && mask[p - w] && label[p - w] < 0) (label[p - w] = id), stack.push(p - w);
-      if (y < h - 1 && mask[p + w] && label[p + w] < 0) (label[p + w] = id), stack.push(p + w);
-    }
-    regions.push(pixels);
-    const center = Math.floor(h / 2) * w + Math.floor(w / 2);
-    const score = pixels.length * (label[center] === id ? 1.5 : 1);
-    if (score > bestScore) (bestScore = score), (bestRegion = id);
+/**
+ * Méthode 2 : le fond est ce qui touche le bord de la photo et change peu de
+ * couleur de proche en proche (bois, table, ombre progressive) ; la feuille est
+ * le reste. Trouve aussi une feuille aux grandes zones sombres (bandeau, photo).
+ */
+function byBackground(small: Pixels): { candidate: Candidate | null; bg: Uint8Array } | null {
+  const { width: w, height: h } = small;
+  const ch = [0, 1, 2].map((c) => {
+    const a = new Float32Array(w * h);
+    for (let p = 0; p < w * h; p++) a[p] = small.data[p * 4 + c];
+    // Pas de flou : un bord adouci se franchirait par petits pas.
+    return a;
+  });
+  // Couleur de référence de chaque pixel du fond : suit lentement les variations (ombre),
+  // mais un saut franc (le bord de la feuille) arrête le remplissage.
+  const ref = [new Float32Array(w * h), new Float32Array(w * h), new Float32Array(w * h)];
+  const bg = new Uint8Array(w * h);
+  const queue = new Int32Array(w * h);
+  let head = 0, tail = 0;
+  const TOL = 30;
+  const seed = (p: number) => {
+    if (bg[p]) return;
+    bg[p] = 1;
+    for (let c = 0; c < 3; c++) ref[c][p] = ch[c][p];
+    queue[tail++] = p;
+  };
+  for (let x = 0; x < w; x++) seed(x), seed((h - 1) * w + x);
+  for (let y = 0; y < h; y++) seed(y * w), seed(y * w + w - 1);
+  const visit = (from: number, p: number) => {
+    if (bg[p]) return;
+    const d = Math.hypot(ch[0][p] - ref[0][from], ch[1][p] - ref[1][from], ch[2][p] - ref[2][from]);
+    if (d > TOL) return;
+    bg[p] = 1;
+    for (let c = 0; c < 3; c++) ref[c][p] = 0.92 * ref[c][from] + 0.08 * ch[c][p];
+    queue[tail++] = p;
+  };
+  while (head < tail) {
+    const p = queue[head++];
+    const x = p % w;
+    if (x > 0) visit(p, p - 1);
+    if (x < w - 1) visit(p, p + 1);
+    if (p >= w) visit(p, p - w);
+    if (p < w * (h - 1)) visit(p, p + w);
   }
-  if (bestRegion < 0) return null;
-  const region = regions[bestRegion];
-  if (region.length < w * h * 0.12) return null;
+  // Fond à peine entamé (fond très chargé, ou feuille qui remplit la photo) : méthode non fiable.
+  let grown = 0;
+  for (let p = 0; p < w * h; p++) grown += bg[p];
+  if (grown < w * h * 0.1) return null;
+  const mask = new Uint8Array(w * h);
+  for (let p = 0; p < w * h; p++) mask[p] = bg[p] ? 0 : 1;
+  const region = mainRegion(mask, w, h);
+  return { candidate: region ? quadOf(fillHoles(region, w, h), w, h) : null, bg };
+}
 
-  // Bord de la région → enveloppe convexe → quadrilatère.
-  const boundary: Point[] = [];
-  for (const p of region) {
-    const x = p % w, y = (p - x) / w;
-    if (x === 0 || y === 0 || x === w - 1 || y === h - 1 || !mask[p - 1] || !mask[p + 1] || !mask[p - w] || !mask[p + w]) {
-      boundary.push({ x: x + 0.5, y: y + 0.5 });
+/**
+ * Part de chaque bord du quadrilatère qui longe le fond (juste à l'extérieur) :
+ * un bord qui longe autre chose (bandeau sombre de la feuille…) n'est pas le bord de la feuille.
+ */
+function edgesOnBackground(q: Quad, bg: Uint8Array, w: number, h: number): number[] {
+  const cx = (q[0].x + q[1].x + q[2].x + q[3].x) / 4;
+  const cy = (q[0].y + q[1].y + q[2].y + q[3].y) / 4;
+  return q.map((a, i) => {
+    const b = q[(i + 1) % 4];
+    let on = 0;
+    const N = 24;
+    for (let k = 1; k < N; k++) {
+      const x = a.x + ((b.x - a.x) * k) / N, y = a.y + ((b.y - a.y) * k) / N;
+      const d = Math.hypot(x - cx, y - cy) || 1;
+      const ox = Math.round(x + ((x - cx) / d) * 3), oy = Math.round(y + ((y - cy) / d) * 3);
+      // Hors de la photo : la feuille touche le bord, c'est bien son bord.
+      if (ox < 0 || oy < 0 || ox >= w || oy >= h || bg[oy * w + ox]) on++;
     }
-  }
-  const hull = convexHull(boundary);
-  const quad = bestQuad(hull);
-  if (!quad) return null;
-  const quadArea = polygonArea(quad);
+    return on / (N - 1);
+  });
+}
+
+/** Part de la photo hors du quadrilatère réellement reconnue comme fond (fond homogène = méthode fiable). */
+function backgroundCoverage(q: Quad, bg: Uint8Array, w: number, h: number): number {
+  let out = 0, on = 0;
+  for (let y = 0; y < h; y += 2)
+    for (let x = 0; x < w; x += 2) {
+      const px = x + 0.5, py = y + 0.5;
+      let inside = true;
+      for (let i = 0; i < 4 && inside; i++) {
+        const a = q[i], b = q[(i + 1) % 4];
+        if ((b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x) < 0) inside = false;
+      }
+      if (inside) continue;
+      out++;
+      on += bg[y * w + x];
+    }
+  return out ? on / out : 0;
+}
+
+/**
+ * Cherche la feuille dans la photo, par deux méthodes complémentaires (zone
+ * claire du papier ; tout ce qui se détache du fond), puis l'approche par un
+ * quadrilatère. Renvoie des coordonnées dans l'image fournie, ou null si rien
+ * ne ressemble à une feuille.
+ */
+export function detectDocument(img: Pixels, work = 256): Quad | null {
+  const small = downscale(img, work);
+  const { width: w, height: h } = small;
   // La région doit vraiment ressembler à un quadrilatère.
-  if (quadArea < w * h * 0.12 || region.length / quadArea < 0.8) return null;
+  const ok = (c: Candidate | null | undefined) => (c && c.fit >= 0.85 ? c : null);
+  const paper = ok(byPaper(small));
+  const back = byBackground(small);
+  const other = ok(back?.candidate);
+  const trusted = other && back && backgroundCoverage(other.quad, back.bg, w, h) >= 0.85 ? other : null;
+  // Le papier d'abord ; mais si un de ses bords ne longe pas le fond, il n'a vu qu'une partie
+  // de la feuille (bandeau ou photo sombre en bordure) : la feuille vue depuis le fond est plus juste.
+  const partial = paper && back && edgesOnBackground(paper.quad, back.bg, w, h).some((r) => r < 0.4);
+  const best = paper && !(partial && trusted && trusted.area > paper.area) ? paper : trusted;
+  if (!best) return null;
   const sx = img.width / w, sy = img.height / h;
-  return quad.map((p) => ({ x: clamp(p.x * sx, 0, img.width), y: clamp(p.y * sy, 0, img.height) })) as Quad;
+  return best.quad.map((p) => ({ x: clamp(p.x * sx, 0, img.width), y: clamp(p.y * sy, 0, img.height) })) as Quad;
 }
 
 /** Cadre par défaut quand rien n'est détecté : toute la photo avec une petite marge. */

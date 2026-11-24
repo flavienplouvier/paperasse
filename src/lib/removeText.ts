@@ -250,18 +250,50 @@ interface GState {
   rise: number;
 }
 
-function contentBytes(doc: PDFDocument, page: PDFPage): Uint8Array[] | undefined {
+/** Contenu de la page, ses flux mis bout à bout (ils se lisent comme un seul flux). */
+export function contentBytes(doc: PDFDocument, page: PDFPage): Uint8Array | undefined {
   const ctx = doc.context;
   const contents = page.node.get(PDFName.of("Contents"));
   const resolved = ctx.lookup(contents);
   const refs = resolved instanceof PDFArray ? resolved.asArray() : contents ? [contents] : [];
-  const out: Uint8Array[] = [];
+  const parts: Uint8Array[] = [];
   for (const r of refs) {
     const s = ctx.lookup(r);
     if (!(s instanceof PDFRawStream)) return undefined;
-    out.push(decodePDFRawStream(s).decode());
+    parts.push(decodePDFRawStream(s).decode());
   }
-  return out;
+  if (!parts.length) return undefined;
+  const total = parts.reduce((n, p) => n + p.length + 1, 0);
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const p of parts) {
+    bytes.set(p, offset);
+    bytes[offset + p.length] = 10;
+    offset += p.length + 1;
+  }
+  return bytes;
+}
+
+/** Réécrit le contenu de la page : seuls les passages remplacés changent, le reste est recopié tel quel. */
+export function writeContent(doc: PDFDocument, page: PDFPage, bytes: Uint8Array, replacements: { start: number; end: number; text: string }[]): void {
+  const enc = new TextEncoder();
+  const chunks: Uint8Array[] = [];
+  let at = 0;
+  for (const r of [...replacements].sort((x, y) => x.start - y.start)) {
+    chunks.push(bytes.subarray(at, r.start), enc.encode(r.text));
+    at = r.end;
+  }
+  chunks.push(bytes.subarray(at));
+  const size = chunks.reduce((s, c) => s + c.length, 0);
+  const out = new Uint8Array(size);
+  let p = 0;
+  for (const c of chunks) {
+    out.set(c, p);
+    p += c.length;
+  }
+  const stream = doc.context.flateStream(out);
+  const ref: PDFRef = doc.context.register(stream);
+  page.node.set(PDFName.of("Contents"), doc.context.obj([ref]));
 }
 
 /**
@@ -272,18 +304,8 @@ function contentBytes(doc: PDFDocument, page: PDFPage): Uint8Array[] | undefined
 export function removeTextInRects(doc: PDFDocument, page: PDFPage, lines: RemovalZone[]): RemovalResult[] {
   const results: RemovalResult[] = lines.map(() => ({ removed: 0, invisible: 0 }));
   if (!lines.length) return results;
-  const parts = contentBytes(doc, page);
-  if (!parts?.length) return results;
-
-  // Les flux d'une page se lisent comme un seul flux concaténé.
-  const total = parts.reduce((n, p) => n + p.length + 1, 0);
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const p of parts) {
-    bytes.set(p, offset);
-    bytes[offset + p.length] = 10;
-    offset += p.length + 1;
-  }
+  const bytes = contentBytes(doc, page);
+  if (!bytes) return results;
 
   const fontsDict = (() => {
     const res = page.node.Resources();
@@ -487,24 +509,6 @@ export function removeTextInRects(doc: PDFDocument, page: PDFPage, lines: Remova
 
   if (!replacements.length) return results;
 
-  // Réécriture : seuls les opérateurs touchés changent, le reste du flux est recopié tel quel.
-  const enc = new TextEncoder();
-  const chunks: Uint8Array[] = [];
-  let at = 0;
-  for (const r of replacements.sort((x, y) => x.start - y.start)) {
-    chunks.push(bytes.subarray(at, r.start), enc.encode(r.text));
-    at = r.end;
-  }
-  chunks.push(bytes.subarray(at));
-  const size = chunks.reduce((s, c) => s + c.length, 0);
-  const out = new Uint8Array(size);
-  let p = 0;
-  for (const c of chunks) {
-    out.set(c, p);
-    p += c.length;
-  }
-  const stream = doc.context.flateStream(out);
-  const ref: PDFRef = doc.context.register(stream);
-  page.node.set(PDFName.of("Contents"), doc.context.obj([ref]));
+  writeContent(doc, page, bytes, replacements);
   return results;
 }

@@ -13,6 +13,7 @@ import { t, tn, useLocale } from "../i18n";
 import { displayText, segmentLine } from "../lib/embeddedFonts";
 import { shapeDef, type ShapeId } from "../lib/shapes";
 import { extractRules, type Rule } from "../lib/rules";
+import { extractImages } from "../lib/pageImages";
 import { frameCenter, unrotateText, withAngle } from "../lib/textFrame";
 import { layoutFor, blockAt, blocksOf, fontIndexAt, reflowText, shiftStyles, type TextBlock } from "../lib/textBlocks";
 import { embeddedTextWidth, type EmbeddedFont } from "../lib/embeddedFonts";
@@ -145,6 +146,10 @@ function PageViewImpl(props: Props) {
   const [visible, setVisible] = useState(false);
   const [runs, setRuns] = useState<TextRun[] | null>(null);
   const [rules, setRules] = useState<Rule[]>([]);
+  /** Images du PDF d'origine (supprimables avec « Modifier le texte »). */
+  const [pdfImages, setPdfImages] = useState<Rect[]>([]);
+  const [pickedImage, setPickedImage] = useState<Rect | null>(null);
+  const [hoverImage, setHoverImage] = useState<Rect | null>(null);
   const [draft, setDraft] = useState<Draft>(null);
   const [drag, setDrag] = useState<Drag>(null);
   const [hoverRun, setHoverRun] = useState<TextRun | TextBlock | null>(null);
@@ -152,6 +157,14 @@ function PageViewImpl(props: Props) {
   const blocks = useMemo(() => (runs ? blocksOf(runs, rules) : null), [runs, rules]);
   /** Zone modifiable sous le pointeur : le bloc entier, sinon le morceau (texte tourné). */
   const editableAt = (p: Point): TextRun | TextBlock | undefined => (blocks && blockAt(blocks, p)) || (runs ? runAt(runs, p) : undefined);
+  /** Images encore présentes (pas déjà supprimées). */
+  const liveImages = useMemo(
+    () => pdfImages.filter((r) => !annotations.some((a) => a.kind === "whiteout" && a.removeImage && rectContains(a.rect, [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2]))),
+    [pdfImages, annotations],
+  );
+  /** Plus petite image sous le point (une image posée sur une autre passe devant). */
+  const imageAt = (p: Point): Rect | undefined =>
+    liveImages.filter((r) => rectContains(r, p)).sort((a, b) => (a[2] - a[0]) * (a[3] - a[1]) - (b[2] - b[0]) * (b[3] - b[1]))[0];
   const erasing = useRef<{ pointerId: number; ids: Set<string> } | null>(null);
   const [erasedPreview, setErasedPreview] = useState<Set<string>>(new Set());
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -240,9 +253,10 @@ function PageViewImpl(props: Props) {
     // Textes de la page aussi nécessaires pour afficher les caches de « Modifier le texte » (voir coverHoles).
     if (!page || runs || !(visible && (tool === "editText" || props.hits.length || annotations.some(isTextCover)))) return;
     let alive = true;
-    Promise.all([extractRuns(page), extractRules(page)]).then(([r, lines]) => {
+    Promise.all([extractRuns(page), extractRules(page), extractImages(page)]).then(([r, lines, images]) => {
       if (!alive) return;
       setRules(lines);
+      setPdfImages(images);
       setRuns(r);
     });
     return () => {
@@ -329,7 +343,8 @@ function PageViewImpl(props: Props) {
           color: style.color,
           opacity: style.opacity,
           origin: addScaled(p, down, style.fontSize),
-          text: t("Texte"),
+          // Zone vide : on écrit directement (elle disparaît si on la quitte sans rien écrire).
+          text: "",
           fontKey: style.fontKey,
           fontSize: style.fontSize,
           rotation,
@@ -347,7 +362,8 @@ function PageViewImpl(props: Props) {
         break;
       case "editText": {
         // Ligne déjà modifiée (sous son cache) : on rouvre le texte existant.
-        const cover = annotations.find((a) => a.kind === "whiteout" && rectContains(a.rect, p));
+        setPickedImage(null);
+        const cover = annotations.find((a) => a.kind === "whiteout" && !a.removeImage && rectContains(a.rect, p));
         if (cover && cover.kind === "whiteout") {
           const existing = annotations.find((a) => a.kind === "text" && (a.id === cover.owner || rectContains(cover.rect, a.origin, 2)));
           if (existing) {
@@ -371,6 +387,13 @@ function PageViewImpl(props: Props) {
               : undefined;
           const { ink, background } = sampleColors(block ? block.rect : run.rect, inkRect);
           props.onEditText({ pageId, run, page, color: ink, background, ...(block ? { block } : {}) });
+        } else {
+          // Pas de texte ici : une image du PDF ? Elle est sélectionnée pour pouvoir la supprimer.
+          const img = imageAt(p);
+          if (img) {
+            props.onSelect(null);
+            setPickedImage(img);
+          }
         }
         break;
       }
@@ -400,6 +423,8 @@ function PageViewImpl(props: Props) {
       setDraft({ ...draft, end: p });
     } else if (tool === "editText" && runs && e.pointerType === "mouse") {
       setHoverRun(editableAt(p) ?? null);
+      const img = editableAt(p) ? undefined : imageAt(p);
+      if (img !== hoverImage) setHoverImage(img ?? null);
     }
   };
 
@@ -895,6 +920,30 @@ function PageViewImpl(props: Props) {
     }
   };
 
+  /** Supprime l'image choisie : un cache qui retire l'image du fichier à l'enregistrement. */
+  const removePickedImage = () => {
+    if (!pickedImage) return;
+    // Un peu plus grand que l'image : son bord adouci ne dépasse pas du cache à l'écran.
+    const [x1, y1, x2, y2] = pickedImage;
+    const rect: Rect = [x1 - 0.75, y1 - 0.75, x2 + 0.75, y2 + 0.75];
+    props.onCreate({ id: newId("annot"), kind: "whiteout", pageId, rect, width: 0, fill: true, color: "#ffffff", opacity: 1, removeImage: true });
+    setPickedImage(null);
+  };
+  useEffect(() => {
+    if (tool !== "editText") setPickedImage(null);
+  }, [tool]);
+  useEffect(() => {
+    if (!pickedImage) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        removePickedImage();
+      } else if (e.key === "Escape") setPickedImage(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   const selected = annotations.find((a) => a.id === selectedId) ?? null;
   const editing = (tool === "select" || TEXT_TOOLS.has(tool)) && selected?.kind === "text" ? selected : null;
   const editStart = useRef<string | null>(null);
@@ -908,9 +957,7 @@ function PageViewImpl(props: Props) {
       const el = editorRef.current;
       if (!el || document.activeElement === el) return;
       el.focus({ preventScroll: true });
-      // Texte tout juste ajouté : tout sélectionner pour que la frappe remplace « Texte ».
-      if (el.value === t("Texte")) el.select();
-      else el.setSelectionRange(el.value.length, el.value.length);
+      el.setSelectionRange(el.value.length, el.value.length);
       syncSel();
     }, 30);
     return () => window.clearTimeout(timer);
@@ -983,7 +1030,7 @@ function PageViewImpl(props: Props) {
     const geo = caretGeometry(a);
     // Bloc qui s'allonge : nombre de lignes en trop par rapport au bloc d'origine.
     const overflow = a.box?.lines ? Math.max(0, geo.laid.length - a.box.lines) : 0;
-    const frame = { w: Math.max(a.box?.width ?? 0, ...geo.laid.map((l) => l.x + l.width)), h: Math.max(a.box?.height ?? 0, geo.laid.length * geo.step) };
+    const frame = { w: Math.max(a.box?.width ?? 0, a.text ? 0 : a.fontSize * 5, ...geo.laid.map((l) => l.x + l.width)), h: Math.max(a.box?.height ?? 0, Math.max(1, geo.laid.length) * geo.step) };
     const startHandle = (e: React.PointerEvent, mode: "rotate" | "resize", handle?: [number, number]) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1411,7 +1458,10 @@ function PageViewImpl(props: Props) {
           erasing.current = null;
           setErasedPreview(new Set());
         }}
-        onPointerLeave={() => setHoverRun(null)}
+        onPointerLeave={() => {
+          setHoverRun(null);
+          setHoverImage(null);
+        }}
       >
         {props.hits.map((h, i) => {
           const r = viewRect(h);
@@ -1426,6 +1476,11 @@ function PageViewImpl(props: Props) {
             const r = viewRect(z.rect);
             return <rect key={i} className={`run ${z === hoverRun ? "hover" : ""}`} x={r.x} y={r.y} width={r.w} height={r.h} />;
           })}
+        {tool === "editText" &&
+          liveImages.map((z, i) => {
+            const r = viewRect(z);
+            return <rect key={`img${i}`} className={`run pdf-image ${z === hoverImage ? "hover" : ""} ${z === pickedImage ? "picked" : ""}`} x={r.x} y={r.y} width={r.w} height={r.h} />;
+          })}
         {/* Caches de « Modifier le texte » dessous ; le reste dans l'ordre de création (un cache blanc masque ce qui est derrière lui). */}
         {annotations.filter(isTextCover).map(renderAnnotation)}
         {annotations.filter((a) => !isTextCover(a)).map(renderAnnotation)}
@@ -1436,6 +1491,19 @@ function PageViewImpl(props: Props) {
         {draftEl}
       </svg>
       {inlineEditor}
+      {pickedImage && tool === "editText" && (() => {
+        const r = viewRect(pickedImage);
+        return (
+          <div className="image-pick-bar" style={{ left: r.x + r.w / 2, top: Math.max(4, r.y - 44) }}>
+            <button type="button" className="danger" autoFocus onClick={removePickedImage}>
+              <Icon name="trash" size={16} /> {t("Supprimer l'image")}
+            </button>
+            <button type="button" className="icon-btn" title={t("Annuler")} onClick={() => setPickedImage(null)}>
+              <Icon name="close" size={16} />
+            </button>
+          </div>
+        );
+      })()}
       <div className="page-number">{index + 1}</div>
     </div>
   );

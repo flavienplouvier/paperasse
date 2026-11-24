@@ -542,7 +542,16 @@ function CropStage({ page, onCancel, onConfirm, busy }: { page: ScanPage; onCanc
 
   const active = drag ? quad[drag.corner] : null;
   const ZOOM = 2.5;
-  const LOUPE = 110;
+  const LOUPE = 130;
+  // Loupe au centre de l'image (le doigt cache le coin) ; si le coin tiré est lui-même
+  // près du centre, elle passe dans l'autre moitié.
+  const loupeAt = (() => {
+    if (!active) return null;
+    const cx = box.w / 2, cy = box.h / 2;
+    const ax = active.x * scale, ay = active.y * scale;
+    if (Math.hypot(ax - cx, ay - cy) > LOUPE) return { x: cx, y: cy };
+    return { x: cx, y: ay < cy ? Math.min(box.h - LOUPE / 2, cy + LOUPE * 1.1) : Math.max(LOUPE / 2, cy - LOUPE * 1.1) };
+  })();
 
   return (
     <>
@@ -572,12 +581,12 @@ function CropStage({ page, onCancel, onConfirm, busy }: { page: ScanPage; onCanc
               aria-label={[t("Coin haut gauche"), t("Coin haut droit"), t("Coin bas droit"), t("Coin bas gauche")][i]}
             />
           ))}
-          {active && (
+          {active && loupeAt && (
             <span
               className="crop-loupe"
               style={{
-                left: active.x * scale,
-                top: active.y * scale,
+                left: loupeAt.x,
+                top: loupeAt.y,
                 backgroundImage: `url(${page.photoUrl})`,
                 backgroundSize: `${box.w * ZOOM}px ${box.h * ZOOM}px`,
                 backgroundPosition: `${LOUPE / 2 - active.x * scale * ZOOM}px ${LOUPE / 2 - active.y * scale * ZOOM}px`,

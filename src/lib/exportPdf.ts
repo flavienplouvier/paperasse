@@ -15,6 +15,7 @@ import { drawEmbeddedText, embeddedTextWidth, missingChars } from "./embeddedFon
 import { fontIndexAt, layoutFor } from "./textBlocks";
 import { createFormField } from "./formFields";
 import { removeTextInRects } from "./removeText";
+import { removeImagesInRects } from "./pageImages";
 import { curvePoints, rectCenter } from "./annotations";
 import { shapeDef } from "./shapes";
 import type { Annotation, Point, ShapeAnnotation, TextAnnotation } from "./types";
@@ -342,8 +343,18 @@ async function drawAnnotationBase(doc: PDFDocument, page: PDFPage, a: Annotation
  * Renvoie les caches à ne pas dessiner.
  */
 function removeOriginalText(doc: PDFDocument, page: PDFPage, list: Annotation[]): Set<Annotation> {
-  const covers = list.filter((a): a is ShapeAnnotation => a.kind === "whiteout");
+  const all = list.filter((a): a is ShapeAnnotation => a.kind === "whiteout");
   const done = new Set<Annotation>();
+  // Images supprimées : retirées du contenu, leur cache devient inutile.
+  const images = all.filter((a) => a.removeImage);
+  if (images.length) {
+    try {
+      removeImagesInRects(doc, page, images.map((c) => c.rect)).forEach((n, k) => n > 0 && done.add(images[k]));
+    } catch {
+      /* contenu illisible : on garde les caches */
+    }
+  }
+  const covers = all.filter((a) => !a.removeImage);
   if (!covers.length) return done;
   // Fond opaque choisi pour le texte modifié : son cache reste dessiné (il masque ce qui est dessous).
   const opaque = new Set(list.flatMap((a) => (a.kind === "text" && a.coverOpaque ? [a.id] : [])));

@@ -67,6 +67,12 @@ export interface ShapeAnnotation extends AnnotationBase {
   removeText?: TextLine;
   /** Texte de remplacement auquel appartient ce cache (« Modifier le texte »). */
   owner?: string;
+  /**
+   * Image du PDF supprimée (« Modifier le texte », clic sur une image) : à
+   * l'enregistrement, l'image est retirée du fichier et le cache n'est pas dessiné
+   * (il ne l'est que si le retrait est impossible).
+   */
+  removeImage?: boolean;
 }
 
 export interface LineAnnotation extends AnnotationBase {
