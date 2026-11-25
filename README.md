@@ -31,11 +31,12 @@ rien n'est envoyé sur un serveur.
   (`fonts.forge.apps.education.fr`) pour compléter les lettres absentes. Elle
   n'est pas incluse dans Paperasse : son usage est réservé à l'administration
   (circulaire n° 6144/SG).
-- Plus généralement, la police complète d'un document est chargée à la demande
-  depuis une source officielle quand sa licence le permet, à la graisse exacte :
-  polices libres du catalogue en Light, Medium, SemiBold, ExtraBold, Black…
-  (Fontsource), DejaVu (paquet officiel). Les polices commerciales (Arial,
-  Calibri, Segoe UI…) restent remplacées par leur équivalent le plus proche.
+- Plus généralement, la police complète d'un document est chargée à la demande,
+  à la graisse exacte, quand sa licence le permet : polices de la bibliothèque
+  en Light, Medium, SemiBold, ExtraBold, Black… et DejaVu (paquet officiel),
+  servies par le site lui-même ; polices du catalogue Google à ces graisses
+  depuis Fontsource. Les polices commerciales (Arial, Calibri, Segoe UI…)
+  restent remplacées par leur équivalent le plus proche.
 - Bibliothèque de 75 familles de polices libres (près de 250 styles), dont des
   équivalents aux mêmes dimensions des polices Office/Windows : Carlito
   (Calibri), Caladea (Cambria), Arimo (Arial/Helvetica), Tinos (Times New
@@ -70,10 +71,10 @@ rien n'est envoyé sur un serveur.
   cocher, listes déroulantes, enregistrées comme de vrais champs PDF.
 - Reconnaissance de texte (OCR, Tesseract) : un PDF scanné devient cherchable,
   sélectionnable et modifiable ; le texte reconnu est ajouté de façon
-  invisible sans changer l'aspect. Français et anglais fournis ; allemand,
-  espagnol, italien, portugais, néerlandais et chinois téléchargés une fois au
-  premier usage. La reconnaissance se fait entièrement sur l'appareil ; les scans
-  sont détectés à l'ouverture.
+  invisible sans changer l'aspect. Français, anglais, allemand, espagnol,
+  italien, portugais, néerlandais et chinois, servis par le site et téléchargés
+  une fois au premier usage. La reconnaissance se fait entièrement sur
+  l'appareil ; les scans sont détectés à l'ouverture.
 - Interface en 8 langues : français, anglais, allemand, espagnol, italien,
   portugais, néerlandais, chinois. La langue du navigateur est détectée au
   démarrage (anglais si elle n'est pas prise en charge) et se change par le
@@ -140,8 +141,10 @@ Puis ouvrez http://localhost:5173.
 
 `npm run dev` et `npm run build` copient d'abord dans `public/pdfjs/` les
 ressources de pdf.js nécessaires au rendu des polices, et dans `public/fonts/`
-la bibliothèque de polices (paquets `@expo-google-fonts/*`, 4 styles par
-famille, environ 50 Mo chargés uniquement à l'usage). Pour ajouter une famille :
+la bibliothèque de polices (paquets `@expo-google-fonts/*`, toutes les graisses
+de chaque famille, et DejaVu : environ 165 Mo chargés uniquement à l'usage),
+et dans `public/ocr/` le moteur de reconnaissance de texte avec ses 8 langues
+(environ 26 Mo). Pour ajouter une famille :
 `npm install -D @expo-google-fonts/<famille>` puis `npm run assets`.
 
 ## Polices non libres (Calibri, Arial, Helvetica Neue…)

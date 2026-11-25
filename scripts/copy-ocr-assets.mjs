@@ -1,6 +1,6 @@
 // Copie le moteur de reconnaissance de texte (tesseract.js, Apache-2.0) et
-// les données des langues (français, anglais) dans public/ocr/ : l'OCR
-// fonctionne ainsi sans aucun service externe, et hors ligne une fois chargé.
+// les données des langues de l'interface dans public/ocr/ : l'OCR fonctionne
+// ainsi sans aucun service externe, et hors ligne une fois chargé.
 import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
@@ -23,9 +23,10 @@ for (const file of ["tesseract-core-lstm.wasm.js", "tesseract-core-simd-lstm.was
 }
 
 // Modèles compacts « best_int » : bonne précision pour une taille réduite.
-for (const lang of ["fra", "eng"]) {
+for (const lang of ["fra", "eng", "deu", "spa", "ita", "por", "nld", "chi_sim"]) {
   const file = join(root(`@tesseract.js-data/${lang}`), "4.0.0_best_int", `${lang}.traineddata.gz`);
-  if (existsSync(file)) copyFileSync(file, join(target, "lang", `${lang}.traineddata.gz`));
+  if (!existsSync(file)) throw new Error(`Données OCR manquantes : @tesseract.js-data/${lang}`);
+  copyFileSync(file, join(target, "lang", `${lang}.traineddata.gz`));
 }
 
 console.log(`Moteur OCR copié dans ${target}`);

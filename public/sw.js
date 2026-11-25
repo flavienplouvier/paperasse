@@ -6,16 +6,10 @@
 const CACHE = "paperasse-v2";
 const FONT_CACHE = "paperasse-catalogue-polices";
 const CATALOG_FONTS = "https://raw.githubusercontent.com/google/fonts/";
-// Polices complètes des documents, téléchargées une seule fois par appareil :
-// Marianne (serveur officiel, documents de l'État), polices libres par graisse
-// (Fontsource) et DejaVu (paquet officiel).
-const DOCUMENT_FONTS = [
-  "https://fonts.forge.apps.education.fr/marianne/",
-  "https://cdn.jsdelivr.net/fontsource/fonts/",
-  "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@",
-  // Langues de reconnaissance de texte non fournies avec l'application.
-  "https://cdn.jsdelivr.net/npm/@tesseract.js-data/",
-];
+// Polices complètes des documents qui ne peuvent pas être servies par le site,
+// téléchargées une seule fois par appareil : Marianne (serveur officiel,
+// documents de l'État) et polices du catalogue Google par graisse (Fontsource).
+const DOCUMENT_FONTS = ["https://fonts.forge.apps.education.fr/marianne/", "https://cdn.jsdelivr.net/fontsource/fonts/"];
 
 function cacheFirst(req, cacheName) {
   return caches.match(req).then(

@@ -16,7 +16,7 @@ export interface Language {
   label: string;
   /** Nom dans la langue elle-même, pour que chacun reconnaisse la sienne. */
   native: string;
-  /** Données OCR fournies avec l'application ; les autres sont téléchargées une fois au premier usage. */
+  /** Langue de reconnaissance courante (français, anglais) ; les autres, servies aussi par le site, sont signalées comme téléchargées au premier usage. */
   bundled: boolean;
 }
 

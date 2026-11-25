@@ -7,10 +7,6 @@ import { t } from "../i18n";
 /** Code Tesseract (« fra », « deu »…) ou mélange de langues fournies (« fra+eng »). */
 export type OcrLanguage = string;
 
-/** Langues fournies avec l'application ; les autres sont téléchargées une fois depuis le CDN. */
-const BUNDLED = ["fra", "eng"];
-const CDN = (lang: string) => `https://cdn.jsdelivr.net/npm/@tesseract.js-data/${lang}@1.0.0/4.0.0_best_int`;
-
 export interface OcrProgress {
   page: number;
   total: number;
@@ -23,14 +19,14 @@ const base = () => new URL(`${import.meta.env.BASE_URL}ocr/`, window.location.hr
 
 /**
  * Crée un moteur Tesseract à partir des fichiers hébergés avec l'application
- * (public/ocr). Une langue non fournie (allemand, chinois…) est téléchargée
- * une seule fois depuis le CDN, puis gardée sur l'appareil.
+ * (public/ocr), langues comprises : rien n'est demandé à un autre site. Chaque
+ * langue est téléchargée à sa première utilisation, puis gardée sur l'appareil.
  */
 async function makeWorker(lang: OcrLanguage, onLog: (status: string, progress: number) => void): Promise<Worker> {
   return createWorker(lang.split("+"), OEM.LSTM_ONLY, {
     workerPath: `${base()}worker.min.js`,
     corePath: `${base()}core`,
-    langPath: lang.split("+").every((l) => BUNDLED.includes(l)) ? `${base()}lang` : CDN(lang),
+    langPath: `${base()}lang`,
     gzip: true,
     cacheMethod: "write",
     logger: (m: { status: string; progress: number }) => onLog(m.status, m.progress),

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import { DEJAVU_URL, FONTSOURCE_URL, documentFontFor, fontWeight, restoreDocumentFont } from "./documentFonts";
 import { exportPdf } from "./exportPdf";
-import { getFont, type FontEntry } from "./fonts";
+import { getFont, registerLibrary, type FontEntry } from "./fonts";
 
 /** Familles libres connues (comme la bibliothèque et le catalogue en contiennent). */
 const lib = (family: string, category = "sans"): FontEntry => ({
@@ -16,6 +16,14 @@ const lib = (family: string, category = "sans"): FontEntry => ({
   category,
 });
 const catalog = [lib("Montserrat"), lib("Poppins"), lib("Open Sans"), lib("Atkinson Hyperlegible", "google")];
+// Graisses de la bibliothèque servies par le site (public/fonts/<famille>/).
+registerLibrary(
+  [
+    { slug: "montserrat", family: "Montserrat", category: "sans", styles: {}, weights: { "600": "Montserrat_600SemiBold.ttf", "800": "Montserrat_800ExtraBold.ttf" } },
+    { slug: "poppins", family: "Poppins", category: "sans", styles: {}, weights: { "300i": "Poppins_300Light_Italic.ttf" } },
+  ],
+  "/",
+);
 
 describe("graisse d'un nom de police PDF", () => {
   it("reconnaît les graisses courantes et l'italique", () => {
@@ -35,12 +43,17 @@ describe("graisse d'un nom de police PDF", () => {
 });
 
 describe("police complète du document", () => {
-  it("police libre à une graisse intermédiaire : fichier Fontsource de cette graisse", () => {
+  it("bibliothèque à une graisse intermédiaire : fichier de cette graisse servi par le site", () => {
     const key = documentFontFor("ABCDEF+Montserrat-SemiBold", {}, catalog)!;
-    expect(key).toContain(`${FONTSOURCE_URL}montserrat@latest/latin-600-normal.ttf`);
+    expect(key).toContain("|/fonts/montserrat/Montserrat_600SemiBold.ttf");
     expect(getFont(key)).toMatchObject({ family: "Montserrat", bold: true, italic: false });
-    expect(documentFontFor("Poppins-LightItalic", {}, catalog)).toContain("poppins@latest/latin-300-italic.ttf");
-    expect(documentFontFor("AtkinsonHyperlegible-Medium", {}, catalog)).toContain("atkinson-hyperlegible@latest/latin-500-normal.ttf");
+    expect(documentFontFor("Poppins-LightItalic", {}, catalog)).toContain("/fonts/poppins/Poppins_300Light_Italic.ttf");
+    // Graisse absente de la famille : pas de source, la police la plus proche est prise.
+    expect(documentFontFor("OpenSans-Medium", {}, catalog)).toBeNull();
+  });
+
+  it("catalogue Google à une graisse intermédiaire : fichier Fontsource de cette graisse", () => {
+    expect(documentFontFor("AtkinsonHyperlegible-Medium", {}, catalog)).toContain(`${FONTSOURCE_URL}atkinson-hyperlegible@latest/latin-500-normal.ttf`);
   });
 
   it("Regular et Bold restent servis par la bibliothèque (déjà complète)", () => {
@@ -48,7 +61,8 @@ describe("police complète du document", () => {
     expect(documentFontFor("OpenSans-Bold", {}, catalog)).toBeNull();
   });
 
-  it("DejaVu : fichier officiel du même nom", () => {
+  it("DejaVu : fichier officiel du même nom, servi par le site", () => {
+    expect(DEJAVU_URL).toBe("/fonts/dejavu/");
     const key = documentFontFor("QWERTY+DejaVuSans-Bold", {}, catalog)!;
     expect(key).toContain(`${DEJAVU_URL}DejaVuSans-Bold.ttf`);
     expect(getFont(key)).toMatchObject({ family: "DejaVu Sans", bold: true });
@@ -84,7 +98,7 @@ describe("police complète du document", () => {
       await exportPdf(await doc.save(), ["p"], [
         { id: "t", pageId: "p", kind: "text", origin: [72, 700], text: "Preuve", fontKey: key, fontSize: 14, color: "#000000", opacity: 1, rotation: 0 },
       ]);
-      expect(fetchMock).toHaveBeenCalledWith(`${FONTSOURCE_URL}montserrat@latest/latin-800-normal.ttf`);
+      expect(fetchMock).toHaveBeenCalledWith("/fonts/montserrat/Montserrat_800ExtraBold.ttf");
     });
   });
 });

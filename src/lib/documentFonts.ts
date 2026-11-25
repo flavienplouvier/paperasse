@@ -1,4 +1,4 @@
-import { getFonts, normalizeFontName, parseFontName, registerFontEntry, type FontEntry } from "./fonts";
+import { getFonts, libraryWeightUrl, normalizeFontName, parseFontName, registerFontEntry, type FontEntry } from "./fonts";
 import { restoreStateFont, stateFontFor } from "./stateFonts";
 import { t } from "../i18n";
 
@@ -7,16 +7,20 @@ import { t } from "../i18n";
  * officielle quand sa licence le permet, pour que les lettres absentes de la
  * police incorporée au PDF soient les vraies — même famille, même graisse :
  *
- *  - Marianne (documents de l'État) : serveur officiel, voir stateFonts.ts ;
- *  - DejaVu (licence libre Bitstream Vera / Arev) : paquet npm dejavu-fonts-ttf ;
- *  - polices libres du catalogue (OFL, Apache) à une graisse que la bibliothèque
- *    n'a pas (Light, Medium, SemiBold, ExtraBold, Black…) : Fontsource, par graisse.
+ *  - Marianne (documents de l'État) : serveur officiel, voir stateFonts.ts (sa
+ *    licence n'en permet pas la redistribution) ;
+ *  - DejaVu (licence libre Bitstream Vera / Arev) : servie par le site
+ *    (paquet officiel dejavu-fonts-ttf, copié par scripts/copy-fonts.mjs) ;
+ *  - polices libres de la bibliothèque à une graisse intermédiaire (Light,
+ *    Medium, SemiBold, ExtraBold, Black…) : servies par le site ;
+ *  - polices du catalogue Google Fonts (trop nombreuses pour être hébergées) :
+ *    Fontsource, par graisse.
  *
  * Les polices commerciales (Arial, Calibri, Segoe UI…) ne peuvent pas être
  * téléchargées : elles restent remplacées par leur équivalent le plus proche.
  */
 
-export const DEJAVU_URL = "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/";
+export const DEJAVU_URL = `${import.meta.env.BASE_URL}fonts/dejavu/`;
 export const FONTSOURCE_URL = "https://cdn.jsdelivr.net/fontsource/fonts/";
 
 const WEIGHTS: [RegExp, number][] = [
@@ -84,7 +88,10 @@ function dejavu(pdfFontName: string): DocFont | null {
   return { family, weight, italic, url: `${DEJAVU_URL}${name}.ttf` };
 }
 
-/** Police libre connue du catalogue, à une graisse intermédiaire : fichier Fontsource de cette graisse. */
+/**
+ * Police libre connue, à une graisse intermédiaire : fichier de cette graisse
+ * servi par le site pour la bibliothèque, Fontsource pour le catalogue Google.
+ */
 function openFontWeight(pdfFontName: string, hints: { bold?: boolean; italic?: boolean }, fonts: FontEntry[]): DocFont | null {
   const { weight, italic } = fontWeight(pdfFontName, hints);
   if (weight === 400 || weight === 700) return null; // la bibliothèque a déjà ces graisses complètes
@@ -93,6 +100,10 @@ function openFontWeight(pdfFontName: string, hints: { bold?: boolean; italic?: b
     (f) => f.source === "library" && (f.category === "google" || f.slug) && f.family && normalizeFontName(f.family) === base,
   );
   if (!entry?.family) return null;
+  if (entry.category !== "google" && entry.slug) {
+    const url = libraryWeightUrl(entry.slug, weight, italic);
+    return url ? { family: entry.family, weight, italic, url } : null;
+  }
   const id = entry.family.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return { family: entry.family, weight, italic, url: `${FONTSOURCE_URL}${id}@latest/latin-${weight}-${italic ? "italic" : "normal"}.ttf` };
 }

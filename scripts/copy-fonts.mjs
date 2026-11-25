@@ -2,7 +2,10 @@
 // l'application : pour chaque famille @expo-google-fonts/* listée dans
 // package.json, copie les styles normal, gras, italique et gras italique
 // (ou les graisses les plus proches) dans public/fonts/<famille>/, avec la
-// licence, et écrit public/fonts/catalog.json.
+// licence, et écrit public/fonts/catalog.json. Les autres graisses (Light,
+// Medium, SemiBold…) sont copiées aussi : elles servent à compléter le texte
+// d'un PDF composé dans cette graisse, sans rien demander à un autre site.
+// Copie enfin DejaVu (paquet officiel dejavu-fonts-ttf) dans public/fonts/dejavu/.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
@@ -80,14 +83,28 @@ for (const dep of deps.sort()) {
     copyFileSync(v.path, join(target, slug, v.file));
     styles[key] = v.file;
   }
+  // Toutes les graisses : « 600 » (droit) ou « 600i » (italique) → fichier.
+  const weights = {};
+  for (const v of list) {
+    if (!existsSync(join(target, slug, v.file))) copyFileSync(v.path, join(target, slug, v.file));
+    weights[`${v.weight}${v.italic ? "i" : ""}`] = v.file;
+  }
   for (const lic of ["LICENSE_FONT", "OFL.txt", "LICENSE"]) {
     if (existsSync(join(root, lic))) {
       copyFileSync(join(root, lic), join(target, slug, "LICENSE.txt"));
       break;
     }
   }
-  catalog.push({ slug, family: displayName(slug), category: categoryOf(slug), styles });
+  catalog.push({ slug, family: displayName(slug), category: categoryOf(slug), styles, weights });
 }
+
+// DejaVu (licence libre Bitstream Vera / Arev) : polices complètes des PDF composés en DejaVu.
+const dejavu = dirname(require.resolve("dejavu-fonts-ttf/package.json"));
+mkdirSync(join(target, "dejavu"), { recursive: true });
+for (const file of readdirSync(join(dejavu, "ttf"))) {
+  if (/^DejaVu(Sans|Serif)/.test(file)) copyFileSync(join(dejavu, "ttf", file), join(target, "dejavu", file));
+}
+copyFileSync(join(dejavu, "LICENSE"), join(target, "dejavu", "LICENSE.txt"));
 
 writeFileSync(join(target, "catalog.json"), JSON.stringify(catalog));
 console.log(`Bibliothèque de polices : ${catalog.length} familles copiées dans ${target}`);

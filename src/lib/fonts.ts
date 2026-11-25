@@ -214,6 +214,8 @@ export interface LibraryFamily {
   family: string;
   category: string;
   styles: Partial<Record<LibraryStyle, string>>;
+  /** Toutes les graisses fournies : « 600 » (droit) ou « 600i » (italique) → fichier. */
+  weights?: Record<string, string>;
 }
 type LibraryStyle = "regular" | "bold" | "italic" | "boldItalic";
 
@@ -224,9 +226,21 @@ const STYLE_LABEL: Record<LibraryStyle, string> = {
   boldItalic: msg("Gras italique"),
 };
 
+/** Graisses de chaque famille de la bibliothèque (slug → graisse → adresse du fichier). */
+const libraryWeights = new Map<string, Map<string, string>>();
+
+/**
+ * Adresse du fichier d'une graisse de la bibliothèque (servi par le site), ou
+ * undefined si la famille n'a pas cette graisse.
+ */
+export function libraryWeightUrl(slug: string, weight: number, italic: boolean): string | undefined {
+  return libraryWeights.get(slug)?.get(`${weight}${italic ? "i" : ""}`);
+}
+
 /** Ajoute les familles du catalogue au registre (sans télécharger les fichiers). */
 export function registerLibrary(catalog: LibraryFamily[], baseUrl: string): void {
   for (const fam of catalog) {
+    libraryWeights.set(fam.slug, new Map(Object.entries(fam.weights ?? {}).map(([w, file]) => [w, `${baseUrl}fonts/${fam.slug}/${file}`])));
     for (const [style, file] of Object.entries(fam.styles) as [LibraryStyle, string][]) {
       const key = `lib:${fam.slug}:${style}`;
       registry.set(key, {
